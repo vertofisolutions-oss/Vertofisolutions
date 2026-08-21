@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: vertofi
+          POSTGRES_PASSWORD: vertofi
+          POSTGRES_DB: vertofi
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U vertofi"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://vertofi:vertofi@localhost:5432/vertofi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile=false
+      - name: Event wiring guard (consumer topics + producer domains)
+        run: node scripts/check-event-wiring.mjs
+      - name: Build shared packages
+        run: pnpm build
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+        continue-on-error: true
+      - name: Unit tests
+        run: pnpm test
+      # docs/17: security scans, isolation tests, OpenAPI contract checks
+      # are added here as the suite grows.

@@ -1,0 +1,32 @@
+# Generic production image for a Node/TypeScript service in the monorepo.
+# Build with: docker build -f infra/docker/Dockerfile.node --build-arg SERVICE=auth -t vertofi/auth .
+ARG NODE_VERSION=22
+FROM node:${NODE_VERSION}-slim AS base
+RUN corepack enable
+WORKDIR /repo
+
+# ---- deps: install with the full workspace manifest set ----
+FROM base AS deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* .npmrc tsconfig.base.json ./
+COPY packages ./packages
+COPY services ./services
+RUN pnpm install --frozen-lockfile=false
+
+# ---- build: compile the shared packages + the target service ----
+FROM deps AS build
+ARG SERVICE
+# Remove ONLY our own stale build outputs (packages/*/dist, services/*/dist) so
+# TypeScript compiles fresh. Must NOT touch node_modules — dependencies like
+# express-rate-limit ship a dist/ folder, and a broad `find -name dist` would
+# delete them and break runtime module resolution.
+RUN rm -rf /repo/packages/*/dist /repo/services/*/dist 2>/dev/null || true
+RUN pnpm --filter "@vertofi/${SERVICE}..." build
+
+# ---- runtime: slim image with only what the service needs ----
+FROM base AS runtime
+ARG SERVICE
+ENV NODE_ENV=production
+COPY --from=build /repo /repo
+WORKDIR /repo/services/${SERVICE}
+EXPOSE 4000-4099
+CMD ["node", "dist/main.js"]

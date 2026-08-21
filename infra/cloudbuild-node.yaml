@@ -1,0 +1,21 @@
+# Manual fallback build for a single Node service (used when GitHub Actions is
+# unavailable, e.g. Actions minutes exhausted). Builds in Cloud Build (billed to
+# the GCP project) and pushes to Artifact Registry.
+#   gcloud builds submit --config infra/cloudbuild-node.yaml \
+#     --substitutions=_SERVICE=accounting,_TAG=manual-<sha> .
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -f
+      - infra/docker/Dockerfile.node
+      - --build-arg
+      - SERVICE=${_SERVICE}
+      - -t
+      - asia-south1-docker.pkg.dev/vertofi-prod-001/vertofi/${_SERVICE}:${_TAG}
+      - .
+images:
+  - asia-south1-docker.pkg.dev/vertofi-prod-001/vertofi/${_SERVICE}:${_TAG}
+options:
+  machineType: 'E2_HIGHCPU_8'
+timeout: 2400s

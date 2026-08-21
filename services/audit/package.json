@@ -1,0 +1,30 @@
+{
+  "name": "@vertofi/audit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --watch --loader ts-node/esm src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "migrate": "node --loader ts-node/esm scripts/migrate.ts",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@vertofi/events": "workspace:*",
+    "@vertofi/nest-common": "workspace:*",
+    "@vertofi/observability": "workspace:*",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.7",
+    "@types/pg": "^8.11.10",
+    "@vertofi/config": "workspace:*",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

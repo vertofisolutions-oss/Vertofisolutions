@@ -1,0 +1,76 @@
+{
+  "_comment": "GoDaddy DNS records for vertofi.com — updated for GKE + Vercel architecture",
+  "_instructions": "Go to GoDaddy → DNS → Manage DNS → Add/Edit these records",
+  "records": [
+    {
+      "_note": "Root domain → Vercel landing page (cannot CNAME root, use A record)",
+      "type": "A",
+      "name": "@",
+      "value": "76.76.21.21",
+      "ttl": 600
+    },
+    {
+      "_note": "www → Vercel landing page",
+      "type": "CNAME",
+      "name": "www",
+      "value": "cname.vercel-dns.com",
+      "ttl": 600
+    },
+    {
+      "_note": "Main customer app → Vercel web-business",
+      "type": "CNAME",
+      "name": "app",
+      "value": "cname.vercel-dns.com",
+      "ttl": 600
+    },
+    {
+      "_note": "Panels catch-all → Vercel web-panels",
+      "type": "CNAME",
+      "name": "panels",
+      "value": "cname.vercel-dns.com",
+      "ttl": 600
+    },
+    {
+      "_note": "Associates professional portal → Vercel web-panels (domain-routed)",
+      "type": "CNAME",
+      "name": "associates",
+      "value": "cname.vercel-dns.com",
+      "ttl": 600
+    },
+    {
+      "_note": "Accountant teams portal → Vercel web-panels (domain-routed)",
+      "type": "CNAME",
+      "name": "accountants",
+      "value": "cname.vercel-dns.com",
+      "ttl": 600
+    },
+    {
+      "_note": "BHS Intelligence analysts → Vercel web-panels (domain-routed)",
+      "type": "CNAME",
+      "name": "bhs",
+      "value": "cname.vercel-dns.com",
+      "ttl": 600
+    },
+    {
+      "_note": "Legal teams portal → Vercel web-panels (domain-routed)",
+      "type": "CNAME",
+      "name": "legal",
+      "value": "cname.vercel-dns.com",
+      "ttl": 600
+    },
+    {
+      "_note": "Internal admin dashboard → Vercel web-admin",
+      "type": "CNAME",
+      "name": "admin",
+      "value": "cname.vercel-dns.com",
+      "ttl": 600
+    },
+    {
+      "_note": "Backend API → GKE static IP (NOT Vercel)",
+      "type": "A",
+      "name": "api",
+      "value": "8.233.130.121",
+      "ttl": 300
+    }
+  ]
+}

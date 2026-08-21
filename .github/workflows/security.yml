@@ -1,0 +1,92 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1" # weekly
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  codeql:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: [javascript-typescript, python]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/analyze@v3
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile=false
+      # Fail the build on HIGH/CRITICAL advisories so the pnpm.overrides fixes
+      # can't silently regress. (moderate/low still reported, non-blocking.)
+      - run: pnpm audit --prod --audit-level=high
+
+  cross-tenant-authz:
+    # Live IDOR/tenant-isolation regression test. Gated on secrets so it only
+    # runs where a target env + test creds are configured (skips on forks/PRs).
+    # NOTE: `secrets` can't be used in `if:` — mirror into env, then gate on env.
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' }}
+    env:
+      BASE: ${{ secrets.AUTHZ_BASE }}
+      LOGIN_ID: ${{ secrets.AUTHZ_LOGIN_ID }}
+      LOGIN_PW: ${{ secrets.AUTHZ_LOGIN_PW }}
+      OWN_ORG: ${{ secrets.AUTHZ_OWN_ORG }}
+      OTHER_ORG: ${{ secrets.AUTHZ_OTHER_ORG }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Cross-tenant authz probe
+        if: ${{ env.LOGIN_ID != '' }}
+        run: node infra/security/cross-tenant-authz-test.mjs
+
+  filesystem-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem + IaC scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+  terraform-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Validate
+        working-directory: infra/terraform
+        run: |
+          terraform init -backend=false
+          terraform validate
+          terraform fmt -check -recursive

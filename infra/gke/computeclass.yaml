@@ -1,0 +1,17 @@
+# Custom Autopilot ComputeClass: large n2 nodes with SMALL (40GB) pd-balanced
+# boot disks. The default ~100GB/node exhausts the 250GB SSD_TOTAL_GB quota at
+# just 2 nodes; at 40GB a node the same quota fits ~6 nodes — enough for all 32
+# services with NO SSD quota increase. Larger nodes (min 8 cores) also pack more
+# pods per node, reducing per-node disk overhead.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: vertofi-std
+spec:
+  priorities:
+    - machineFamily: n2
+      minCores: 8
+      storage:
+        bootDiskType: pd-balanced
+        bootDiskSize: 40
+  whenUnsatisfiable: ScaleUpAnyway

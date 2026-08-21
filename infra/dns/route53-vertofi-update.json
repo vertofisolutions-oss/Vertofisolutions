@@ -1,0 +1,85 @@
+{
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "vertofi.com.",
+        "Type": "A",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "76.76.21.21" }]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "www.vertofi.com.",
+        "Type": "A",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "76.76.21.21" }]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "app.vertofi.com.",
+        "Type": "A",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "76.76.21.21" }]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "panels.vertofi.com.",
+        "Type": "A",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "76.76.21.21" }]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "admin.vertofi.com.",
+        "Type": "A",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "76.76.21.21" }]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "associates.vertofi.com.",
+        "Type": "A",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "76.76.21.21" }]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "accountants.vertofi.com.",
+        "Type": "A",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "76.76.21.21" }]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "bhs.vertofi.com.",
+        "Type": "A",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "76.76.21.21" }]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "legal.vertofi.com.",
+        "Type": "A",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "76.76.21.21" }]
+      }
+    }
+  ]
+}

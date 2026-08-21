@@ -1,0 +1,85 @@
+# Default values for a Vertofi microservice. Override per service/env.
+# Implements docs/14 (infra) and docs/18 (scale + reliability).
+
+name: auth
+# Image lives in Google Artifact Registry:
+#   <region>-docker.pkg.dev/<project>/vertofi/<service>
+image:
+  repository: asia-south1-docker.pkg.dev/PROJECT_ID/vertofi/auth
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# GKE Workload Identity: the KSA is bound to a GCP service account that holds
+# the runtime IAM (Secret Manager accessor, Cloud SQL client, GCS, etc.).
+serviceAccount:
+  create: true
+  # Set to the GCP SA email to enable Workload Identity, e.g.
+  # vertofi-runtime@PROJECT_ID.iam.gserviceaccount.com
+  gcpServiceAccount: ""
+
+replicaCount: 3
+port: 4001
+
+resources:
+  requests:
+    cpu: 50m      # lightweight NestJS APIs; actual idle usage ~10–30m
+    memory: 128Mi # quota-fit: 32 svcs × 128Mi = 4GB, fits 2×28GB nodes
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+# Horizontal Pod Autoscaler — scales on CPU and (for workers) Kafka lag.
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 30
+  targetCPUUtilizationPercentage: 65
+  # Optional custom metric (e.g. consumer lag) via Prometheus Adapter.
+  customMetric:
+    enabled: false
+    name: kafka_consumergroup_lag
+    targetAverageValue: "1000"
+
+# PodDisruptionBudget keeps capacity during voluntary disruptions (docs/18).
+pdb:
+  enabled: true
+  minAvailable: 2
+
+# Default-deny network policy; only the gateway + observability may reach pods.
+networkPolicy:
+  enabled: true
+  allowFromNamespaces:
+    - vertofi-gateway
+    - vertofi-observability
+
+# Prometheus scraping (docs/16).
+serviceMonitor:
+  enabled: true
+  path: /metrics
+  interval: 15s
+
+# Secrets are pulled from GCP Secret Manager via External Secrets Operator.
+# Secrets are named "vertofi-<service>-<KEY>" in Secret Manager and rewritten
+# to bare KEY env vars in the pod (see templates/externalsecret.yaml).
+externalSecrets:
+  enabled: true
+  storeRef: gcp-secret-manager
+  # M-4: Using shared prefix for now. Migrate to per-service prefixes
+  # (vertofi-<service>-<KEY>) for least-privilege. Each service should only
+  # receive the secrets it actually needs (e.g. auth needs SMTP, not Razorpay).
+  remoteKeyPrefix: vertofi-shared
+
+probes:
+  liveness: /health
+  readiness: /ready
+
+env:
+  NODE_ENV: production
+  # C-1 fix: pool max reduced from 20 → 5 per service replica so total
+  # connections stay within Cloud SQL limits even at full HPA scale.
+  # Formula: ~20 DB services × 30 replicas × 5 = 3,000 max (set max_connections
+  # to ≥3,500 via database_flags in Terraform). If PgBouncer is deployed in
+  # transaction mode, lower this further (2–3) as PgBouncer multiplexes.
+  DB_POOL_MAX: "5"
+
+topologySpreadConstraints: true   # spread across AZs/nodes

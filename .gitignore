@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# Env & secrets — NEVER commit real secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Operator handover notes — may contain live credentials (DB password, account ids)
+CLAUDE_CODE_KNOWLEDGE.md
+*.handover.md
+infra/sm-policy.json
+infra/alb-policy.json
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Coverage & test
+coverage/
+.nyc_output/
+
+# Turbo / cache
+.turbo/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfplan
+tfplan
+
+# Local data volumes
+infra/.data/
+
+.vercel
+.env.production
+docs/templates/_scan/

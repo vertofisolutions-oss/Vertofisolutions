@@ -1,0 +1,75 @@
+﻿apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: vertofi-production
+  region: ap-south-1
+  version: "1.30"
+  tags:
+    Project: vertofi
+    ManagedBy: eksctl
+    Env: production
+
+vpc:
+  id: <VPC_ID>
+  subnets:
+    private:
+      ap-south-1a: { id: <PRIVATE_SUBNET_1A> }
+      ap-south-1b: { id: <PRIVATE_SUBNET_1B> }
+      ap-south-1c: { id: <PRIVATE_SUBNET_1C> }
+    public:
+      ap-south-1a: { id: <PUBLIC_SUBNET_1A> }
+      ap-south-1b: { id: <PUBLIC_SUBNET_1B> }
+      ap-south-1c: { id: <PUBLIC_SUBNET_1C> }
+
+iam:
+  withOIDC: true
+
+addons:
+  - name: vpc-cni
+  - name: coredns
+  - name: kube-proxy
+  - name: aws-ebs-csi-driver
+
+managedNodeGroups:
+  - name: general
+    instanceType: m6i.large
+    minSize: 3
+    maxSize: 6
+    desiredCapacity: 3
+    privateNetworking: true
+    labels:
+      role: general
+    tags:
+      Project: vertofi
+    amiFamily: AmazonLinux2023
+    iam:
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonTextractFullAccess
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+        - arn:aws:iam::aws:policy/AmazonSESFullAccess
+
+  - name: workers
+    instanceType: c6i.xlarge
+    minSize: 2
+    maxSize: 4
+    desiredCapacity: 2
+    privateNetworking: true
+    labels:
+      role: worker
+    taints:
+      - key: workload
+        value: heavy
+        effect: NoSchedule
+    iam:
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonTextractFullAccess
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite

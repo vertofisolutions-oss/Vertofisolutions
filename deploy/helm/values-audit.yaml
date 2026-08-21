@@ -1,0 +1,42 @@
+# Audit service — override values (C-3 fix).
+#
+# The audit service maintains a DB-level hash chain across all platform events.
+# Running more than 1 replica in the same Kafka consumer group (audit-blackbox)
+# causes Kafka to split partitions across replicas. Each replica then builds an
+# independent, divergent hash chain writing to the same audit_log table —
+# breaking the tamper-evidence guarantee entirely.
+#
+# Fix: pin to exactly 1 replica, disable HPA. The code-level fix (prev_hash
+# derived from DB via SELECT … FOR UPDATE inside the INSERT transaction) makes
+# the chain correct at any replica count, but scale-out requires migrating to a
+# partition-local chain design first. Until that migration is complete, 1 replica
+# is the safe and correct setting.
+#
+# Throughput note: the audit service is a write-only append log consuming ALL
+# domain topics. At high throughput, move to eachBatch + partition-local chains
+# (one hash chain per Kafka partition / org shard) so it can scale horizontally.
+
+name: audit
+
+replicaCount: 1
+
+autoscaling:
+  enabled: false   # Must NOT scale until partition-local chain is implemented.
+
+pdb:
+  enabled: false   # Single replica — PDB minAvailable: 2 would block rollouts.
+
+# Audit writes to its own schema and does not call other services.
+# Keep the network policy tight.
+networkPolicy:
+  enabled: true
+  allowFromNamespaces:
+    - vertofi-gateway
+    - vertofi-observability
+
+image:
+  repository: asia-south1-docker.pkg.dev/PROJECT_ID/vertofi/audit
+  tag: latest
+  pullPolicy: IfNotPresent
+
+port: 4004

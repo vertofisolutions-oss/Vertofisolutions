@@ -1,0 +1,34 @@
+{
+  "name": "@vertofi/accounting-sync",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --watch --loader ts-node/esm src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@vertofi/auth-guards": "workspace:*",
+    "@vertofi/connectors": "workspace:*",
+    "@vertofi/events": "workspace:*",
+    "@vertofi/nest-common": "workspace:*",
+    "@vertofi/observability": "workspace:*",
+    "@vertofi/tenancy": "workspace:*",
+    "helmet": "^8.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@vertofi/config": "workspace:*",
+    "@types/node": "^22.10.7",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

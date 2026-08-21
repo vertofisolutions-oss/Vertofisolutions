@@ -1,0 +1,13 @@
+# Keep the Cloud Build upload context small + reproducible. Docker rebuilds deps
+# fresh, so exclude installed/compiled artifacts and non-build assets.
+.git
+**/node_modules
+**/dist
+**/.next
+**/*.tsbuildinfo
+infra/terraform/.terraform
+**/__pycache__
+*.log
+infra/terraform/*.log
+assets
+docs

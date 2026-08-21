@@ -1,0 +1,18 @@
+﻿{
+  "clusterName": "vertofi-production",
+  "serverless": {
+    "vpcConfigs": [
+      {
+        "subnetIds": ["subnet-05db2247aba3652d1", "subnet-08fd310d821349a5c", "subnet-0930be64db02d09c3"],
+        "securityGroupIds": ["sg-0961d893bd43ef6f0"]
+      }
+    ],
+    "clientAuthentication": {
+      "sasl": {
+        "iam": {
+          "enabled": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "@vertofi/nest-common",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@vertofi/events": "workspace:*",
+    "@vertofi/observability": "workspace:*",
+    "@vertofi/tenancy": "workspace:*",
+    "pg": "^8.13.1"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "helmet": "^8.0.0"
+  },
+  "devDependencies": {
+    "@vertofi/config": "workspace:*",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@types/node": "^22.10.7",
+    "@types/pg": "^8.11.10",
+    "helmet": "^8.0.0",
+    "typescript": "^5.7.3",
+    "rimraf": "^6.0.1"
+  }
+}

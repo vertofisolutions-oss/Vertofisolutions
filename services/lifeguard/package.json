@@ -1,0 +1,38 @@
+{
+  "name": "@vertofi/lifeguard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --watch --loader ts-node/esm src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "migrate": "node --loader ts-node/esm scripts/migrate.ts",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@vertofi/auth-guards": "workspace:*",
+    "@vertofi/events": "workspace:*",
+    "@vertofi/nest-common": "workspace:*",
+    "@vertofi/observability": "workspace:*",
+    "@vertofi/tenancy": "workspace:*",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "helmet": "^8.0.0",
+    "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@vertofi/config": "workspace:*",
+    "@types/node": "^22.10.7",
+    "@types/pg": "^8.11.10",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

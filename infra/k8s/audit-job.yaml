@@ -1,0 +1,28 @@
+﻿apiVersion: batch/v1
+kind: Job
+metadata:
+  name: audit-migration
+  namespace: vertofi-commerce
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrate
+        image: postgres:16-alpine
+        command: ["sh", "-c"]
+        args:
+        - |
+          psql $DATABASE_URL -c "CREATE SCHEMA IF NOT EXISTS audit;" && \
+          psql $DATABASE_URL -f /migrations/001_init.sql
+        envFrom:
+        - secretRef:
+            name: audit-secrets
+        volumeMounts:
+        - name: migration
+          mountPath: /migrations
+      volumes:
+      - name: migration
+        configMap:
+          name: audit-migration-sql

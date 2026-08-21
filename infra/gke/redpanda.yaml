@@ -1,0 +1,72 @@
+# Single-node Redpanda (Kafka API) for the event bus, in-cluster. Kafka-API
+# compatible, so @vertofi/events (kafkajs) + the Python aiokafka consumers talk
+# to it unchanged via KAFKA_BROKERS=redpanda.vertofi-messaging:9092 (plain TCP).
+#
+# Launch-grade: 1 broker with a 10Gi persistent disk. Events are also durably
+# stored in each service's Postgres outbox, so this is acceptable for launch.
+# For true HA later, switch KAFKA_BROKERS to Confluent Cloud (env-only change).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vertofi-messaging
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redpanda
+  namespace: vertofi-messaging
+spec:
+  serviceName: redpanda
+  replicas: 1
+  selector:
+    matchLabels: { app: redpanda }
+  template:
+    metadata:
+      labels: { app: redpanda }
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 101        # redpanda uid/gid — make the mounted PVC writable
+        runAsUser: 101
+        runAsGroup: 101
+      containers:
+        - name: redpanda
+          image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+          args:
+            - redpanda
+            - start
+            - --mode=dev-container
+            - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+            - --advertise-kafka-addr=PLAINTEXT://redpanda.vertofi-messaging.svc.cluster.local:9092
+          ports:
+            - { name: kafka, containerPort: 9092 }
+            - { name: admin, containerPort: 9644 }
+          resources:
+            requests: { cpu: "250m", memory: "512Mi" }  # dev-container mode, launch-grade
+            limits: { cpu: "1", memory: "2Gi" }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/redpanda/data }
+          readinessProbe:
+            tcpSocket: { port: 9092 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda
+  namespace: vertofi-messaging
+spec:
+  type: ClusterIP
+  selector: { app: redpanda }
+  ports:
+    - { name: kafka, port: 9092, targetPort: 9092 }
+    - { name: admin, port: 9644, targetPort: 9644 }

@@ -1,0 +1,117 @@
+# Vertofi local development stack — real dependencies, no mocks.
+# Mirrors production: Postgres (Aurora), Redis, Kafka (Redpanda), S3 (MinIO), OpenSearch.
+name: vertofi
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vertofi-postgres
+    environment:
+      POSTGRES_USER: vertofi
+      POSTGRES_PASSWORD: vertofi
+      POSTGRES_DB: vertofi
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./.data/postgres:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vertofi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: vertofi-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./.data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: vertofi-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --overprovisioned
+      - --node-id=0
+      - --kafka-addr=PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:19092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:29092,OUTSIDE://localhost:19092
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+    volumes:
+      - ./.data/redpanda:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: vertofi-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: vertofi
+      MINIO_ROOT_PASSWORD: vertofi-secret
+      # Allow the browser apps to PUT directly to presigned URLs (no CORS errors).
+      # In production the S3 bucket gets an equivalent CORS policy via Terraform.
+      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./.data/minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Creates the documents bucket on startup
+  minio-init:
+    image: minio/mc:latest
+    container_name: vertofi-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 vertofi vertofi-secret &&
+      mc mb --ignore-existing local/vertofi-documents &&
+      mc anonymous set none local/vertofi-documents &&
+      echo 'bucket ready';
+      "
+
+  opensearch:
+    image: opensearchproject/opensearch:2.16.0
+    container_name: vertofi-opensearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./.data/opensearch:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
