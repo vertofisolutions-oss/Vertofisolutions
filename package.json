@@ -9,8 +9,10 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
+    "build": "pnpm --filter @vertofi/web-landing build",
+    "dev": "pnpm --filter @vertofi/web-landing dev",
+    "start": "pnpm --filter @vertofi/web-landing start",
+    "turbo:build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

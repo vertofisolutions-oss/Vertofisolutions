@@ -1,0 +1,7 @@
+﻿{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "pnpm --filter @vertofi/web-landing build",
+  "outputDirectory": "apps/web-landing/.next",
+  "installCommand": "pnpm install"
+}
