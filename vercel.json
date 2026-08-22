@@ -1,5 +1,11 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "outputDirectory": "apps/web-landing/.next"
+  "framework": "vite",
+  "buildCommand": "vite build && node scripts/post-build.mjs",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }

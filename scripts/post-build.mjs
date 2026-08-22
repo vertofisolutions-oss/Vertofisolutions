@@ -1,11 +1,17 @@
 import fs from "fs";
 import path from "path";
 
-const src = path.resolve("apps/web-landing/.next");
-const dest = path.resolve(".next");
+const src = path.resolve("dist");
+const targets = [
+  path.resolve("apps/web-landing/dist"),
+  path.resolve("apps/web-landing/.next"),
+  path.resolve(".next")
+];
 
 if (fs.existsSync(src)) {
-  fs.mkdirSync(dest, { recursive: true });
-  fs.cpSync(src, dest, { recursive: true });
-  console.log("Successfully mirrored apps/web-landing/.next to .next");
+  for (const t of targets) {
+    fs.mkdirSync(t, { recursive: true });
+    fs.cpSync(src, t, { recursive: true });
+  }
+  console.log("Successfully mirrored dist output across all directories.");
 }
