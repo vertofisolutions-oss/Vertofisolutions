@@ -1,0 +1,17 @@
+/* Vertofi base styles — imported by every app. Tokens come from the
+   Tailwind preset (@vertofi/config/tailwind-preset). See docs/12. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #ffffff;
+  color: #111827;
+  font-family: "Geist", "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

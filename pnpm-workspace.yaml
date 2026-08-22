@@ -1,2 +1,10 @@
 packages:
+  - "apps/*"
   - "."
+
+allowBuilds:
+  "@firebase/util": true
+  "@nestjs/core": true
+  protobufjs: true
+  sharp: true
+  vue-demi: true

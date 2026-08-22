@@ -1,27 +1,24 @@
 {
-  "name": "@vertofi/web-landing",
+  "name": "vertofi",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build && node scripts/post-build.mjs",
-    "preview": "vite preview",
-    "start": "vite preview --port 3000",
-    "typecheck": "tsc --noEmit"
+    "dev": "pnpm --filter @vertofi/web-landing dev",
+    "build": "pnpm --filter @vertofi/web-landing build",
+    "start": "pnpm --filter @vertofi/web-landing start",
+    "typecheck": "pnpm --filter @vertofi/web-landing typecheck"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^6.1.0",
     "clsx": "^2.1.1",
     "firebase": "^11.1.0",
     "framer-motion": "^11.15.0",
     "jose": "^5.9.6",
     "lucide-react": "^0.469.0",
+    "next": "^15.1.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.1.0",
-    "tailwind-merge": "^2.6.0",
-    "vite": "^8.2.2"
+    "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",
@@ -31,5 +28,12 @@
     "postcss": "^8.5.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "protobufjs",
+      "sharp"
+    ]
   }
 }
