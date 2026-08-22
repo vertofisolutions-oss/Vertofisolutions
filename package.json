@@ -1,5 +1,5 @@
 {
-  "name": "vertofi-company",
+  "name": "@vertofi/web-landing",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -31,6 +31,11 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@firebase/util",
+      "protobufjs",
+      "sharp"
+    ],
+    "ignoredBuiltDependencies": [
       "@firebase/util",
       "protobufjs",
       "sharp"
