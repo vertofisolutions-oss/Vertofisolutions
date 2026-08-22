@@ -11,12 +11,12 @@ export function cleanUrl(value: string | undefined, fallback: string): string {
   return (value ?? fallback).replace(/\s+/g, "").replace(/\/+$/, "");
 }
 
-export const BUSINESS_URL = cleanUrl(process.env.NEXT_PUBLIC_BUSINESS_URL, "http://localhost:3001");
+export const BUSINESS_URL = cleanUrl(process.env.NEXT_PUBLIC_BUSINESS_URL, "");
 
 export const links = {
-  getStarted: `${BUSINESS_URL}/register`,
-  login: `${BUSINESS_URL}/login`,
-  checkBhs: `/bhs`,
+  getStarted: "/register",
+  login: "/login",
+  checkBhs: "/bhs",
   bookDemo: "/contact",
 };
 
