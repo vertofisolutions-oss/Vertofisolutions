@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { Receipt, FileText, ShieldCheck, AlertTriangle, Plus, TrendingUp } from "lucide-react";
-import { Button, Card } from "@vertofi/ui";
+import { Button, Card } from "@/ui";
 import { api } from "@/lib/api";
 
 const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;

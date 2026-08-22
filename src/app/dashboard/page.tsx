@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, EmptyState } from "@vertofi/ui";
+import { Badge, Button, Card, EmptyState } from "@/ui";
 import { Activity, Bell, HeartPulse, ShieldCheck, Wallet } from "lucide-react";
 import { SidebarShell } from "../../components/SidebarShell";
 import { api, getAccess, getOrgId } from "@/lib/api";

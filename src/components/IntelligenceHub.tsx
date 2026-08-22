@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HeartPulse, TrendingDown, AlertTriangle, Activity, Archive, LifeBuoy, Bot, Handshake, ArrowRight } from "lucide-react";
-import { Card } from "@vertofi/ui";
+import { Card } from "@/ui";
 import { api } from "@/lib/api";
 
 const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;

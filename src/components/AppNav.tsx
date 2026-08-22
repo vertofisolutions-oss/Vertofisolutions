@@ -3,7 +3,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { Button } from "@vertofi/ui";
+import { Button } from "@/ui";
 import { clearTokens } from "@/lib/api";
 
 const ITEMS: { label: string; href: string }[] = [

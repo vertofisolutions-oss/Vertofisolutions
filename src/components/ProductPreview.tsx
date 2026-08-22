@@ -1,4 +1,4 @@
-import { cn } from "@vertofi/ui";
+import { cn } from "@/ui";
 import { Activity, Radar, AlarmClock, SearchCheck, BrainCircuit, Boxes, LifeBuoy, RefreshCw, type LucideIcon } from "lucide-react";
 import { BHS_DIMENSIONS } from "../lib/site";
 

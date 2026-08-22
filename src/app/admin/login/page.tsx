@@ -1,5 +1,5 @@
 ﻿"use client";
-import { PanelLogin } from "@vertofi/ui";
+import { PanelLogin } from "@/ui";
 
 export default function AdminLoginPage() {
   return (

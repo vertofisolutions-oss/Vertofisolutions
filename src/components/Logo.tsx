@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { cn } from "@vertofi/ui";
+import { cn } from "@/ui";
 
 /** Vertofi wordmark with actual brand logo asset. */
 export function Logo({ className }: { className?: string }) {

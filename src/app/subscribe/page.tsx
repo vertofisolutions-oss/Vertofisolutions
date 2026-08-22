@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Card } from "@vertofi/ui";
+import { Badge, Card } from "@/ui";
 import { SidebarShell } from "../../components/SidebarShell";
 import { api, getAccess, getOrgId, ApiError } from "@/lib/api";
 

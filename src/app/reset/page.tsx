@@ -12,7 +12,7 @@ import {
   sendPhoneOtp,
   confirmPhoneOtp,
   type ConfirmationResult,
-} from "@vertofi/ui";
+} from "@/ui";
 import { api, ApiError } from "@/lib/api";
 
 /**

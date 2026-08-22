@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AuthShell, AuthButton, Callout } from "@vertofi/ui";
+import { AuthShell, AuthButton, Callout } from "@/ui";
 import { api, getAccess, getOrgId, ApiError } from "@/lib/api";
 import { Celebration } from "../../components/Celebration";
 

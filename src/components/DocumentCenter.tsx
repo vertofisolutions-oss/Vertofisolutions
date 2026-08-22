@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Eye, Download, Share2, MessageCircle, Mail, Copy, ArrowRightLeft, Loader2, FileText, Clock, X } from "lucide-react";
-import { Card, EmptyState } from "@vertofi/ui";
+import { Card, EmptyState } from "@/ui";
 import { api } from "@/lib/api"; import { ReportViewerModal } from "./ReportsCenter";
 
 type DocDetail = NonNullable<Awaited<ReturnType<typeof api.acc.docDetail>>>;

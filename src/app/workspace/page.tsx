@@ -11,7 +11,7 @@ import { CustomersView } from "../../components/CustomersView";
 import { DocumentCenter } from "../../components/DocumentCenter";
 import { ReportsCenter } from "../../components/ReportsCenter";
 import { IntelligenceHub } from "../../components/IntelligenceHub";
-import { Badge, Button, Card, EmptyState } from "@vertofi/ui";
+import { Badge, Button, Card, EmptyState } from "@/ui";
 import { SidebarShell } from "../../components/SidebarShell";
 import { CreateInvoice } from "../../components/CreateInvoice";
 import { CreateDocument } from "../../components/CreateDocument";

@@ -18,7 +18,7 @@ import {
   confirmPhoneOtp,
   firebaseConfigured,
   type ConfirmationResult,
-} from "@vertofi/ui";
+} from "@/ui";
 import { Search, Loader2, CheckCircle2 } from "lucide-react";
 import { api, setTokens, setOrgId, ApiError } from "@/lib/api";
 import { DocumentUpload } from "../../components/DocumentUpload";

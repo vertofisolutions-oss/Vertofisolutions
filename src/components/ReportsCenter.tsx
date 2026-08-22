@@ -18,7 +18,7 @@ import {
   Receipt,
   Building,
 } from "lucide-react";
-import { Card, Badge } from "@vertofi/ui";
+import { Card, Badge } from "@/ui";
 import { api } from "@/lib/api";
 
 const inr = (n: unknown) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;

@@ -1,5 +1,0 @@
-{
-  "extends": "@vertofi/config/tsconfig/next",
-  "compilerOptions": { "jsx": "react-jsx" },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
-}

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Loader2, X, Download, FileText, CheckCircle2 } from "lucide-react";
-import { Button } from "@vertofi/ui";
+import { Button } from "@/ui";
 import { api, ApiError } from "@/lib/api";
 
 interface Item { name: string; hsn?: string; unit?: string; qty: number; rate: number; taxRate: number; auto?: boolean }

@@ -1,7 +1,7 @@
 ﻿"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AuthShell, AuthButton, Field, TextInput, PasswordField, Callout, Stepper } from "@vertofi/ui";
+import { AuthShell, AuthButton, Field, TextInput, PasswordField, Callout, Stepper } from "@/ui";
 import { CheckCircle2, Upload, Loader2, FileCheck2, ShieldCheck, Clock } from "lucide-react";
 import { api, ApiError } from "@/lib/panel-api";
 import { setTokens } from "@/lib/auth";

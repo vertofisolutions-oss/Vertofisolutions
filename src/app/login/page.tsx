@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { AuthShell, AuthButton, Field, TextInput, PasswordField, Callout } from "@vertofi/ui";
+import { AuthShell, AuthButton, Field, TextInput, PasswordField, Callout } from "@/ui";
 import { api, setTokens, ApiError, getAccess } from "@/lib/api";
 
 /**

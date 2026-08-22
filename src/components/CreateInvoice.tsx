@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Sparkles, FileText, Wand2, Loader2, X, Search, CheckCircle2 } from "lucide-react";
-import { Button } from "@vertofi/ui";
+import { Button } from "@/ui";
 import { api, ApiError } from "@/lib/api";
 
 type Mode = "traditional" | "smart" | "ai";

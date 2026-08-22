@@ -1,9 +1,5 @@
-packages:
-  - "apps/*"
-  - "packages/*"
-  - "services/*"
 allowBuilds:
-  '@firebase/util': true
-  '@nestjs/core': true
-  protobufjs: true
-  sharp: true
+  '@firebase/util': set this to true or false
+  '@nestjs/core': set this to true or false
+  protobufjs: set this to true or false
+  sharp: set this to true or false
