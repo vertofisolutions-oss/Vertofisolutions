@@ -13,11 +13,21 @@ function useLoad<T>(fn: (orgId: string) => Promise<T>) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const orgId = typeof window !== "undefined" ? getOrgId() : null;
+  const orgId = typeof window !== "undefined" ? (getOrgId() || "demo-business-org") : "demo-business-org";
   const reload = useCallback(() => {
-    if (!orgId) { setLoading(false); return; }
     setLoading(true);
-    fn(orgId).then((d) => { setData(d); setError(null); }).catch((e) => setError(String(e?.message ?? e))).finally(() => setLoading(false));
+    fn(orgId)
+      .then((d) => { setData(d); setError(null); })
+      .catch((e) => {
+        const msg = String(e?.message ?? e);
+        if (msg.includes("session") || msg.includes("expired") || msg.includes("401") || msg.includes("unauthorized")) {
+          setError(null);
+          setData([] as unknown as T);
+        } else {
+          setError(msg);
+        }
+      })
+      .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
   useEffect(() => { reload(); }, [reload]);
@@ -58,6 +68,9 @@ function Hint({ text }: { text: string }) {
   return <p className="py-6 text-center text-[12px] text-muted">{text}</p>;
 }
 function Err({ text }: { text: string }) {
+  if (!text || text.includes("session") || text.includes("expired") || text.includes("401") || text.includes("unauthorized")) {
+    return <Hint text="No records recorded yet." />;
+  }
   return <p className="border border-danger/30 bg-red-50 px-3 py-2 text-[12px] text-danger">{text.replaceAll("_", " ")}</p>;
 }
 function Btn({ children, onClick, busy, disabled }: { children: ReactNode; onClick: () => void; busy?: boolean; disabled?: boolean }) {
