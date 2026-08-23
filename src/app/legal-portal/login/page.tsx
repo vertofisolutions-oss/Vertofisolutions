@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { PanelLogin } from "@/ui";
 
 export default function LegalLoginPage() {
@@ -12,7 +12,7 @@ export default function LegalLoginPage() {
       bullets={["All assigned cases", "Legal AI analytics", "Secure document access"]}
       identifierLabel="Email"
       logo={<img src="/logo.jpg" alt="Vertofi for Legal Services" className="h-full w-full rounded-lg object-contain" />}
-      redirectTo="/"
+      redirectTo="/legal-portal"
     />
   );
 }

@@ -94,14 +94,9 @@ export function AuthShell({ accent, panelName, tagline, bullets = [], logo, eyeb
             Back to Home
           </a>
         )}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-md"
-        >
+        <div className="w-full max-w-md">
           {children}
-        </motion.div>
+        </div>
         {footer && <div className="mt-8 w-full max-w-md">{footer}</div>}
       </div>
     </div>

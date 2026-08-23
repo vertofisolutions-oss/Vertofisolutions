@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Building2, Briefcase, Calculator, Gauge, Scale, Users, ShieldCheck, type LucideIcon } from "lucide-react";
+import { ChevronDown, Building2, Briefcase, Calculator, Gauge, Scale, type LucideIcon } from "lucide-react";
 import { PANELS } from "../lib/panels";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -10,15 +11,32 @@ const ICONS: Record<string, LucideIcon> = {
   accountants: Calculator,
   bhs: Gauge,
   legal: Scale,
-  teams: Users,
-  admin: ShieldCheck,
 };
 
 export function ServicesDropdown() {
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+    <div
+      ref={containerRef}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
       <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
         className="flex items-center gap-1 text-sm font-medium text-muted transition hover:text-ink"
         aria-expanded={open}
       >
@@ -42,7 +60,12 @@ export function ServicesDropdown() {
                 {PANELS.map((p) => {
                   const Icon = ICONS[p.key] ?? Building2;
                   return (
-                    <a key={p.key} href={p.href} className="group flex items-start gap-3 rounded-xl px-3 py-2.5 transition hover:bg-bg2">
+                    <Link
+                      key={p.key}
+                      href={p.href}
+                      onClick={() => setOpen(false)}
+                      className="group flex items-start gap-3 rounded-xl px-3 py-2.5 transition hover:bg-bg2"
+                    >
                       <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border bg-bg2 text-ink transition group-hover:border-brand/30 group-hover:text-brand">
                         <Icon className="h-4 w-4" />
                       </span>
@@ -50,7 +73,7 @@ export function ServicesDropdown() {
                         <span className="block text-sm font-semibold text-ink">{p.name}</span>
                         <span className="block text-xs text-muted">{p.audience}</span>
                       </span>
-                    </a>
+                    </Link>
                   );
                 })}
               </div>

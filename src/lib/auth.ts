@@ -1,13 +1,10 @@
-﻿"use client";
+"use client";
 
 /** Token storage + lightweight JWT claim decoding */
 const ACCESS_KEY = "vertofi.panels.access";
 const REFRESH_KEY = "vertofi.panels.refresh";
 
 export type Role =
-  | "ADMIN"
-  | "TEAM_LEAD"
-  | "TEAM_MEMBER"
   | "ASSOCIATE"
   | "ACCOUNTANT"
   | "BUSINESS_OWNER"
@@ -58,9 +55,6 @@ export function decodeClaims(): Claims | null {
 }
 
 export const ROLE_HOME: Record<Role, string> = {
-  ADMIN: "/admin",
-  TEAM_LEAD: "/teams-portal",
-  TEAM_MEMBER: "/teams-portal",
   ASSOCIATE: "/associates",
   ACCOUNTANT: "/accountants",
   BHS_ANALYST: "/bhs-portal",

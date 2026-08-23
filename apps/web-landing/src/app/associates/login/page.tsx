@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { PanelLogin } from "@/ui";
 
 export default function AssociatesLoginPage() {
@@ -12,7 +12,7 @@ export default function AssociatesLoginPage() {
       bullets={["Manage assigned clients", "Create an accountant sub-team", "Client documents & compliance"]}
       identifierLabel="Email"
       logo={<img src="/logo.jpg" alt="Vertofi for Associates" className="h-full w-full rounded-lg object-contain" />}
-      redirectTo="/"
+      redirectTo="/associates"
       footer={<p className="text-center text-xs text-muted">New here? <a href="/register" className="font-semibold text-brand">Register as a professional</a></p>}
     />
   );

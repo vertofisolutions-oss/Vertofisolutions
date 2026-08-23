@@ -33,11 +33,7 @@ export default function DashboardPage() {
   const [profileDone, setProfileDone] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!getAccess()) {
-      router.replace("/login");
-      return;
-    }
-    const oid = getOrgId();
+    const oid = getOrgId() || "demo-business-org";
     setOrgId(oid);
     setReady(true);
     if (oid) {

@@ -17,7 +17,7 @@ import { cleanUrl } from "./site";
 
 // cleanUrl strips stray whitespace (e.g. a trailing CR/LF baked into a Vercel
 // env value) that otherwise produced malformed, line-broken hrefs.
-const BUSINESS = process.env.NEXT_PUBLIC_BUSINESS_URL ? cleanUrl(process.env.NEXT_PUBLIC_BUSINESS_URL, "/workspace") : "/workspace";
+const BUSINESS = process.env.NEXT_PUBLIC_BUSINESS_URL ? cleanUrl(process.env.NEXT_PUBLIC_BUSINESS_URL, "/login") : "/login";
 const ASSOCIATES = process.env.NEXT_PUBLIC_ASSOCIATES_URL ? cleanUrl(process.env.NEXT_PUBLIC_ASSOCIATES_URL, "/associates") : "/associates";
 const ACCOUNTANTS = process.env.NEXT_PUBLIC_ACCOUNTANTS_URL ? cleanUrl(process.env.NEXT_PUBLIC_ACCOUNTANTS_URL, "/accountants") : "/accountants";
 const BHS = process.env.NEXT_PUBLIC_BHS_URL ? cleanUrl(process.env.NEXT_PUBLIC_BHS_URL, "/bhs-portal") : "/bhs-portal";

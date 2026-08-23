@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { PanelLogin } from "@/ui";
 
 export default function AccountantsLoginPage() {
@@ -12,7 +12,7 @@ export default function AccountantsLoginPage() {
       bullets={["Review assigned client books", "Flag accounting issues", "Secure, scoped access"]}
       identifierLabel="Email"
       logo={<img src="/logo.jpg" alt="Accountant Panel" className="h-full w-full rounded-lg object-contain" />}
-      redirectTo="/"
+      redirectTo="/accountants"
     />
   );
 }
