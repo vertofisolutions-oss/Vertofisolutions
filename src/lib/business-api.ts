@@ -184,9 +184,7 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true, ret
   if (res.status === 401 && auth && !retried) {
     if (await tryRefresh()) return request<T>(path, init, auth, true);
     clearTokens();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
-    }
+    // Redirect suppressed
     throw new ApiError(401, "session_expired");
   }
   if (!res.ok) {

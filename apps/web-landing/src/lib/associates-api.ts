@@ -48,11 +48,7 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true, ret
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (res.status === 401 && auth && !retried) {
     if (await tryRefresh()) return request<T>(path, init, auth, true);
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      localStorage.removeItem("vertofi.panels.access");
-      localStorage.removeItem("vertofi.panels.refresh");
-      window.location.href = "/login";
-    }
+    // Redirect suppressed
     throw new ApiError(401, "session_expired");
   }
   if (!res.ok) {
