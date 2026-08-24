@@ -1,15 +1,18 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarShell } from "../../../components/SidebarShell";
 import { MODULES } from "../../../components/module/registry";
 
-/**
- * Module engine: every sidebar feature renders its REAL module here (slug =
- * kebab-cased label), wired to its actual backend via the registry. Unknown
- * slugs get an honest not-found state — never fake data.
- */
 export default function ModulePage({ params }: { params: Promise<{ slug: string }> }) {
+  return (
+    <Suspense fallback={null}>
+      <ModuleInner params={params} />
+    </Suspense>
+  );
+}
+
+function ModuleInner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const router = useRouter();
   const [ready, setReady] = useState(false);

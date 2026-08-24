@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { SidebarShell } from "../../components/SidebarShell";
 import { api, getOrgId, ApiError } from "@/lib/api";
 
@@ -214,8 +214,10 @@ function BillingContent() {
 
 export default function BillingPage() {
   return (
-    <SidebarShell>
-      <BillingContent />
-    </SidebarShell>
+    <Suspense fallback={null}>
+      <SidebarShell>
+        <BillingContent />
+      </SidebarShell>
+    </Suspense>
   );
 }

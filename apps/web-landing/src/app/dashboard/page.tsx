@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, EmptyState } from "@/ui";
 import { Activity, Bell, HeartPulse, ShieldCheck, Wallet } from "lucide-react";
@@ -37,6 +37,14 @@ const DEFAULT_NOTES: Note[] = [
 ];
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <DashboardInner />
+    </Suspense>
+  );
+}
+
+function DashboardInner() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [orgId, setOrgId] = useState<string | null>("demo-business-org");
