@@ -8,6 +8,7 @@ dist/
 out/
 build/
 *.tsbuildinfo
+standalone-panels/
 
 # Env & secrets — NEVER commit real secrets
 .env

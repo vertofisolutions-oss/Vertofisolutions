@@ -79,7 +79,7 @@ function WorkspaceInner() {
   };
 
   const load = useCallback(async (sec: string, oid: string) => {
-    if (!rowsCache[sec]) setLoading(true);
+    setLoading(true);
     try {
       const map: Record<string, () => Promise<Record<string, unknown>[]>> = {
         sales: () => api.acc.sales(oid),
@@ -90,17 +90,13 @@ function WorkspaceInner() {
         inventory: () => api.acc.inventory(oid),
       };
       const data = map[sec] ? await map[sec]!() : [];
-      if (data && data.length > 0) {
-        setRowsCache((prev) => ({ ...prev, [sec]: data }));
-      } else {
-        setRowsCache((prev) => ({ ...prev, [sec]: getSampleWorkspaceRows(sec) }));
-      }
+      setRowsCache((prev) => ({ ...prev, [sec]: Array.isArray(data) ? data : [] }));
     } catch {
-      setRowsCache((prev) => ({ ...prev, [sec]: getSampleWorkspaceRows(sec) }));
+      setRowsCache((prev) => ({ ...prev, [sec]: [] }));
     } finally {
       setLoading(false);
     }
-  }, [rowsCache]);
+  }, []);
 
   useEffect(() => {
     if (orgId && section !== "overview") void load(section, orgId);

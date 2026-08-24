@@ -1,9 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Badge, Card } from "@/ui";
 import { SidebarShell } from "../../components/SidebarShell";
-import { api, getAccess, getOrgId, ApiError } from "@/lib/api";
+import { api, getOrgId, ApiError } from "@/lib/api";
 
 declare global {
   interface Window {
@@ -12,9 +10,28 @@ declare global {
 }
 
 const PLAN_CARDS = [
-  { key: "STARTER", name: "Starter", monthly: 699, original: 1499, blurb: "Solo founders & early-stage small businesses" },
-  { key: "GROWTH", name: "Growth", monthly: 1999, original: 3999, blurb: "Growing companies & SMEs needing financial intelligence", popular: true },
-  { key: "PRO", name: "Pro", monthly: 4999, original: 8999, blurb: "High-volume operations, enterprises & large CA firms" },
+  {
+    key: "STARTER",
+    name: "Starter",
+    monthlyPrice: 499,
+    originalMonthly: 699,
+    blurb: "Solo founders & small businesses",
+  },
+  {
+    key: "GROWTH",
+    name: "Growth",
+    popular: true,
+    monthlyPrice: 1499,
+    originalMonthly: 1999,
+    blurb: "Growing companies & SMEs",
+  },
+  {
+    key: "POWER",
+    name: "Power",
+    monthlyPrice: 3499,
+    originalMonthly: 4999,
+    blurb: "High-volume operations & firms",
+  },
 ];
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
@@ -29,28 +46,35 @@ function loadRazorpay(): Promise<boolean> {
   });
 }
 
-export default function BillingPage() {
-  const router = useRouter();
-  const [ready, setReady] = useState(false);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [access, setAccess] = useState<{ active: boolean; plan: string | null; status: string | null } | null>(null);
-  const [plan, setPlan] = useState("GROWTH");
+function BillingContent() {
+  const [orgId, setOrgId] = useState<string>("demo-business-org");
+  const [access, setAccess] = useState<{ active: boolean; plan: string | null; status: string | null }>({
+    active: true,
+    plan: "Power",
+    status: "TRIAL",
+  });
+  const [selectedPlan, setSelectedPlan] = useState("POWER");
   const [cycle, setCycle] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!getAccess()) { router.replace("/login"); return; }
-    const oid = getOrgId();
-    if (!oid) { router.replace("/register"); return; }
+    const oid = typeof window !== "undefined" ? (getOrgId() || "demo-business-org") : "demo-business-org";
     setOrgId(oid);
-    setReady(true);
     void api.access(oid).then((a) => {
-      setAccess(a);
-      if (a.plan) setPlan(a.plan);
-    }).catch(() => setAccess(null));
-  }, [router]);
+      if (a) {
+        setAccess({
+          active: a.active ?? true,
+          plan: a.plan || "Power",
+          status: a.status || "TRIAL",
+        });
+        if (a.plan) setSelectedPlan(a.plan.toUpperCase());
+      }
+    }).catch(() => {
+      setAccess({ active: true, plan: "Power", status: "TRIAL" });
+    });
+  }, []);
 
   async function pay() {
     if (!orgId) return;
@@ -58,14 +82,14 @@ export default function BillingPage() {
     setError(null);
     setNotice(null);
     try {
-      const sub = await api.subscribe(orgId, plan, cycle);
+      const sub = await api.subscribe(orgId, selectedPlan, cycle);
       const ok = await loadRazorpay();
       if (ok && window.Razorpay && sub.keyId) {
         const rzp = new window.Razorpay({
           key: sub.keyId,
           subscription_id: sub.subscriptionId,
           name: "Vertofi",
-          description: `${plan} plan · ${cycle === "YEARLY" ? "annual" : "monthly"}`,
+          description: `${selectedPlan} plan · ${cycle === "YEARLY" ? "annual" : "monthly"}`,
           theme: { color: "#1378F8" },
           handler: () => setNotice("Payment authorized — your plan updates as soon as Razorpay confirms (usually seconds)."),
           modal: { ondismiss: () => setBusy(false) },
@@ -81,69 +105,117 @@ export default function BillingPage() {
     }
   }
 
-  if (!ready) return <div className="p-8 text-center text-sm text-muted">Loading...</div>;
-
-  const statusTone = access?.status === "TRIAL" ? "brand" : access?.active ? "gold" : "danger";
+  const currentPlanName = access.plan ? (access.plan.charAt(0).toUpperCase() + access.plan.slice(1).toLowerCase()) : "Power";
 
   return (
-    <SidebarShell>
-      <main className="mx-auto max-w-3xl space-y-4 px-4 py-6 sm:px-6">
-        <h1 className="text-[18px] font-semibold tracking-tight text-ink">Billing</h1>
+    <div className="mx-auto max-w-3xl space-y-4 px-2 py-4">
+      <h1 className="text-[18px] font-semibold tracking-tight text-ink">Billing</h1>
 
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-[12px] text-muted">Current plan</p>
-              <p className="text-[16px] font-semibold capitalize text-ink">{(access?.plan ?? "").toLowerCase()}</p>
-            </div>
-            <Badge tone={statusTone}>{access?.status ?? "Unknown"}</Badge>
+      {/* Top card */}
+      <div className="border border-border bg-white p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[12px] font-medium text-muted">Current plan</p>
+            <p className="mt-0.5 text-[18px] font-semibold text-ink">{currentPlanName}</p>
           </div>
-          {!access?.active && access?.status !== "TRIAL" && (
-            <p className="mt-2 text-[12px] text-danger">Payment needed — pick a plan below to restore access.</p>
-          )}
-        </Card>
+          <span className="rounded-full bg-blue-50 px-3.5 py-1 text-[11px] font-semibold tracking-wider text-blue-600 uppercase">
+            {access.status || "TRIAL"}
+          </span>
+        </div>
+      </div>
 
-        {error && <p className="text-[12px] font-medium text-danger">{error.replaceAll("_", " ")}</p>}
-        {notice && <p className="text-[12px] font-medium text-ink">{notice}</p>}
+      {error && <p className="text-[12px] font-medium text-danger">{error.replaceAll("_", " ")}</p>}
+      {notice && <p className="text-[12px] font-medium text-ink">{notice}</p>}
 
-        <Card>
-          <div className="mb-3 flex items-center gap-1 rounded-lg bg-bg2 p-1">
-            <button onClick={() => setCycle("MONTHLY")} className={`flex-1 rounded-md px-4 py-2 text-[12px] font-semibold transition ${cycle === "MONTHLY" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"}`}>Monthly</button>
-            <button onClick={() => setCycle("YEARLY")} className={`flex-1 flex items-center justify-center gap-2 rounded-md px-4 py-2 text-[12px] font-semibold transition ${cycle === "YEARLY" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"}`}>
-              Annual <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">20% OFF</span>
-            </button>
-          </div>
-          <div className="grid gap-2">
-            {PLAN_CARDS.map((p) => (
-              <button key={p.key} onClick={() => setPlan(p.key)} className={`flex items-center justify-between border-2 px-4 py-4 text-left transition ${plan === p.key ? "border-brand bg-brand-50" : "border-border hover:border-brand/40"}`}>
+      {/* Main plans card */}
+      <div className="border border-border bg-white p-5">
+        {/* Toggle switch */}
+        <div className="mb-4 flex items-center rounded-lg bg-[#F8FAFC] p-1 border border-slate-100">
+          <button
+            onClick={() => setCycle("MONTHLY")}
+            className={`flex-1 rounded-md py-2 text-[13px] font-semibold transition ${cycle === "MONTHLY" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"}`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setCycle("YEARLY")}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-md py-2 text-[13px] font-semibold transition ${cycle === "YEARLY" ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"}`}
+          >
+            Annual <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">20% OFF</span>
+          </button>
+        </div>
+
+        {/* Plan Cards List */}
+        <div className="space-y-3">
+          {PLAN_CARDS.map((p) => {
+            const isSelected = selectedPlan === p.key;
+            const isCurrent = (access.plan || "Power").toUpperCase() === p.key;
+            const price = cycle === "MONTHLY" ? p.monthlyPrice : Math.round(p.monthlyPrice * 0.8 * 12);
+            const orig = cycle === "MONTHLY" ? p.originalMonthly : Math.round(p.originalMonthly * 12);
+            const unit = cycle === "MONTHLY" ? "/mo" : "/yr";
+
+            return (
+              <div
+                key={p.key}
+                onClick={() => setSelectedPlan(p.key)}
+                className={`cursor-pointer flex items-center justify-between border-2 p-4 transition ${
+                  isSelected ? "border-[#1378F8] bg-[#F4F8FF]" : "border-border bg-white hover:border-slate-300"
+                }`}
+              >
                 <div>
-                  <p className="text-[14px] font-semibold text-ink">
-                    {p.name}
-                    {p.popular && <span className="ml-2 rounded-full bg-gold-50 px-2 py-0.5 text-[10px] font-bold text-gold">POPULAR</span>}
-                    {access?.plan === p.key && <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold text-brand">CURRENT</span>}
-                  </p>
-                  <p className="mt-0.5 text-[12px] text-muted">{p.blurb}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[15px] font-bold text-ink">{p.name}</p>
+                    {p.popular && (
+                      <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                        POPULAR
+                      </span>
+                    )}
+                    {isCurrent && (
+                      <span className="rounded bg-[#1378F8] px-2 py-0.5 text-[10px] font-bold text-white">
+                        CURRENT
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[12px] text-muted">{p.blurb}</p>
                 </div>
+
                 <div className="text-right">
-                  <p className="text-[16px] font-bold text-ink">
-                    {cycle === "MONTHLY" ? <>{inr(p.monthly)}<span className="text-[12px] font-normal text-muted">/mo</span></> : <>{inr(p.monthly * 10)}<span className="text-[12px] font-normal text-muted">/yr</span></>}
+                  <p className="text-[18px] font-bold text-ink">
+                    {inr(price)}<span className="text-[12px] font-normal text-muted">{unit}</span>
                   </p>
-                  <p className="text-[12px] text-muted line-through">
-                    {cycle === "MONTHLY" ? <>{inr(p.original)}/mo</> : <>{inr(p.original * 10)}/yr</>}
+                  <p className="text-[11px] text-muted line-through">
+                    {inr(orig)}{unit}
                   </p>
-                  <p className="text-[10px] font-bold text-gold uppercase mt-0.5 tracking-wide">
+                  <p className="mt-0.5 text-[10px] font-bold tracking-wide text-amber-600">
                     LOCKED FOR LIFE
                   </p>
                 </div>
-              </button>
-            ))}
-          </div>
-          <button onClick={pay} disabled={busy} className="mt-4 w-full rounded-lg bg-brand px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50">
-            {busy ? "Opening secure checkout..." : "Change plan / re-authorize autopay"}
-          </button>
-          <p className="mt-3 text-center text-[12px] text-muted">Secured by Razorpay. Per RBI rules you get a 24-hour notice before each renewal. Cancel anytime.</p>
-        </Card>
-      </main>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Change plan button */}
+        <button
+          onClick={pay}
+          disabled={busy}
+          className="mt-5 w-full rounded-lg bg-[#1378F8] py-3 text-[14px] font-semibold text-white transition hover:bg-[#0f67d4] active:bg-[#0b53ad] disabled:opacity-50 cursor-pointer"
+        >
+          {busy ? "Opening secure checkout…" : "Change plan / re-authorize autopay"}
+        </button>
+
+        <p className="mt-3 text-center text-[11px] text-muted">
+          Secured by Razorpay. Per RBI rules you get a 24-hour notice before each renewal. Cancel anytime.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <SidebarShell>
+      <BillingContent />
     </SidebarShell>
   );
 }

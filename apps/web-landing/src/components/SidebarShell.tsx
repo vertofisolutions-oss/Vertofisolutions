@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState, useRef, startTransition } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard, BookOpen, Receipt, Wallet, Landmark, FileText,
@@ -128,7 +129,16 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setPlan(readPlan());
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
-  }, []);
+    // Prefetch high-frequency routes for instant navigation
+    router.prefetch("/dashboard");
+    router.prefetch("/workspace");
+    router.prefetch("/workspace?section=sales");
+    router.prefetch("/workspace?section=purchases");
+    router.prefetch("/workspace?section=customers");
+    router.prefetch("/workspace?section=products");
+    router.prefetch("/workspace?section=inventory");
+    router.prefetch("/workspace?section=expenses");
+  }, [router]);
 
   // Restore sidebar scroll position on navigation
   useEffect(() => {
@@ -197,17 +207,6 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
     return true;
   }
 
-  function navigate(item: { resolvedHref?: string; locked?: boolean }) {
-    if (item.locked || !item.resolvedHref) return;
-    if (navRef.current) {
-      sessionStorage.setItem("vertofi.sidebar.scroll", String(navRef.current.scrollTop));
-    }
-    startTransition(() => {
-      router.push(item.resolvedHref!);
-    });
-    setMobileOpen(false);
-  }
-
   const searchTargets: SearchTarget[] = nav.flatMap((section) =>
     section.items.map((item) => ({
       label: item.label,
@@ -237,30 +236,53 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
             {section.items.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.resolvedHref);
+
+              if (item.locked || !item.resolvedHref) {
+                return (
+                  <button
+                    key={`${section.title}-${item.label}`}
+                    type="button"
+                    disabled
+                    title="Upgrade to unlock"
+                    className={[
+                      "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition cursor-not-allowed text-muted/60",
+                      collapsed ? "justify-center" : "",
+                    ].join(" ")}
+                  >
+                    <Icon className="h-[18px] w-[18px] shrink-0 text-muted/50" />
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1 truncate">{item.label}</span>
+                        <Lock className="h-3.5 w-3.5 shrink-0 text-muted/50" />
+                      </>
+                    )}
+                  </button>
+                );
+              }
+
               return (
-                <button
+                <Link
                   key={`${section.title}-${item.label}`}
-                  type="button"
-                  onClick={() => navigate(item)}
-                  title={collapsed ? item.label : item.locked ? "Upgrade to unlock" : item.label}
+                  href={item.resolvedHref}
+                  prefetch={true}
+                  onClick={() => {
+                    if (navRef.current) {
+                      sessionStorage.setItem("vertofi.sidebar.scroll", String(navRef.current.scrollTop));
+                    }
+                    setMobileOpen(false);
+                  }}
+                  title={collapsed ? item.label : item.label}
                   className={[
                     "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition",
                     collapsed ? "justify-center" : "",
                     active
-                      ? "bg-brand text-white"
-                      : item.locked
-                        ? "cursor-not-allowed text-muted/60"
-                        : "text-[#334155] hover:bg-bg2 hover:text-ink",
+                      ? "bg-brand text-white font-semibold"
+                      : "text-[#334155] hover:bg-bg2 hover:text-ink",
                   ].join(" ")}
                 >
-                  <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-white" : item.locked ? "text-muted/50" : "text-muted group-hover:text-ink"}`} />
-                  {!collapsed && (
-                    <>
-                      <span className="flex-1 truncate">{item.label}</span>
-                      {item.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-muted/50" />}
-                    </>
-                  )}
-                </button>
+                  <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-white" : "text-muted group-hover:text-ink"}`} />
+                  {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                </Link>
               );
             })}
           </div>

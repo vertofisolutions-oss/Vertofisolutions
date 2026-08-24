@@ -1,13 +1,12 @@
-﻿"use client";
-import { useState, useEffect } from "react";
+"use client";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Gauge, LogOut, LayoutDashboard } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { Menu, X, Gauge } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 import { ServicesDropdown } from "./ServicesDropdown";
 import { links } from "../lib/site";
 import { PANELS } from "../lib/panels";
-import { getAccess, clearTokens } from "@/lib/auth";
 
 const TEXT_LINKS = [
   { label: "Home", href: "/" },
@@ -36,24 +35,12 @@ const APP_ROUTES = [
 
 export function Nav() {
   const pathname = usePathname();
-  const router = useRouter();
   const [mobile, setMobile] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    setIsLoggedIn(!!getAccess());
-  }, [pathname]);
 
   // Hide landing navbar completely when inside any portal / app / auth screen
   if (APP_ROUTES.some((route) => pathname.startsWith(route))) {
     return null;
   }
-
-  const handleSignOut = () => {
-    clearTokens();
-    setIsLoggedIn(false);
-    router.push("/");
-  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-white/80 backdrop-blur-md">
@@ -78,35 +65,15 @@ export function Nav() {
             <Gauge className="h-4 w-4" /> Check BHS Score
           </a>
 
-          {isLoggedIn ? (
-            <>
-              <a
-                href="/workspace"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
-              >
-                <LayoutDashboard className="h-4 w-4" /> Go to Workspace
-              </a>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-600 transition hover:text-red-700"
-              >
-                <LogOut className="h-4 w-4" /> Sign out
-              </button>
-            </>
-          ) : (
-            <>
-              <a href={links.login} className="px-3 py-2 text-sm font-medium text-ink transition hover:text-brand">
-                Login
-              </a>
-              <a
-                href={links.getStarted}
-                className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
-              >
-                Get Started
-              </a>
-            </>
-          )}
+          <a href={links.login} className="px-3 py-2 text-sm font-medium text-ink transition hover:text-brand">
+            Login
+          </a>
+          <a
+            href={links.getStarted}
+            className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
+          >
+            Get Started
+          </a>
         </div>
 
         <button className="lg:hidden" onClick={() => setMobile((v) => !v)} aria-label="Toggle menu">
@@ -138,29 +105,12 @@ export function Nav() {
                 <a href={links.checkBhs} className="rounded-xl border border-gold/40 px-4 py-2.5 text-center text-sm font-medium text-gold">
                   Check BHS Score
                 </a>
-                {isLoggedIn ? (
-                  <>
-                    <a href="/workspace" className="rounded-xl bg-brand px-4 py-2.5 text-center text-sm font-semibold text-white">
-                      Go to Workspace
-                    </a>
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="rounded-xl border border-red-200 px-4 py-2.5 text-center text-sm font-medium text-red-600 hover:bg-red-50"
-                    >
-                      Sign out
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <a href={links.login} className="rounded-xl border border-border px-4 py-2.5 text-center text-sm font-medium text-ink">
-                      Login
-                    </a>
-                    <a href={links.getStarted} className="rounded-xl bg-brand px-4 py-2.5 text-center text-sm font-semibold text-white">
-                      Get Started
-                    </a>
-                  </>
-                )}
+                <a href={links.login} className="rounded-xl border border-border px-4 py-2.5 text-center text-sm font-medium text-ink">
+                  Login
+                </a>
+                <a href={links.getStarted} className="rounded-xl bg-brand px-4 py-2.5 text-center text-sm font-semibold text-white">
+                  Get Started
+                </a>
               </div>
             </div>
           </motion.div>

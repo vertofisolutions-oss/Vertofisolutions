@@ -25,8 +25,12 @@ export default function AssociatesPanel() {
   const [success, setSuccess] = useState<string | null>(null);
   const [verifyStatus, setVerifyStatus] = useState<string | null>(null);
 
-  // Show a banner while the professional's own verification is pending/rejected.
+  // Check auth & show a banner while the professional's own verification is pending/rejected.
   useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("vertofi.panels.access")) {
+      window.location.href = "/associates/login";
+      return;
+    }
     api.myProfessionalProfile()
       .then((p) => setVerifyStatus(p ? String(p.verification_status ?? "") : null))
       .catch(() => setVerifyStatus(null));

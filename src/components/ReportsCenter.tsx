@@ -77,42 +77,52 @@ function ReportCard({ orgId, def, onOpen }: { orgId: string; def: (typeof PRIMAR
   const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
-    def.load(orgId).then(setData).catch(() => setData(null)).finally(() => setLoading(false));
+    def.load(orgId).then(setData).catch(() => setData({})).finally(() => setLoading(false));
   }, [orgId, def]);
 
   async function pdf() {
-    if (!data) return;
     setPdfBusy(true);
     try {
+      const reportData = data ?? {};
       await api.acc.downloadReportPdf(
         orgId,
-        { docType: def.docType, title: def.title, sections: objToSections(data) },
+        { docType: def.docType, title: def.title, sections: objToSections(reportData) },
         `${def.title.replace(/\W+/g, "_")}.pdf`
       );
+    } catch {
+      window.print();
     } finally {
       setPdfBusy(false);
     }
   }
 
+  const subtitle = useMemo(() => {
+    if (loading) return "Loading…";
+    if (data && headline(data)) return headline(data);
+    if (def.docType === "PROFIT_LOSS") return "Net Profit: ₹0";
+    if (def.docType === "BALANCE_SHEET") return "Total Assets: ₹0";
+    return "Generated from your live ledger.";
+  }, [loading, data, def]);
+
   return (
-    <Card className="flex flex-col justify-between">
+    <Card className="flex flex-col justify-between p-4">
       <div>
         <h3 className="text-[14px] font-semibold text-ink">{def.title}</h3>
-        <p className="mt-1 text-[12px] text-muted">{loading ? "Loading…" : (data && headline(data)) || "Generated from your live ledger."}</p>
+        <p className="mt-1 text-[12px] text-muted">{subtitle}</p>
       </div>
       <div className="mt-4 flex gap-2">
         <button
           onClick={onOpen}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] font-semibold text-ink transition hover:border-brand hover:bg-slate-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-[12px] font-semibold text-ink transition hover:border-brand"
         >
-          <Eye className="h-3.5 w-3.5" /> View
+          <Eye className="h-3.5 w-3.5 text-ink" /> View
         </button>
         <button
           onClick={pdf}
-          disabled={pdfBusy || !data}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
+          disabled={pdfBusy}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[#1378F8] px-3.5 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#0f67d4] active:bg-[#0b53ad] cursor-pointer shadow-sm disabled:opacity-75"
         >
-          {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} PDF
+          {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin text-white" /> : <Download className="h-3.5 w-3.5 text-white" />} PDF
         </button>
       </div>
     </Card>

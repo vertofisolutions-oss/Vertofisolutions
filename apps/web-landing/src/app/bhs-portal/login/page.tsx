@@ -7,7 +7,7 @@ export default function BhsLoginPage() {
       accent="bhs"
       method="password+otp"
       panelName="Vertofi BHS Intelligence"
-      eyebrow="Business Health Intelligence"
+      eyebrow="BUSINESS HEALTH INTELLIGENCE"
       tagline="View Business Health Scores for your granted clients, advise the businesses you work with, and act on early signals."
       bullets={["Business Health Scores", "Granted-client access", "Advisory & alerts"]}
       identifierLabel="Email"

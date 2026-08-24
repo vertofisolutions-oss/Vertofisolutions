@@ -104,11 +104,15 @@ function tryRefresh(): Promise<boolean> {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refreshToken: rt }),
         });
-        if (!res.ok) return false;
+        if (!res.ok) {
+          clearTokens();
+          return false;
+        }
         const t = (await res.json()) as { accessToken: string; refreshToken: string };
         setTokens(t.accessToken, t.refreshToken);
         return true;
       } catch {
+        clearTokens();
         return false;
       }
     })().finally(() => {

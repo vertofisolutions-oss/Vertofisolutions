@@ -23,6 +23,13 @@ export default function LegalPanel() {
   const [cases, setCases] = useState<CaseRow[]>(DEFAULT_CASES);
   const [loaded, setLoaded] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("vertofi.panels.access")) {
+      window.location.href = "/legal-portal/login";
+      return;
+    }
+  }, []);
   const [active, setActive] = useState<string | null>("case-1");
   const [notice, setNotice] = useState("Notice under Section 73 of the CGST Act 2017: Difference between ITC claimed in GSTR-3B and available in GSTR-2B for FY 2023-24.");
   const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null);

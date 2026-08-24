@@ -3,7 +3,6 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarShell } from "../../../components/SidebarShell";
 import { MODULES } from "../../../components/module/registry";
-import { getAccess } from "@/lib/api";
 
 /**
  * Module engine: every sidebar feature renders its REAL module here (slug =
@@ -16,16 +15,11 @@ export default function ModulePage({ params }: { params: Promise<{ slug: string 
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!getAccess()) {
-      router.replace("/login");
-      return;
-    }
-    
-    // Redirect modules that are now integrated into the workspace
+    // Redirect modules that are integrated into workspace
     const workspaceSections: Record<string, string> = {
       "expenses": "expenses",
       "bank-reconciliation": "reconciliation",
-      "intelligence": "intelligence"
+      "intelligence": "intelligence",
     };
     
     if (workspaceSections[slug]) {

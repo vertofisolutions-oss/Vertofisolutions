@@ -7,22 +7,20 @@ import { api } from "@/lib/api";
 const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const num = (v: unknown) => Number(v ?? 0) || 0;
 
-function Kpi({ label, value, icon: Icon, tone }: { label: string; value: string; icon: typeof Receipt; tone?: "danger" | "gold" }) {
+function Kpi({ label, value, icon: Icon, tone }: { label: string; value: string; icon: typeof Receipt; tone?: "gold" | "brand" }) {
   return (
     <Card className="py-4">
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{label}</p>
-        <Icon className={`h-4 w-4 ${tone === "danger" ? "text-danger" : tone === "gold" ? "text-gold" : "text-brand"}`} />
+        <Icon className={`h-4 w-4 ${tone === "gold" ? "text-gold" : "text-brand"}`} />
       </div>
-      <p className={`mt-1 text-2xl font-bold tracking-tight ${tone === "danger" ? "text-danger" : "text-ink"}`}>{value}</p>
+      <p className="mt-1 text-2xl font-bold tracking-tight text-ink">{value}</p>
     </Card>
   );
 }
 
-/** Sales as an intelligence screen: KPI cards + top customers + recent invoices,
- *  all from real invoice data + the GST summary. Actions launch document flows. */
-export function SalesView({ orgId, rows, loading, onNewInvoice, onNewDoc }: {
-  orgId: string; rows: Record<string, unknown>[]; loading: boolean;
+export function SalesView({ orgId, rows = [], loading, onNewInvoice, onNewDoc }: {
+  orgId: string; rows?: Record<string, unknown>[]; loading?: boolean;
   onNewInvoice: () => void; onNewDoc: (type: string) => void;
 }) {
   const [gst, setGst] = useState<Record<string, unknown> | null>(null);
@@ -50,17 +48,38 @@ export function SalesView({ orgId, rows, loading, onNewInvoice, onNewDoc }: {
     <div className="space-y-5">
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Sales this month" value={inr(kpis.monthSales)} icon={TrendingUp} />
-        <Kpi label="Total invoiced" value={inr(kpis.total)} icon={Receipt} />
-        <Kpi label="GST collected" value={kpis.gstCollected ? inr(kpis.gstCollected) : "—"} icon={ShieldCheck} tone="gold" />
-        <Kpi label="Unpaid invoices" value={`${kpis.unpaidCount} · ${inr(kpis.unpaidAmt)}`} icon={AlertTriangle} tone={kpis.unpaidCount ? "danger" : undefined} />
+        <Kpi label="SALES THIS MONTH" value={inr(kpis.monthSales)} icon={TrendingUp} tone="brand" />
+        <Kpi label="TOTAL INVOICED" value={inr(kpis.total)} icon={Receipt} tone="brand" />
+        <Kpi label="GST COLLECTED" value={kpis.gstCollected ? inr(kpis.gstCollected) : "—"} icon={ShieldCheck} tone="gold" />
+        <Kpi label="UNPAID INVOICES" value={`${kpis.unpaidCount} · ${inr(kpis.unpaidAmt)}`} icon={AlertTriangle} tone="brand" />
       </div>
 
       {/* Actions */}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="primary" onClick={onNewInvoice}><Plus className="mr-1 h-4 w-4" /> New Invoice</Button>
-        <button onClick={() => onNewDoc("PROFORMA")} className="rounded-lg border border-border px-3 py-2 text-[13px] font-semibold text-ink transition hover:border-brand">New Proforma / Quote</button>
-        <button onClick={() => onNewDoc("CREDIT_NOTE")} className="rounded-lg border border-border px-3 py-2 text-[13px] font-semibold text-ink transition hover:border-brand">New Credit Note</button>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button variant="primary" onClick={onNewInvoice} className="gap-1.5 font-semibold">
+          <Plus className="h-4 w-4" /> New Invoice
+        </Button>
+        <button
+          type="button"
+          onClick={() => onNewDoc("QUOTATION")}
+          className="rounded-lg border border-border bg-white px-3.5 py-2 text-[13px] font-medium text-ink transition hover:border-brand"
+        >
+          New Quotation
+        </button>
+        <button
+          type="button"
+          onClick={() => onNewDoc("CREDIT_NOTE")}
+          className="rounded-lg border border-border bg-white px-3.5 py-2 text-[13px] font-medium text-ink transition hover:border-brand"
+        >
+          New Credit Note
+        </button>
+        <button
+          type="button"
+          onClick={() => onNewDoc("PROFORMA")}
+          className="rounded-lg border border-border bg-white px-3.5 py-2 text-[13px] font-medium text-ink transition hover:border-brand"
+        >
+          New Proforma
+        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -84,7 +103,7 @@ export function SalesView({ orgId, rows, loading, onNewInvoice, onNewDoc }: {
           )}
         </Card>
 
-        {/* Recent invoices (secondary table) */}
+        {/* Recent invoices */}
         <Card className="lg:col-span-2">
           <div className="flex items-center justify-between">
             <h3 className="text-[14px] font-semibold text-ink">Recent invoices</h3>

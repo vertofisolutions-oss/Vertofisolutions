@@ -23,6 +23,13 @@ const DEFAULT_BHS_ROWS: ClientRow[] = [
 export default function BhsPanel() {
   const [rows, setRows] = useState<ClientRow[]>(DEFAULT_BHS_ROWS);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("vertofi.panels.access")) {
+      window.location.href = "/bhs-portal/login";
+      return;
+    }
+  }, []);
   const [loaded, setLoaded] = useState(true);
 
   useEffect(() => {

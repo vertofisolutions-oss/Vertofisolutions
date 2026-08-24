@@ -45,10 +45,10 @@ export function InventoryView({ orgId }: { orgId: string }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <InvTile label="Stock value" value={val ? inr(val.totalValue) : "—"} />
-        <InvTile label="SKUs" value={val ? String(val.skus) : "—"} />
-        <InvTile label="Low stock" value={val ? String(val.lowStock) : "—"} tone={val && val.lowStock > 0 ? "warn" : undefined} />
-        <InvTile label="Out of stock" value={val ? String(val.outOfStock) : "—"} tone={val && val.outOfStock > 0 ? "danger" : undefined} />
+        <InvTile label="STOCK VALUE" value={val ? inr(val.totalValue) : "₹0"} />
+        <InvTile label="SKUS" value={val ? String(val.skus) : "0"} />
+        <InvTile label="LOW STOCK" value={val ? String(val.lowStock) : "0"} tone={val && val.lowStock > 0 ? "warn" : undefined} />
+        <InvTile label="OUT OF STOCK" value={val ? String(val.outOfStock) : "0"} tone={val && val.outOfStock > 0 ? "danger" : undefined} />
       </div>
 
       <div className="flex gap-1 border-b border-border">
