@@ -636,6 +636,65 @@ function AssignProfessional() {
 
 function WhatsAppCfo() {
   const wa = process.env.NEXT_PUBLIC_WA_NUMBER ?? "918712357876";
+  const [messages, setMessages] = useState<Array<{ sender: "user" | "bot"; text: string; time: string }>>([
+    {
+      sender: "bot",
+      text: "👋 Hello! I am Vertofi AI CFO (+91 87123 57876).\nAsk me any doubt about Vertofi, GST filing, e-invoicing, or send commands like 'menu', 'dashboard', 'gst', or 'sale 5 chairs to Sharma Traders at 1200'.",
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+
+  function getReply(msg: string): string {
+    const lower = msg.toLowerCase().trim();
+
+    if (lower === "menu") {
+      return `📋 Vertofi AI CFO Command Menu (+91 87123 57876):\n\n1. sale <qty> <item> to <client> at <price> — Create GST invoice\n2. purchase <amount> for <reason> — Record expense\n3. dashboard — Cash position & Business Health Score\n4. gst — GST liability & filing due dates\n5. ai <question> — Ask financial, tax, or Vertofi doubts`;
+    }
+
+    if (lower.startsWith("sale ") || lower.includes("sale ")) {
+      return `✅ GST Sales Invoice Created!\n\n• Invoice No: VRT-INV-2026-089\n• Customer: Sharma Traders\n• Particulars: 5 x Chairs @ ₹1,200 = ₹6,000\n• GST (18%): ₹1,080\n• Total Receivable: ₹7,080\n• E-Invoice IRN: Generated & Synced.`;
+    }
+
+    if (lower.startsWith("purchase") || lower.includes("expense")) {
+      return `💸 Purchase Recorded!\n\n• Voucher No: VRT-EXP-402\n• Amount Recorded: ₹2,500\n• Category: Office Supplies\n• Input Tax Credit (ITC): Eligible ₹450`;
+    }
+
+    if (lower === "dashboard" || lower.includes("cash") || lower.includes("health")) {
+      return `📊 Vertofi Business Snapshot (+91 87123 57876):\n\n• Business Health Score: 88/100 (EXCELLENT)\n• Monthly Inflow: ₹4,50,000\n• Monthly Outflow: ₹1,80,000\n• Net Profit: +₹2,70,000\n• Runway: 142 Days\n• Active Risks: 0 Pending`;
+    }
+
+    if (lower === "gst" || lower.includes("tax")) {
+      return `🛡️ GST Liability & Due Dates Summary:\n\n• Output GST Collected: ₹42,500\n• Input Tax Credit (ITC): ₹28,000\n• Net Payable: ₹14,500\n• GSTR-1 Due: 11th of next month\n• GSTR-3B Due: 20th of next month\n• Status: On Track!`;
+    }
+
+    if (lower.includes("vertofi") || lower.includes("what is") || lower.includes("about")) {
+      return `🚀 Vertofi is India's leading AI-powered Financial & Accounting OS for businesses, CAs, and professionals!\n\nKey Features:\n• Automated Invoicing & E-Way Bills\n• Business Lifeguard (GST Notice SOS)\n• Financial Black Box & Immutable Audit\n• AI BHS (Business Health Score)\n• 24/7 WhatsApp CFO Bot (+91 87123 57876)`;
+    }
+
+    return `💡 Vertofi AI CFO (+91 87123 57876):\n\nI have analyzed your query: "${msg}".\n\nYour books are fully reconciled on Vertofi. All transactions, GST filings, and cashflows are updated in real-time. Type 'menu' or 'dashboard' for instant reports!`;
+  }
+
+  function handleSend(customText?: string) {
+    const textToSend = customText || input;
+    if (!textToSend.trim()) return;
+
+    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const userMsg = { sender: "user" as const, text: textToSend, time: timeStr };
+
+    setMessages((prev) => [...prev, userMsg]);
+    if (!customText) setInput("");
+    setIsTyping(true);
+
+    setTimeout(() => {
+      const replyText = getReply(textToSend);
+      const botMsg = { sender: "bot" as const, text: replyText, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+      setMessages((prev) => [...prev, botMsg]);
+      setIsTyping(false);
+    }, 600);
+  }
+
   return (
     <div className="space-y-4">
       <Panel
@@ -643,7 +702,7 @@ function WhatsAppCfo() {
         right={
           <a
             className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#1EBE5D]"
-            href={`https://wa.me/${wa}?text=hello`}
+            href={`https://wa.me/${wa}?text=Hi%20Vertofi%20AI%20CFO,%20I%20have%20a%20question%20about%20my%20business`}
             target="_blank"
             rel="noreferrer"
           >
@@ -660,6 +719,71 @@ function WhatsAppCfo() {
           ["ai <question>", "Ask your AI CFO anything"],
         ]} />
       </Panel>
+
+      {/* Interactive WhatsApp Chatbot Simulator */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="bg-[#075E54] px-4 py-3 text-white flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#25D366] font-bold text-white text-sm">
+              WA
+            </div>
+            <div>
+              <p className="text-xs font-bold leading-tight">Vertofi AI CFO (+91 87123 57876)</p>
+              <p className="text-[10px] text-emerald-200 flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Online · 24/7 AI Assistant
+              </p>
+            </div>
+          </div>
+          <span className="rounded bg-white/20 px-2 py-0.5 text-[10px] font-semibold">VERIFIED BOT</span>
+        </div>
+
+        <div className="h-72 overflow-y-auto bg-[#E5DDD5] p-4 space-y-3">
+          {messages.map((m, idx) => (
+            <div key={idx} className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-[80%] rounded-lg px-3 py-2 text-xs shadow-sm ${
+                  m.sender === "user"
+                    ? "bg-[#DCF8C6] text-slate-900 rounded-tr-none"
+                    : "bg-white text-slate-800 rounded-tl-none"
+                }`}
+              >
+                <p className="whitespace-pre-line leading-relaxed font-normal">{m.text}</p>
+                <p className="mt-1 text-[9px] text-slate-400 text-right">{m.time}</p>
+              </div>
+            </div>
+          ))}
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="rounded-lg bg-white px-3 py-1.5 text-xs text-slate-400 italic shadow-sm">
+                Vertofi AI CFO is typing…
+              </div>
+            </div>
+          )}
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend();
+          }}
+          className="flex items-center gap-2 border-t border-slate-200 bg-slate-50 p-3"
+        >
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type a command or ask Vertofi AI CFO any doubt..."
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-[#075E54] focus:ring-1 focus:ring-[#075E54]"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-[#25D366] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#1EBE5D] active:scale-95"
+          >
+            Send
+          </button>
+        </form>
+      </div>
+
       <Hint text="Alerts (invoice created, risk flags, health score) arrive on WhatsApp (+91 87123 57876) automatically." />
     </div>
   );
