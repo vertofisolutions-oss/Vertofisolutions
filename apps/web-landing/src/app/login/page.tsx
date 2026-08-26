@@ -71,14 +71,12 @@ export default function LoginPage() {
             />
           </Field>
 
-          <Field label="Password">
-            <PasswordField
-              value={password}
-              onChange={(v) => setPassword(v)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
-          </Field>
+          <PasswordField
+            value={password}
+            onChange={(v) => setPassword(v)}
+            placeholder="••••••••"
+            autoComplete="current-password"
+          />
         </div>
 
         <div className="flex items-center justify-between text-xs">
