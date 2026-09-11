@@ -1,9 +1,16 @@
 "use client";
+import { useEffect } from "react";
 import { PanelShell } from "@/components/accountants/PanelShell";
 import { ClientWorkspace } from "@/components/accountants/ClientWorkspace";
 import { AssignmentInbox } from "@/components/accountants/AssignmentInbox";
 
 export default function AccountantsPanel() {
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("vertofi.panels.access")) {
+      window.location.href = "/accountants/login";
+    }
+  }, []);
+
   return (
     <PanelShell
       title="Accountant Panel"
@@ -17,4 +24,3 @@ export default function AccountantsPanel() {
     </PanelShell>
   );
 }
-

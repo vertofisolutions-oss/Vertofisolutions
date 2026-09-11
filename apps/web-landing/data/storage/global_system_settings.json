@@ -1,0 +1,81 @@
+[
+  {
+    "key": "profile:demo-business-org",
+    "value": {
+      "plan": "FREE",
+      "billingCycle": "MONTHLY",
+      "status": "ACTIVE",
+      "name": "geethikaparvatham",
+      "email": "geethikaparvatham@gmail.com",
+      "mobile": "9603556970",
+      "legalName": "Geethika enterprises",
+      "businessType": "PROPRIETORSHIP",
+      "industry": "Retail"
+    },
+    "updated_at": "2026-09-10T16:03:56.640Z"
+  },
+  {
+    "key": "profile:org_geethika_test",
+    "value": {
+      "name": "Parvatham Geethika",
+      "email": "geethika@mycompany.com",
+      "mobile": "9123456780",
+      "plan": "FREE",
+      "status": "ACTIVE"
+    },
+    "updated_at": "2026-09-10T05:19:27.603Z"
+  },
+  {
+    "key": "profile:org_geethika_real",
+    "value": {
+      "name": "Parvatham Geethika",
+      "email": "geethika@mycompany.com",
+      "mobile": "9123456780",
+      "plan": "FREE",
+      "status": "ACTIVE"
+    },
+    "updated_at": "2026-09-10T05:25:17.065Z"
+  },
+  {
+    "key": "profile:org_rahul_real",
+    "value": {
+      "name": "Rahul Sharma",
+      "email": "rahul@techstartup.com",
+      "mobile": "9876500001",
+      "plan": "FREE",
+      "status": "ACTIVE"
+    },
+    "updated_at": "2026-09-10T05:25:17.468Z"
+  },
+  {
+    "key": "profile:org_gouthambadiga01_gmail_com",
+    "value": {
+      "name": "gouthambadiga01",
+      "email": "gouthambadiga01@gmail.com",
+      "mobile": "9876543210",
+      "plan": "ENTERPRISE",
+      "status": "ACTIVE"
+    },
+    "updated_at": "2026-09-11T20:39:47.470Z"
+  },
+  {
+    "key": "profile:org_1789056235127",
+    "value": {
+      "name": "Geethika",
+      "email": "geethikaparvatham@gmail.com",
+      "mobile": "9603556970",
+      "plan": "FREE",
+      "status": "ACTIVE"
+    },
+    "updated_at": "2026-09-11T18:22:51.931Z"
+  },
+  {
+    "key": "profile:subscribe",
+    "value": {
+      "plan": "GROWTH",
+      "billingCycle": "MONTHLY",
+      "status": "ACTIVE"
+    },
+    "updated_at": "2026-09-10T17:52:08.937Z"
+  }
+]

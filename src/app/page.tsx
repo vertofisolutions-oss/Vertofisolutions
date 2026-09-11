@@ -35,33 +35,63 @@ export default function Home() {
   return (
     <>
       {/* ───────────────────────── Hero ───────────────────────── */}
-      <section className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(60%_100%_at_50%_0%,rgba(19,120,248,0.06),transparent)]" />
-        <Container className="relative pt-20 pb-16 sm:pt-24">
+      <section className="relative overflow-hidden pt-8 pb-20 sm:pt-14 sm:pb-28">
+        {/* Professional Multi-Layered Ambient Background */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          {/* Layer 1: Blueprint fine grid with soft spotlight mask */}
+          <div className="hero-bg-grid absolute inset-0 opacity-80" />
+          
+          {/* Layer 2: Subtle dot matrix accent */}
+          <div className="hero-bg-dots absolute inset-0 opacity-70" />
+
+          {/* Layer 3: Flowing ambient background aura */}
+          <div className="animate-mesh-flow absolute -top-48 left-1/2 -translate-x-1/2 h-[540px] w-[860px] rounded-full bg-gradient-to-br from-blue-400/15 via-indigo-300/10 to-sky-300/15 blur-3xl" />
+          
+          {/* Layer 4: Ambient soft floating light nodes */}
+          <div className="animate-float-slow absolute top-36 left-1/6 h-72 w-72 rounded-full bg-blue-400/10 blur-3xl" />
+          <div className="animate-float-delayed absolute top-28 right-1/6 h-80 w-80 rounded-full bg-indigo-300/10 blur-3xl" />
+
+          {/* Layer 5: Luminous divider at bottom */}
+          <div className="luminous-divider absolute bottom-0 left-0" />
+        </div>
+
+        <Container className="relative pt-12 pb-14 sm:pt-16">
           <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-3 py-1 text-xs font-medium text-muted shadow-sm">
-              <Sparkles className="h-3.5 w-3.5 text-brand" /> Predictive Financial Intelligence Platform
-            </span>
-            <h1 className="mt-6 text-balance text-5xl font-bold leading-[1.05] tracking-tight text-ink sm:text-6xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white/90 px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-xs backdrop-blur-md transition hover:border-slate-300 hover:shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-600" />
+              </span>
+              <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+              <span>Predictive Financial Intelligence Platform</span>
+            </div>
+
+            {/* Clean solid headline without text effects */}
+            <h1 className="mt-8 text-balance text-5xl font-bold leading-[1.08] tracking-tight text-slate-900 sm:text-6xl lg:text-7xl">
               Accounting that Thinks.
               <br />
-              Predicts. <span className="text-brand">Protects.</span>
+              Predicts. <span className="text-blue-600">Protects.</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted">
+
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
               Vertofi is a Predictive Financial Intelligence Platform that helps businesses automate
               accounting, monitor compliance, detect financial risks, and make better decisions using
               AI-powered financial intelligence.
             </p>
-            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <a
+
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Link
                 href={links.getStarted}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
+                prefetch={true}
+                className="group inline-flex items-center gap-2.5 rounded-xl bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 active:translate-y-0"
               >
-                Get Started <ArrowRight className="h-4 w-4" />
-              </a>
+                <span>Get Started</span>
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+              </Link>
               <Link
                 href="/features"
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-bg2"
+                prefetch={true}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-7 py-3.5 text-sm font-semibold text-slate-800 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm active:translate-y-0"
               >
                 Explore Innovations
               </Link>
@@ -71,28 +101,28 @@ export default function Home() {
       </section>
 
       {/* ───────────────────────── Trust / Built for ───────────────────────── */}
-      <section className="border-y border-border/70 bg-bg2/60 py-12">
+      <section className="border-y border-slate-200/80 bg-slate-50/60 py-14">
         <Container>
           <div className="text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted shadow-2xs">
-              <Sparkles className="h-3 w-3 text-brand" /> Built for High-Growth Sectors
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-600 shadow-2xs">
+              <Sparkles className="h-3 w-3 text-blue-600" /> Built for High-Growth Sectors
             </span>
           </div>
 
-          <div className="mx-auto mt-8 grid max-w-5xl grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mx-auto mt-8 grid max-w-5xl grid-cols-2 gap-3.5 sm:grid-cols-4">
             {AUDIENCE_CARDS.map((item) => {
               const Icon = item.icon;
               return (
                 <div
                   key={item.name}
-                  className="group relative flex items-center gap-3 rounded-xl border border-border/80 bg-white p-3.5 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-soft"
+                  className="group relative flex items-center gap-3.5 rounded-xl border border-slate-200/85 bg-white/90 p-4 shadow-xs backdrop-blur-xs transition-all duration-200 hover:-translate-y-1 hover:border-blue-300/80 hover:shadow-md hover:shadow-blue-500/5"
                 >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand transition-colors duration-200 group-hover:bg-brand group-hover:text-white">
-                    <Icon className="h-4.5 w-4.5" />
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600 transition-all duration-200 group-hover:bg-gradient-to-br group-hover:from-blue-600 group-hover:to-indigo-600 group-hover:text-white group-hover:shadow-sm">
+                    <Icon className="h-5 w-5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-xs font-semibold text-ink sm:text-sm">{item.name}</h3>
-                    <p className="truncate text-[11px] text-muted">{item.desc}</p>
+                    <h3 className="truncate text-xs font-bold text-slate-900 transition-colors group-hover:text-blue-600 sm:text-sm">{item.name}</h3>
+                    <p className="truncate text-[11px] font-medium text-slate-500">{item.desc}</p>
                   </div>
                 </div>
               );
@@ -111,163 +141,49 @@ export default function Home() {
           />
           <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {BHS_DIMENSIONS.map((d, i) => (
-              <div key={d.name} className="rounded-2xl border border-borderCard bg-white p-6 shadow-card">
+              <div key={d.name} className="pro-card rounded-2xl p-6">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-bg2 text-xs font-semibold text-muted">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-xs font-bold text-blue-700">
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <h3 className="text-sm font-semibold text-ink">{d.name}</h3>
+                  <h3 className="text-sm font-bold text-slate-900">{d.name}</h3>
                 </div>
-                <p className="mt-3 text-sm leading-relaxed text-muted">{d.desc}</p>
+                <p className="mt-3 text-xs leading-relaxed text-slate-600">{d.desc}</p>
               </div>
             ))}
           </div>
-
-          {/* BHS Calculator CTA */}
-          <div className="mt-10 flex flex-col items-center gap-4">
-            <p className="text-sm text-muted">
-              Ready to measure your business financial health in real-time?
-            </p>
-            <Link
-              href="/bhs"
-              className="inline-flex items-center gap-2 rounded-xl bg-brand px-7 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
-            >
-              Check Your BHS Score <ArrowRight className="h-4 w-4" />
-            </Link>
-            <p className="text-xs text-muted/70">
-              Free · No account needed · Pure mathematical engine · Results in 3 minutes
-            </p>
-          </div>
         </Container>
       </section>
 
-      {/* ───────────────────────── 15 Innovations ───────────────────────── */}
-      <section className="border-t border-border bg-bg2 py-24">
+      {/* ───────────────────────── Innovations grid ───────────────────────── */}
+      <section className="border-t border-slate-200/80 bg-slate-50/50 py-24">
         <Container>
           <SectionHeading
-            eyebrow="The Vertofi Intelligence Suite"
-            title="One platform. Fifteen innovations."
-            subtitle="Every module eliminates an entire class of finance problem — from manual entry to silent leakage to compliance penalties."
+            eyebrow="The Vertofi Engine"
+            title="Automated intelligence across your financial stack."
+            subtitle="Every innovation operates autonomously or integrates into your existing workflows."
           />
-          <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {INNOVATIONS.map((it) => {
-              const Icon = it.icon;
-              return (
-                <Link
-                  key={it.slug}
-                  href={`/features#${it.slug}`}
-                  className="group flex flex-col rounded-2xl border border-borderCard bg-white p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-soft"
-                >
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-4 text-base font-semibold text-ink">{it.name}</h3>
-                  <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{it.tagline}</p>
-                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand opacity-0 transition group-hover:opacity-100">
-                    Learn more <ArrowRight className="h-3.5 w-3.5" />
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </Container>
-      </section>
 
-      {/* ───────────────────────── How it works ───────────────────────── */}
-      <section className="py-24">
-        <Container>
-          <SectionHeading eyebrow="How it works" title="From connected to confident, in four steps." />
-          <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-4">
-            {[
-              { icon: Plug, title: "Connect Financial Systems", desc: "Link bank, GST, POS and payroll through secure integrations." },
-              { icon: Workflow, title: "Automate Accounting Operations", desc: "Invoices captured, categorized and reconciled in the background." },
-              { icon: Sparkles, title: "Receive Predictive Insights", desc: "Health score, tax warnings and leak detection — continuously." },
-              { icon: ShieldCheck, title: "Take Action With Confidence", desc: "Approve, file and decide with an audit trail behind every move." },
-            ].map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <div key={s.title} className="relative rounded-2xl border border-borderCard bg-white p-6 shadow-card">
+          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {INNOVATIONS.map((item) => (
+              <div
+                key={item.slug}
+                className="pro-card group relative flex flex-col justify-between rounded-2xl p-6"
+              >
+                <div>
                   <div className="flex items-center justify-between">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-ink text-white">
-                      <Icon className="h-5 w-5" />
+                    <span className="rounded-full bg-blue-50 border border-blue-200/70 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                      Autonomous AI
                     </span>
-                    <span className="text-3xl font-bold text-bg2">{i + 1}</span>
+                    <span className="text-[11px] font-mono text-slate-400">{item.slug}</span>
                   </div>
-                  <h3 className="mt-4 text-base font-semibold text-ink">{s.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">{s.desc}</p>
+                  <h3 className="mt-4 text-lg font-bold tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
+                    {item.name}
+                  </h3>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-600">{item.tagline}</p>
                 </div>
-              );
-            })}
-          </div>
-        </Container>
-      </section>
-
-
-      {/* ───────────────────────── Why Vertofi ───────────────────────── */}
-      <section className="py-24">
-        <Container>
-          <SectionHeading eyebrow="Why Vertofi" title="Traditional accounting records the past. Vertofi shapes what's next." />
-          <div className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-border bg-white p-8">
-              <div className="flex items-center gap-2 text-muted">
-                <Layers className="h-5 w-5" />
-                <h3 className="text-sm font-semibold uppercase tracking-wide">Traditional Accounting</h3>
               </div>
-              <ul className="mt-6 space-y-3">
-                <li className="flex items-center gap-3 text-sm text-muted">
-                  <X className="h-4 w-4 shrink-0 text-slate-400" /> Records history
-                </li>
-                {["Reactive to problems", "Manual data entry", "Month-end surprises"].map((t) => (
-                  <li key={t} className="flex items-center gap-3 text-sm text-muted">
-                    <X className="h-4 w-4 shrink-0 text-slate-400" /> {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-2xl border border-brand/20 bg-brand-50/40 p-8 shadow-soft">
-              <div className="flex items-center gap-2 text-brand">
-                <Sparkles className="h-5 w-5" />
-                <h3 className="text-sm font-semibold uppercase tracking-wide">Vertofi</h3>
-              </div>
-              <ul className="mt-6 space-y-3">
-                {["Automates", "Analyzes", "Predicts", "Protects", "Advises"].map((t) => (
-                  <li key={t} className="flex items-center gap-3 text-sm font-medium text-ink">
-                    <Check className="h-4 w-4 shrink-0 text-brand" /> {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </Container>
-      </section>
-
-      {/* ───────────────────────── CTA ───────────────────────── */}
-      <section className="border-t border-border bg-ink py-20">
-        <Container>
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Stop managing finances.
-              <br />
-              Start understanding them.
-            </h2>
-            <p className="mt-4 text-base leading-relaxed text-slate-300">
-              Connect your business and experience predictive financial intelligence built for modern
-              businesses.
-            </p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <a
-                href={links.getStarted}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-600"
-              >
-                Get Started <ArrowRight className="h-4 w-4" />
-              </a>
-              <Link
-                href="/contact"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-transparent px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Book a Demo
-              </Link>
-            </div>
+            ))}
           </div>
         </Container>
       </section>

@@ -1,0 +1,6 @@
+{
+  "name": "@vertofi/service-moneymap",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts"
+}

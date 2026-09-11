@@ -13,15 +13,8 @@ interface ClientRow {
   professional_type: string | null;
 }
 
-const DEFAULT_BHS_ROWS: ClientRow[] = [
-  { org_id: "org-1", legal_name: "Acme Technologies Pvt Ltd", score: 88, rating: "EXCELLENT", professional_name: "CA Ramesh Sharma", professional_type: "Chartered Accountant" },
-  { org_id: "org-2", legal_name: "Apex Logistics & Supply", score: 74, rating: "GOOD", professional_name: "CMA Suresh Verma", professional_type: "Cost Accountant" },
-  { org_id: "org-3", legal_name: "Nova Retailers India", score: 62, rating: "FAIR", professional_name: "CS Ananya Rao", professional_type: "Company Secretary" },
-  { org_id: "org-4", legal_name: "Zenith Health Informatics", score: 91, rating: "EXCELLENT", professional_name: "CA Neha Patel", professional_type: "Chartered Accountant" },
-];
-
 export default function BhsPanel() {
-  const [rows, setRows] = useState<ClientRow[]>(DEFAULT_BHS_ROWS);
+  const [rows, setRows] = useState<ClientRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,10 +30,9 @@ export default function BhsPanel() {
       .bhsPortfolio()
       .then((r) => {
         const list = (r.clients as unknown as ClientRow[]) ?? [];
-        if (list.length > 0) setRows(list);
-        else setRows(DEFAULT_BHS_ROWS);
+        setRows(Array.isArray(list) ? list : []);
       })
-      .catch(() => setRows(DEFAULT_BHS_ROWS))
+      .catch(() => setRows([]))
       .finally(() => setLoaded(true));
   }, []);
 

@@ -7,10 +7,41 @@ import {
 } from "lucide-react";
 import { InventoryView } from "../../components/InventoryView";
 import { SalesView } from "../../components/SalesView";
+import { CreateProformaInvoice } from "../../components/CreateProformaInvoice";
+import { CreateDeliveryChallan } from "../../components/CreateDeliveryChallan";
+import { ProformaInvoicesView } from "../../components/ProformaInvoicesView";
+import { CreditNotesView } from "../../components/CreditNotesView";
+import { CreateCreditNoteView } from "../../components/CreateCreditNoteView";
+import { AdvanceAmountView } from "../../components/AdvanceAmountView";
+import { CreateAdvanceAmountView } from "../../components/CreateAdvanceAmountView";
+import { PurchasesView } from "../../components/PurchasesView";
+import { CreatePurchaseView } from "../../components/CreatePurchaseView";
+import { CreatePurchaseOrderView } from "../../components/CreatePurchaseOrderView";
+import { ManagePurchaseOrdersView } from "../../components/ManagePurchaseOrdersView";
+import { DebitNotesView } from "../../components/DebitNotesView";
+import { CreateDebitNoteView } from "../../components/CreateDebitNoteView";
 import { CustomersView } from "../../components/CustomersView";
+import { AddCustomerView } from "../../components/AddCustomerView";
+import { SuppliersView } from "../../components/SuppliersView";
+import { AddSupplierView } from "../../components/AddSupplierView";
+import { ProductsView } from "../../components/ProductsView";
+import { AddProductView } from "../../components/AddProductView";
+import { ManageCategoriesView } from "../../components/ManageCategoriesView";
+import { AddCategoryView } from "../../components/AddCategoryView";
+import { StockLogView } from "../../components/StockLogView";
+import { EInvoicingView } from "../../components/EInvoicingView";
+import { EWayBillsView } from "../../components/EWayBillsView";
+import { CreateEWayBillView } from "../../components/CreateEWayBillView";
+import { CancelledEWayBillsView } from "../../components/CancelledEWayBillsView";
+import { CancelEWayBillView } from "../../components/CancelEWayBillView";
+import { TransportersView } from "../../components/TransportersView";
+import { DeliveryChallansView } from "../../components/DeliveryChallansView";
+import { ExpensesView } from "../../components/ExpensesView";
+import { ReconciliationView } from "../../components/ReconciliationView";
 import { DocumentCenter } from "../../components/DocumentCenter";
 import { ReportsCenter } from "../../components/ReportsCenter";
 import { IntelligenceHub } from "../../components/IntelligenceHub";
+import { LockedFeatureGate } from "../../components/LockedFeatureGate";
 import { Badge, Button, Card, EmptyState } from "@/ui";
 import { SidebarShell } from "../../components/SidebarShell";
 import { CreateInvoice } from "../../components/CreateInvoice";
@@ -21,18 +52,83 @@ import { MODULES } from "../../components/module/registry";
 
 const SECTIONS = [
   { key: "overview", label: "Overview", icon: LayoutGrid },
-  { key: "bookkeeping", label: "Bookkeeping", icon: BookOpen },
   { key: "sales", label: "Sales", icon: Receipt },
   
   { key: "purchases", label: "Purchases", icon: ShoppingCart },
   { key: "customers", label: "Customers", icon: Users },
+  { key: "suppliers", label: "Suppliers", icon: Users },
   { key: "products", label: "Products", icon: Package },
   { key: "inventory", label: "Inventory", icon: Boxes },
   { key: "expenses", label: "Expenses", icon: Wallet },
   { key: "reconciliation", label: "Bank Reconciliation", icon: Landmark },
   { key: "reports", label: "Reports", icon: PieChart },
   { key: "intelligence", label: "AI Intelligence", icon: Sparkles },
+  { key: "ewaybill", label: "E-Way Bills", icon: Truck },
 ] as const;
+
+function dedupeWorkspaceRows(items: Record<string, unknown>[]): Record<string, unknown>[] {
+  const seen = new Set<string>();
+  const out: Record<string, unknown>[] = [];
+  for (const item of items) {
+    const key = String(item.id || item.invoice_no || item.invoiceNo || `${item.name || item.customer_name}-${item.total || ""}`);
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+function parseLocation() {
+  if (typeof window === "undefined") return { section: "sales", action: null };
+  const url = new URL(window.location.href);
+  let sec = url.searchParams.get("section");
+  if (sec === "documents" || sec === "overview") {
+    sec = "sales";
+  }
+  const act = url.searchParams.get("action");
+  if (!sec && act) {
+    if (
+      act === "create-invoice" ||
+      act === "create-quotation" ||
+      act === "create-credit-note" ||
+      act === "proforma-invoice" ||
+      act === "create-proforma-invoice" ||
+      act === "delivery-challan" ||
+      act === "create-delivery-challan" ||
+      act === "advance-amount" ||
+      act === "create-advance-amount" ||
+      act === "manage-credit-notes"
+    ) {
+      sec = "sales";
+    } else if (
+      act === "record-purchase" ||
+      act === "purchase-order" ||
+      act === "debit-note" ||
+      act === "create-purchase" ||
+      act === "create-purchase-order" ||
+      act === "manage-purchase-order" ||
+      act === "create-debit-note" ||
+      act === "manage-debit-note"
+    ) {
+      sec = "purchases";
+    } else if (act === "add-customer") {
+      sec = "customers";
+    } else if (act === "add-supplier") {
+      sec = "suppliers";
+    } else if (act === "add-product" || act === "add-category" || act === "manage-category") {
+      sec = "products";
+    } else if (act === "stock-log") {
+      sec = "inventory";
+    } else if (act === "create-ewaybill" || act === "cancel-ewaybill" || act === "manage-cancelled" || act === "manage-transporter") {
+      sec = "ewaybill";
+    }
+  }
+  return {
+    section: sec && SECTIONS.some((x) => x.key === sec && x.key !== "overview") ? sec : "sales",
+    action: act,
+  };
+}
 
 export default function Workspace() {
   return (
@@ -45,54 +141,192 @@ export default function Workspace() {
 function WorkspaceInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [ready, setReady] = useState(false);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [section, setSection] = useState<string>("overview");
+  const [orgId, setOrgId] = useState<string>("demo-business-org");
+  const [section, setSection] = useState<string>("sales");
+  const [action, setAction] = useState<string | null>(null);
   const [command, setCommand] = useState("");
   const [creating, setCreating] = useState<{ initial?: string } | null>(null);
   const [docModal, setDocModal] = useState<{ type?: string } | null>(null);
-  const [rowsCache, setRowsCache] = useState<Record<string, Record<string, unknown>[]>>({});
-  const [loading, setLoading] = useState(false);
-  const rows = rowsCache[section] || [];
+  // Track whether a custom event already handled the last navigation
+  const customNavRef = useRef<{ section: string; action: string | null } | null>(null);
 
+  // Start with empty state (matches SSR) — hydrate from localStorage after mount
+  const [rowsCache, setRowsCache] = useState<Record<string, Record<string, unknown>[]>>({
+    sales: [], purchases: [], customers: [], products: [], inventory: [],
+  });
+  const [loading, setLoading] = useState(false);
+
+  // After hydration, load only user-created data (no seed/demo data)
+  useEffect(() => {
+    // One-time migration: clear old demo/generated invoice data
+    const migrated = localStorage.getItem("vertofi_demo_cleared_v1");
+    if (!migrated) {
+      localStorage.removeItem("vertofi_generated_invoices");
+      // Remove seed rows from vertofi_local_sales
+      try {
+        const raw = localStorage.getItem("vertofi_local_sales");
+        if (raw) {
+          const parsed: Record<string, unknown>[] = JSON.parse(raw);
+          const cleaned = parsed.filter(
+            (r) => r.id !== "seed-1" && r.id !== "seed-2"
+          );
+          localStorage.setItem("vertofi_local_sales", JSON.stringify(cleaned));
+        }
+      } catch { /* ignore */ }
+      localStorage.setItem("vertofi_demo_cleared_v1", "1");
+    }
+
+    try {
+      // Only load what the user actually created — no fallback seed rows
+      const salesData: Record<string, unknown>[] = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+      setRowsCache({
+        sales: dedupeWorkspaceRows(salesData),
+        purchases: JSON.parse(localStorage.getItem("vertofi_local_purchases") || "[]"),
+        customers: JSON.parse(localStorage.getItem("vertofi_local_customers") || "[]"),
+        products: JSON.parse(localStorage.getItem("vertofi_local_products") || "[]"),
+        inventory: JSON.parse(localStorage.getItem("vertofi_local_inventory") || "[]"),
+      });
+    } catch {
+      // localStorage unavailable — leave cache empty, API load will populate it
+    }
+  }, []);
+
+  // Sync client-side state after hydration
   useEffect(() => {
     const oid = getOrgId() || "demo-business-org";
     setOrgId(oid);
-    setReady(true);
+
+    const parsed = parseLocation();
+    setSection(parsed.section);
+    setAction(parsed.action);
   }, [router]);
 
+  const rows = rowsCache[section] || [];
+
+  // Handle instant custom navigation & popstate
   useEffect(() => {
-    const s = searchParams.get("section");
-    if (s && SECTIONS.some((x) => x.key === s)) {
-      setSection(s);
-    } else if (!s) {
-      setSection("overview");
+    const handleWorkspaceNav = (e: Event) => {
+      const custom = e as CustomEvent<{ section?: string; action?: string | null; href?: string }>;
+      if (custom.detail) {
+        const newSection = custom.detail.section || parseLocation().section;
+        const newAction = custom.detail.action ?? null;
+        // Apply immediately
+        customNavRef.current = { section: newSection, action: newAction };
+        setSection(newSection);
+        setAction(newAction);
+      }
+    };
+    const handlePopState = () => {
+      const parsed = parseLocation();
+      customNavRef.current = null;
+      setSection(parsed.section);
+      setAction(parsed.action);
+    };
+    const handleInvoiceDeleted = (e: Event) => {
+      const custom = e as CustomEvent<{ id?: string; invoice_no?: string }>;
+      if (custom.detail) {
+        const targetId = custom.detail.id;
+        const targetNo = custom.detail.invoice_no;
+        setRowsCache((prev) => ({
+          ...prev,
+          sales: (prev.sales || []).filter((item) => {
+            const itemId = String(item.id ?? "");
+            const itemNo = String(item.invoice_no ?? item.invoiceNo ?? "");
+            if (targetId && itemId === targetId) return false;
+            if (targetNo && itemNo === targetNo) return false;
+            return true;
+          }),
+        }));
+      }
+    };
+    window.addEventListener("vertofi:workspace-nav", handleWorkspaceNav);
+    window.addEventListener("vertofi:invoice-deleted", handleInvoiceDeleted);
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("vertofi:workspace-nav", handleWorkspaceNav);
+      window.removeEventListener("vertofi:invoice-deleted", handleInvoiceDeleted);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  // Sync when searchParams change via Next.js routing (skip if custom event already handled it)
+  useEffect(() => {
+    const parsed = parseLocation();
+    // If our custom nav ref matches what's in the URL, it's already applied — just clear the ref
+    if (
+      customNavRef.current &&
+      customNavRef.current.section === parsed.section &&
+      customNavRef.current.action === parsed.action
+    ) {
+      customNavRef.current = null;
+      return;
     }
+    // Otherwise apply URL-driven navigation (e.g. direct URL load, back/forward)
+    customNavRef.current = null;
+    setSection(parsed.section);
+    setAction(parsed.action);
   }, [searchParams]);
 
-  const handleTabClick = (key: string) => {
+  // Instant action switcher helper for inside views (0ms UI latency)
+  const handleActionChange = useCallback((sec: string, act: string | null) => {
+    setSection(sec);
+    setAction(act);
+    const query = new URLSearchParams();
+    if (sec !== "overview") query.set("section", sec);
+    if (act) query.set("action", act);
+    const queryString = query.toString();
+    const newUrl = queryString ? `/workspace?${queryString}` : "/workspace";
+    
+    window.history.pushState(null, "", newUrl);
+    window.dispatchEvent(new CustomEvent("vertofi:workspace-nav", { detail: { section: sec, action: act, href: newUrl } }));
     startTransition(() => {
-      setSection(key);
-      const url = key === "overview" || key === "bookkeeping" ? "/workspace" : `/workspace?section=${key}`;
-      router.replace(url, { scroll: false });
+      router.replace(newUrl, { scroll: false });
     });
+  }, [router]);
+
+  const handleTabClick = (key: string) => {
+    handleActionChange(key, null);
   };
 
+  // Background SWR loader that updates cache without blanking the screen
   const load = useCallback(async (sec: string, oid: string) => {
-    setLoading(true);
     try {
       const map: Record<string, () => Promise<Record<string, unknown>[]>> = {
         sales: () => api.acc.sales(oid),
-        overview: () => api.acc.documents(oid), bookkeeping: () => api.acc.documents(oid),
+        overview: () => api.acc.documents(oid),
         purchases: () => api.acc.purchases(oid),
         customers: () => api.acc.customers(oid),
         products: () => api.acc.products(oid),
         inventory: () => api.acc.inventory(oid),
       };
-      const data = map[sec] ? await map[sec]!() : [];
-      setRowsCache((prev) => ({ ...prev, [sec]: Array.isArray(data) ? data : [] }));
+      const rawData = map[sec] ? await map[sec]!() : [];
+      let data = Array.isArray(rawData) ? rawData : [];
+
+      if (sec === "sales" && typeof window !== "undefined") {
+        try {
+          // Only merge user-created local sales (no generated demo invoices)
+          const storedStr = localStorage.getItem("vertofi_local_sales");
+          const stored: Record<string, unknown>[] = storedStr ? JSON.parse(storedStr) : [];
+          const existingIds = new Set(data.map((x) => String(x.id ?? x.invoice_no ?? x.invoiceNo)));
+          const extraLocal = stored.filter(
+            (x) => x.id !== "seed-1" && x.id !== "seed-2" &&
+            !existingIds.has(String(x.id ?? x.invoice_no ?? x.invoiceNo))
+          );
+          data = dedupeWorkspaceRows([...extraLocal, ...data]);
+        } catch (_e) {
+          /* ignore */
+        }
+      }
+
+      setRowsCache((prev) => ({ ...prev, [sec]: dedupeWorkspaceRows(data) }));
     } catch {
-      setRowsCache((prev) => ({ ...prev, [sec]: [] }));
+      let fallbackData: Record<string, unknown>[] = [];
+      if (sec === "sales" && typeof window !== "undefined") {
+        try {
+          fallbackData = dedupeWorkspaceRows(JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]"));
+        } catch (_e) {}
+      }
+      setRowsCache((prev) => ({ ...prev, [sec]: fallbackData }));
     } finally {
       setLoading(false);
     }
@@ -102,97 +336,264 @@ function WorkspaceInner() {
     if (orgId && section !== "overview") void load(section, orgId);
   }, [orgId, section, load]);
 
-  if (!ready || !orgId) return null;
-
   return (
     <SidebarShell>
       <main className="mx-auto w-full max-w-[1500px] space-y-5 px-4 py-6 sm:px-8">
 
         {/* Content (full width) */}
         <div className="space-y-6">
-          {/* Command Center bar */}
-          <form
-            onSubmit={(e) => { e.preventDefault(); if (command.trim()) setCreating({ initial: command.trim() }); }}
-            className="flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 shadow-card focus-within:border-brand"
-          >
-            <Sparkles className="h-4 w-4 text-brand" />
-            <input className="flex-1 bg-transparent text-sm outline-none" placeholder="Command Center —  Create Tax Invoice · New Quotation · Show overdue customers · Generate P&L" value={command} onChange={(e) => setCommand(e.target.value)} />
-            <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white">Run</button>
-          </form>
+          {/* Command Center bar (only on overview) */}
+          {section === "overview" && (
+            <form
+              onSubmit={(e) => { e.preventDefault(); if (command.trim()) setCreating({ initial: command.trim() }); }}
+              className="flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 shadow-card focus-within:border-brand"
+            >
+              <Sparkles className="h-4 w-4 text-brand" />
+              <input className="flex-1 bg-transparent text-sm outline-none" placeholder="Command Center —  Create Tax Invoice · New Quotation · Show overdue customers · Generate P&L" value={command} onChange={(e) => setCommand(e.target.value)} />
+              <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white">Run</button>
+            </form>
+          )}
 
-          {(section === "overview" || section === "bookkeeping") && orgId && (
+          {section === "overview" && orgId && (
             <DocumentCenter orgId={orgId} rows={rows} loading={loading} onPick={(type) => setDocModal({ type })} reload={() => load(section, orgId)} />
           )}
 
-          {section === "expenses" && (() => {
-            const ExpComp = MODULES["expenses"]?.component;
-            return ExpComp ? <ExpComp /> : null;
-          })()}
-
-          {section === "reconciliation" && (() => {
-            const ReconComp = MODULES["bank-reconciliation"]?.component;
-            return ReconComp ? <ReconComp /> : null;
-          })()}
-
           {section === "sales" && orgId && (
-            <SalesView
-              orgId={orgId}
-              rows={rows}
-              loading={loading}
-              onNewInvoice={() => setCreating({})}
-              onNewDoc={(type) => setDocModal({ type })}
-            />
+            <LockedFeatureGate feature="sales_invoicing">
+              {action === "create-invoice" ? (
+                <CreateInvoice
+                  orgId={orgId}
+                  inline={true}
+                  onClose={() => handleActionChange("sales", null)}
+                  onCreated={() => { handleActionChange("sales", null); void load("sales", orgId); }}
+                />
+              ) : action === "create-credit-note" ? (
+                <CreateCreditNoteView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("sales", "manage-credit-notes")}
+                  onCreated={() => handleActionChange("sales", "manage-credit-notes")}
+                />
+              ) : action === "manage-credit-notes" ? (
+                <CreditNotesView
+                  orgId={orgId}
+                  onNewCreditNote={() => handleActionChange("sales", "create-credit-note")}
+                />
+              ) : action === "create-advance-amount" ? (
+                <CreateAdvanceAmountView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("sales", "advance-amount")}
+                  onCreated={() => { handleActionChange("sales", "advance-amount"); void load("sales", orgId); }}
+                />
+              ) : action === "advance-amount" || action === "manage-advance-amount" ? (
+                <AdvanceAmountView
+                  orgId={orgId}
+                  onNewAdvance={() => handleActionChange("sales", "create-advance-amount")}
+                />
+              ) : action === "delivery-challan" ? (
+                <DeliveryChallansView
+                  orgId={orgId}
+                  onNewChallan={() => handleActionChange("sales", "create-delivery-challan")}
+                />
+              ) : action === "create-delivery-challan" ? (
+                <CreateDeliveryChallan
+                  orgId={orgId}
+                  inline={true}
+                  onClose={() => handleActionChange("sales", "delivery-challan")}
+                  onCreated={() => { handleActionChange("sales", "delivery-challan"); void load("sales", orgId); }}
+                />
+              ) : action === "proforma-invoice" ? (
+                <ProformaInvoicesView
+                  orgId={orgId}
+                  rows={rows}
+                  loading={loading}
+                  onNewInvoice={() => handleActionChange("sales", "create-proforma-invoice")}
+                />
+              ) : action === "create-proforma-invoice" ? (
+                <CreateProformaInvoice
+                  orgId={orgId}
+                  inline={true}
+                  onClose={() => handleActionChange("sales", "proforma-invoice")}
+                  onCreated={() => { handleActionChange("sales", "proforma-invoice"); void load("sales", orgId); }}
+                />
+              ) : (
+                <SalesView
+                  orgId={orgId}
+                  rows={rows}
+                  loading={loading}
+                  onNewInvoice={() => handleActionChange("sales", "create-invoice")}
+                  onNewDoc={() => handleActionChange("sales", "create-invoice")}
+                />
+              )}
+            </LockedFeatureGate>
           )}
-          {section === "purchases" && (
-            <div className="space-y-4">
-              <Card>
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-50 text-brand"><FileText className="h-4 w-4" /></span>
-                  <div>
-                    <h2 className="text-[14px] font-semibold text-ink">Upload a purchase bill</h2>
-                    <p className="text-[12px] text-muted">Drop a vendor bill (PDF/JPG/PNG). Vertofi extracts the line items, GST &amp; totals into a reviewable draft — no typing.</p>
-                  </div>
-                </div>
-                <DocumentUpload orgId={orgId} type="PURCHASE_BILL" label="Vendor purchase bill" />
-              </Card>
-              <ListView title="Purchase Bills" loading={loading} rows={rows} cols={[["bill_no", "Bill"], ["vendor_name", "Vendor"], ["total", "Total"], ["status", "Status"], ["source", "Via"]]} empty="No purchase bills yet" />
-            </div>
+          {section === "purchases" && orgId && (
+            <LockedFeatureGate feature="purchases">
+              {action === "create-purchase" ? (
+                <CreatePurchaseView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("purchases", null)}
+                  onCreated={() => handleActionChange("purchases", null)}
+                />
+              ) : action === "create-purchase-order" ? (
+                <CreatePurchaseOrderView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("purchases", "manage-purchase-order")}
+                  onCreated={() => handleActionChange("purchases", "manage-purchase-order")}
+                />
+              ) : action === "manage-purchase-order" ? (
+                <ManagePurchaseOrdersView
+                  orgId={orgId}
+                  onNewPO={() => handleActionChange("purchases", "create-purchase-order")}
+                />
+              ) : action === "create-debit-note" ? (
+                <CreateDebitNoteView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("purchases", "manage-debit-note")}
+                  onCreated={() => handleActionChange("purchases", "manage-debit-note")}
+                />
+              ) : action === "manage-debit-note" ? (
+                <DebitNotesView
+                  orgId={orgId}
+                  onNewDebitNote={() => handleActionChange("purchases", "create-debit-note")}
+                />
+              ) : (
+                <PurchasesView
+                  orgId={orgId}
+                  onNewPurchase={() => handleActionChange("purchases", "create-purchase")}
+                />
+              )}
+            </LockedFeatureGate>
           )}
           {section === "customers" && orgId && (
-            <CustomersView orgId={orgId} rows={rows} loading={loading} reload={() => load("customers", orgId)} onNewInvoice={(name) => setCreating({ initial: name ? `Invoice for ${name} ` : undefined })} />
+            <LockedFeatureGate feature="customers">
+              {action === "add-customer" ? (
+                <AddCustomerView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("customers", null)}
+                  onCreated={() => handleActionChange("customers", null)}
+                />
+              ) : (
+                <CustomersView
+                  orgId={orgId}
+                  rows={rows}
+                  loading={loading}
+                  reload={() => load("customers", orgId)}
+                  onNewCustomer={() => handleActionChange("customers", "add-customer")}
+                />
+              )}
+            </LockedFeatureGate>
           )}
-          {section === "products" && (
-            <ProductsView orgId={orgId} rows={rows} loading={loading} reload={() => load("products", orgId)} />
+          {section === "suppliers" && orgId && (
+            <LockedFeatureGate feature="purchases">
+              {action === "add-supplier" ? (
+                <AddSupplierView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("suppliers", null)}
+                  onCreated={() => handleActionChange("suppliers", null)}
+                />
+              ) : (
+                <SuppliersView
+                  orgId={orgId}
+                  rows={rows}
+                  loading={loading}
+                  onNewSupplier={() => handleActionChange("suppliers", "add-supplier")}
+                />
+              )}
+            </LockedFeatureGate>
+          )}
+          {section === "products" && orgId && (
+            <LockedFeatureGate feature="products">
+              {action === "add-product" ? (
+                <AddProductView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("products", null)}
+                  onCreated={() => handleActionChange("products", null)}
+                />
+              ) : action === "add-category" ? (
+                <AddCategoryView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("products", "manage-category")}
+                  onCreated={() => handleActionChange("products", "manage-category")}
+                />
+              ) : action === "manage-category" ? (
+                <ManageCategoriesView
+                  orgId={orgId}
+                  onNewCategory={() => handleActionChange("products", "add-category")}
+                />
+              ) : (
+                <ProductsView
+                  orgId={orgId}
+                  rows={rows}
+                  loading={loading}
+                  reload={() => load("products", orgId)}
+                  onNewProduct={() => handleActionChange("products", "add-product")}
+                />
+              )}
+            </LockedFeatureGate>
           )}
           {section === "inventory" && orgId && (
-            <InventoryView orgId={orgId} />
+            <LockedFeatureGate feature="inventory">
+              {action === "stock-log" ? (
+                <StockLogView orgId={orgId} />
+              ) : (
+                <InventoryView orgId={orgId} />
+              )}
+            </LockedFeatureGate>
+          )}
+          {section === "einvoicing" && orgId && (
+            <LockedFeatureGate feature="einvoicing">
+              <EInvoicingView orgId={orgId} />
+            </LockedFeatureGate>
+          )}
+          {section === "ewaybill" && orgId && (
+            <LockedFeatureGate feature="ewaybill">
+              {action === "create-ewaybill" ? (
+                <CreateEWayBillView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("ewaybill", null)}
+                  onCreated={() => handleActionChange("ewaybill", null)}
+                />
+              ) : action === "cancel-ewaybill" ? (
+                <CancelEWayBillView
+                  orgId={orgId}
+                  onClose={() => handleActionChange("ewaybill", null)}
+                  onCancelled={() => handleActionChange("ewaybill", null)}
+                />
+              ) : action === "manage-cancelled" ? (
+                <CancelledEWayBillsView
+                  orgId={orgId}
+                  onCancelEWayBill={() => handleActionChange("ewaybill", "cancel-ewaybill")}
+                />
+              ) : action === "manage-transporter" ? (
+                <TransportersView orgId={orgId} />
+              ) : (
+                <EWayBillsView
+                  orgId={orgId}
+                  onNewEWayBill={() => handleActionChange("ewaybill", "create-ewaybill")}
+                />
+              )}
+            </LockedFeatureGate>
+          )}
+          {section === "expenses" && orgId && (
+            <ExpensesView orgId={orgId} />
+          )}
+          {section === "reconciliation" && orgId && (
+            <LockedFeatureGate feature="bank_reconciliation">
+              <ReconciliationView orgId={orgId} />
+            </LockedFeatureGate>
           )}
           {section === "reports" && orgId && (
-            <ReportsCenter orgId={orgId} />
+            <LockedFeatureGate feature="pnl_reports">
+              <ReportsCenter orgId={orgId} />
+            </LockedFeatureGate>
           )}
           {section === "intelligence" && orgId && (
-            <IntelligenceHub orgId={orgId} />
+            <LockedFeatureGate feature="ai_advisor">
+              <IntelligenceHub orgId={orgId} />
+            </LockedFeatureGate>
           )}
         </div>
       </main>
-
-      {creating !== null && orgId && (
-        <CreateInvoice
-          orgId={orgId}
-          initialCommand={creating.initial}
-          onClose={() => setCreating(null)}
-          onCreated={() => { setCreating(null); setCommand(""); handleTabClick("sales"); void load("sales", orgId); }}
-        />
-      )}
-
-      {docModal !== null && orgId && (
-        <CreateDocument
-          orgId={orgId}
-          presetType={docModal.type}
-          onClose={() => setDocModal(null)}
-          onCreated={() => { if (section === "overview" || section === "bookkeeping") void load(section, orgId); }}
-        />
-      )}
     </SidebarShell>
   );
 }
@@ -336,97 +737,7 @@ function downscaleImage(file: File, maxPx = 1280, targetBytes = 1_400_000): Prom
   });
 }
 
-function ProductsView({ orgId, rows, loading, reload }: { orgId: string; rows: Record<string, unknown>[]; loading: boolean; reload: () => void }) {
-  const [f, setF] = useState({ name: "", hsn: "", rate: "", taxRate: "18" });
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanErr, setScanErr] = useState<string | null>(null);
-  const [scanned, setScanned] = useState<{ name: string; rate: number; hsn?: string; unit?: string; taxRate?: number }[] | null>(null);
-  const [adding, setAdding] = useState(false);
 
-  async function add() {
-    if (!f.name) return;
-    try { await api.acc.addProduct(orgId, { name: f.name, hsn: f.hsn, rate: Number(f.rate) || 0, taxRate: Number(f.taxRate) || 18 }); setF({ name: "", hsn: "", rate: "", taxRate: "18" }); reload(); } catch { /* */ }
-  }
-
-  async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setScanning(true); setScanErr(null); setScanned(null);
-    try {
-      const { b64, mime } = await downscaleImage(file);
-      const r = await api.acc.scanProducts(orgId, b64, mime);
-      if (r.degraded || r.products.length === 0) setScanErr(r.reason === "ai_unavailable" ? "AI is busy — try again, or add manually." : "Couldn't read the list — try a clearer photo or add manually.");
-      else setScanned(r.products);
-    } catch { setScanErr("Couldn't process that image."); } finally { setScanning(false); }
-  }
-
-  async function addAll() {
-    if (!scanned?.length) return;
-    setAdding(true);
-    try { const r = await api.acc.bulkProducts(orgId, scanned as unknown as Record<string, unknown>[]); setScanned(null); reload(); setScanErr(`Added ${r.added} products${r.skipped ? `, skipped ${r.skipped} already in your list` : ""}.`); }
-    catch { setScanErr("Couldn't save — try again."); } finally { setAdding(false); }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Scan a product / price list */}
-      <Card>
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-[14px] font-semibold text-ink">📷 Scan a product list</h2>
-            <p className="text-[12px] text-muted">Snap a photo of your price list — Vertofi reads the items &amp; prices and adds them. No typing.</p>
-          </div>
-          <Button variant="primary" disabled={scanning} onClick={() => fileRef.current?.click()}>
-            {scanning ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> Reading…</> : "Upload photo"}
-          </Button>
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={onPhoto} />
-        </div>
-        {scanErr && <p className="mt-2 text-[12px] text-muted">{scanErr}</p>}
-        {scanned && (
-          <div className="mt-3 space-y-2">
-            <p className="text-[12px] font-medium text-ink">Found {scanned.length} products — nothing is saved yet. Review &amp; edit every field below, then confirm:</p>
-            <div className="max-h-72 overflow-auto rounded-lg border border-borderCard">
-              <table className="w-full text-left text-[13px]">
-                <thead className="bg-bg2 text-[11px] uppercase text-muted"><tr><th className="px-2 py-1.5">Name</th><th className="px-2 py-1.5">HSN</th><th className="px-2 py-1.5">Unit</th><th className="px-2 py-1.5">Rate</th><th className="px-2 py-1.5">GST%</th><th className="px-2 py-1.5"></th></tr></thead>
-                <tbody>
-                  {scanned.map((p, i) => (
-                    <tr key={i} className="border-t border-borderCard">
-                      <td className="px-2 py-1"><input className="vf-win w-full" value={p.name} onChange={(e) => setScanned(scanned.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} /></td>
-                      <td className="px-2 py-1"><input className="vf-win w-20" value={p.hsn ?? ""} onChange={(e) => setScanned(scanned.map((x, j) => j === i ? { ...x, hsn: e.target.value } : x))} /></td>
-                      <td className="px-2 py-1"><input className="vf-win w-16" value={p.unit ?? "NOS"} onChange={(e) => setScanned(scanned.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))} /></td>
-                      <td className="px-2 py-1"><input className="vf-win w-24" type="number" value={p.rate} onChange={(e) => setScanned(scanned.map((x, j) => j === i ? { ...x, rate: Number(e.target.value) } : x))} /></td>
-                      <td className="px-2 py-1"><input className="vf-win w-16" type="number" value={p.taxRate ?? 18} onChange={(e) => setScanned(scanned.map((x, j) => j === i ? { ...x, taxRate: Number(e.target.value) } : x))} /></td>
-                      <td className="px-2 py-1 text-right"><button title="Remove this row" className="text-muted hover:text-danger" onClick={() => setScanned(scanned.filter((_, j) => j !== i))}>✕</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="primary" disabled={adding || scanned.length === 0} onClick={addAll}>{adding ? "Adding…" : `Confirm & add ${scanned.length} product${scanned.length === 1 ? "" : "s"}`}</Button>
-              <button className="px-3 py-2 text-[12px] font-medium text-muted hover:text-ink" onClick={() => setScanned(null)}>Discard</button>
-            </div>
-          </div>
-        )}
-      </Card>
-
-      <Card>
-        <h2 className="text-[14px] font-semibold text-ink">Add product</h2>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-          <input className="vf-win" placeholder="Name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-          <input className="vf-win" placeholder="HSN" value={f.hsn} onChange={(e) => setF({ ...f, hsn: e.target.value })} />
-          <input className="vf-win" placeholder="Rate" value={f.rate} onChange={(e) => setF({ ...f, rate: e.target.value })} />
-          <input className="vf-win" placeholder="GST%" value={f.taxRate} onChange={(e) => setF({ ...f, taxRate: e.target.value })} />
-          <Button variant="primary" onClick={add}>Add</Button>
-        </div>
-      </Card>
-      <ListView title="Products" loading={loading} rows={rows} cols={[["name", "Name"], ["hsn", "HSN"], ["rate", "Rate"], ["stock", "Stock"]]} empty="No products yet" />
-      <style>{`.vf-win{border:1px solid #E5E7EB;border-radius:10px;padding:8px 12px;font-size:14px;outline:none}.vf-win:focus{border-color:#1378F8}`}</style>
-    </div>
-  );
-}
 
 function getSampleWorkspaceRows(sec: string): Record<string, unknown>[] {
   if (sec === "sales") {

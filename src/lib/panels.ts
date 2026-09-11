@@ -18,10 +18,10 @@ import { cleanUrl } from "./site";
 // cleanUrl strips stray whitespace (e.g. a trailing CR/LF baked into a Vercel
 // env value) that otherwise produced malformed, line-broken hrefs.
 const BUSINESS = process.env.NEXT_PUBLIC_BUSINESS_URL ? cleanUrl(process.env.NEXT_PUBLIC_BUSINESS_URL, "/login") : "/login";
-const ASSOCIATES = process.env.NEXT_PUBLIC_ASSOCIATES_URL ? cleanUrl(process.env.NEXT_PUBLIC_ASSOCIATES_URL, "/associates") : "/associates";
-const ACCOUNTANTS = process.env.NEXT_PUBLIC_ACCOUNTANTS_URL ? cleanUrl(process.env.NEXT_PUBLIC_ACCOUNTANTS_URL, "/accountants") : "/accountants";
-const BHS = process.env.NEXT_PUBLIC_BHS_URL ? cleanUrl(process.env.NEXT_PUBLIC_BHS_URL, "/bhs-portal") : "/bhs-portal";
-const LEGAL = process.env.NEXT_PUBLIC_LEGAL_URL ? cleanUrl(process.env.NEXT_PUBLIC_LEGAL_URL, "/legal-portal") : "/legal-portal";
+const ASSOCIATES = process.env.NEXT_PUBLIC_ASSOCIATES_URL ? cleanUrl(process.env.NEXT_PUBLIC_ASSOCIATES_URL, "/associates/login") : "/associates/login";
+const ACCOUNTANTS = process.env.NEXT_PUBLIC_ACCOUNTANTS_URL ? cleanUrl(process.env.NEXT_PUBLIC_ACCOUNTANTS_URL, "/accountants/login") : "/accountants/login";
+const BHS = process.env.NEXT_PUBLIC_BHS_URL ? cleanUrl(process.env.NEXT_PUBLIC_BHS_URL, "/bhs-portal/login") : "/bhs-portal/login";
+const LEGAL = process.env.NEXT_PUBLIC_LEGAL_URL ? cleanUrl(process.env.NEXT_PUBLIC_LEGAL_URL, "/legal-portal/login") : "/legal-portal/login";
 
 export const PANELS: Panel[] = [
   { key: "business", name: "Vertofi for Business", audience: "Business owners & clients", href: BUSINESS },

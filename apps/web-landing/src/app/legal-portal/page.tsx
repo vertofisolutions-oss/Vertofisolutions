@@ -13,14 +13,8 @@ interface CaseRow {
   ai_analysis?: Record<string, unknown> | null;
 }
 
-const DEFAULT_CASES: CaseRow[] = [
-  { id: "case-1", type: "GST Show Cause Notice (DRC-01)", title: "Mismatch in GSTR-3B vs GSTR-2B FY23-24", status: "OPEN" },
-  { id: "case-2", type: "Income Tax Scrutiny (Sec 143(2))", title: "Disallowance of business expense claim under Section 37", status: "OPEN" },
-  { id: "case-3", type: "ROC Compliance Notice", title: "Late filing penalty waiver petition for MGT-7", status: "OPEN" },
-];
-
 export default function LegalPanel() {
-  const [cases, setCases] = useState<CaseRow[]>(DEFAULT_CASES);
+  const [cases, setCases] = useState<CaseRow[]>([]);
   const [loaded, setLoaded] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,8 +24,8 @@ export default function LegalPanel() {
       return;
     }
   }, []);
-  const [active, setActive] = useState<string | null>("case-1");
-  const [notice, setNotice] = useState("Notice under Section 73 of the CGST Act 2017: Difference between ITC claimed in GSTR-3B and available in GSTR-2B for FY 2023-24.");
+  const [active, setActive] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
   const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -40,10 +34,9 @@ export default function LegalPanel() {
       .legalCases("OPEN")
       .then((r) => {
         const list = (r as unknown as CaseRow[]) ?? [];
-        if (list.length > 0) setCases(list);
-        else setCases(DEFAULT_CASES);
+        setCases(Array.isArray(list) ? list : []);
       })
-      .catch(() => setCases(DEFAULT_CASES))
+      .catch(() => setCases([]))
       .finally(() => setLoaded(true));
   }
   useEffect(refresh, []);

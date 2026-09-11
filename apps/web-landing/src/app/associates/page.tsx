@@ -36,22 +36,16 @@ export default function AssociatesPanel() {
       .catch(() => setVerifyStatus(null));
   }, []);
 
-const DEFAULT_ACCOUNTANTS: Accountant[] = [
-  { id: "acc-1", email: "rajesh.accounts@firm.com", mobile: "+91 98765 43210", status: "ACTIVE" },
-  { id: "acc-2", email: "priya.tax@firm.com", mobile: "+91 98765 43211", status: "ACTIVE" },
-  { id: "acc-3", email: "vikram.gst@firm.com", mobile: "+91 98765 43212", status: "PENDING" },
-];
-
   // Fetch accountants under this associate
   async function fetchAccountants() {
     setLoading(true);
     setError(null);
     try {
       const list = await api.listAccountants();
-      if (list && list.length > 0) setAccountants(list as Accountant[]);
-      else setAccountants(DEFAULT_ACCOUNTANTS);
+      if (Array.isArray(list)) setAccountants(list as Accountant[]);
+      else setAccountants([]);
     } catch (e) {
-      setAccountants(DEFAULT_ACCOUNTANTS);
+      setAccountants([]);
     } finally {
       setLoading(false);
     }

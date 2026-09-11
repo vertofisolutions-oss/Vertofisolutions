@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
@@ -50,6 +50,7 @@ const APP_ROUTES = [
   "/register",
   "/reset",
   "/reactivate",
+  "/subscribe",
 ];
 
 export function Footer() {
@@ -66,18 +67,18 @@ export function Footer() {
         <div className="grid grid-cols-2 gap-10 md:grid-cols-5">
           <div className="col-span-2 space-y-4">
             <Logo />
-            <p className="max-w-sm text-sm text-slate-500">
+            <p className="max-w-sm text-sm text-slate-700 leading-relaxed">
               Predictive accounting and financial intelligence for Indian businesses. Automate GST, payroll, banking, and real-time cash flow monitoring with AI.
             </p>
           </div>
 
           {COLUMNS.map((col) => (
             <div key={col.title}>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{col.title}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-900">{col.title}</p>
               <ul className="mt-4 space-y-2.5">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} className="text-sm text-slate-600 transition hover:text-slate-900">
+                    <Link href={link.href} className="text-sm font-medium text-slate-700 transition hover:text-brand hover:underline">
                       {link.label}
                     </Link>
                   </li>
@@ -88,7 +89,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-8 sm:flex-row">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs font-medium text-slate-600">
             &copy; {new Date().getFullYear()} Vertofi Solutions Pvt. Ltd. All rights reserved.
           </p>
           <div className="flex items-center gap-6">

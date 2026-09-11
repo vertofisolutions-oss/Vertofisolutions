@@ -12,11 +12,12 @@ export interface AuthButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLBut
 
 /** Primary accent button used as the main CTA on every auth screen. */
 export const AuthButton = React.forwardRef<HTMLButtonElement, AuthButtonProps>(
-  ({ busy, busyLabel, accent, full = true, className, children, disabled, style, ...props }, ref) => {
+  ({ busy, busyLabel, accent, full = true, className, children, disabled, style, type = "button", ...props }, ref) => {
     const a = resolveAccent(accent);
     return (
       <button
         ref={ref}
+        type={type}
         disabled={disabled || busy}
         style={{ background: a.base, ...style }}
         className={cn(

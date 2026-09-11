@@ -33,6 +33,15 @@ export function clearTokens(): void {
   localStorage.removeItem("vertofi.access");
   localStorage.removeItem("vertofi.refresh");
   localStorage.removeItem("vertofi.orgId");
+  localStorage.removeItem("vertofi_user_name");
+  localStorage.removeItem("vertofi_user_email");
+  localStorage.removeItem("vertofi_user_mobile");
+  localStorage.removeItem("vertofi_user_state");
+  localStorage.removeItem("vertofi.plan");
+  localStorage.removeItem("vertofi_user_plan");
+  localStorage.removeItem("vertofi_business_profile");
+  localStorage.removeItem("vertofi_business_turnover");
+  localStorage.removeItem("vertofi_assigned_professionals");
 }
 
 export function getAccess(): string | null {

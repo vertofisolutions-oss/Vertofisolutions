@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { cn } from "../cn";
 import { Field, inputClass } from "./Field";
 
@@ -48,7 +49,7 @@ export function PasswordField({
     <Field label={label} error={error} hint={hint}>
       <div className="relative">
         <input
-          className={cn(inputClass, "pr-12")}
+          className={cn(inputClass, "pr-10")}
           type={show ? "text" : "password"}
           value={value}
           autoFocus={autoFocus}
@@ -60,10 +61,15 @@ export function PasswordField({
         <button
           type="button"
           tabIndex={-1}
-          onClick={() => setShow((s) => !s)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted hover:text-ink"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShow((prev) => !prev);
+          }}
+          aria-label={show ? "Hide password" : "Show password"}
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-800 cursor-pointer z-10 transition-colors"
         >
-          {show ? "Hide" : "Show"}
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
       {strength && value.length > 0 && (

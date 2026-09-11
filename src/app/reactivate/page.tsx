@@ -12,9 +12,9 @@ declare global {
 }
 
 const PLAN_CARDS = [
-  { key: "STARTER", name: "Starter", monthly: 699, blurb: "Solo founders & small businesses" },
-  { key: "GROWTH", name: "Growth", monthly: 1999, blurb: "Growing companies & SMEs", popular: true },
-  { key: "PRO", name: "Pro", monthly: 4999, blurb: "High-volume operations & firms" },
+  { key: "STARTER", name: "Starter", monthly: 499, blurb: "Up to ₹40L turnover · Automate finances" },
+  { key: "GROWTH", name: "Growth", monthly: 1499, blurb: "₹40L–₹2Cr turnover · Predict risks", popular: true },
+  { key: "SCALE", name: "Scale", monthly: 3999, blurb: "₹2Cr–₹15Cr turnover · Full command center" },
 ];
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 

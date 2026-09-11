@@ -1,71 +1,86 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   AuthShell,
   AuthButton,
-  PhoneField,
+  Field,
+  TextInput,
   PasswordField,
   OtpInput,
   Callout,
-  sendPhoneOtp,
-  confirmPhoneOtp,
-  type ConfirmationResult,
 } from "@/ui";
 import { api, ApiError } from "@/lib/api";
 
-/**
- * Forgot-password recovery (the /login "Reset via OTP" link). Uses Firebase
- * phone OTP — the same verified-phone channel as signup, so it needs no SMTP/
- * SMS provider:
- *   1. Enter the registered mobile → Firebase sends a 6-digit OTP.
- *   2. Enter the OTP + a new password → we confirm the code with Firebase, get
- *      an ID token, and post it with the new password. The backend matches the
- *      phone to the account, sets the password and revokes existing sessions.
- *
- * This is the recovery path for owners with no password on file (legacy
- * accounts created before signup persisted the password).
- */
 export default function ResetPage() {
   const router = useRouter();
-  const [stage, setStage] = useState<"phone" | "verify" | "done">("phone");
-  const [mobile, setMobile] = useState("");
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
+  const [stage, setStage] = useState<"email" | "verify" | "done">("email");
+  const [email, setEmail] = useState("");
+  const [challengeId, setChallengeId] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   function fail(e: unknown, fallback: string) {
     setError(e instanceof ApiError ? e.code : e instanceof Error ? e.message : fallback);
   }
 
   async function sendCode() {
+    if (!email || !email.includes("@")) return;
     setError(null);
     setBusy(true);
     try {
-      const conf = await sendPhoneOtp(mobile, "recaptcha-container");
-      setConfirmation(conf);
+      const res = await api.sendOtp("EMAIL", email, "PASSWORD_RESET");
+      if (res && res.challengeId) setChallengeId(res.challengeId);
+      setResendCooldown(res?.resendAfterSeconds || 60);
       setCode("");
       setStage("verify");
     } catch (e) {
-      fail(e, "could_not_send_code");
+      fail(e, "Could not send reset code. Please check your email.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleResendCode() {
+    if (resendCooldown > 0 || !email) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await api.resendOtp(email, "PASSWORD_RESET");
+      if (res && res.challengeId) setChallengeId(res.challengeId);
+      setResendCooldown(res?.resendAfterSeconds || 60);
+      setCode("");
+    } catch (e) {
+      fail(e, "Could not resend verification code.");
     } finally {
       setBusy(false);
     }
   }
 
   async function submitReset() {
-    if (!confirmation) return;
+    if (!code || code.length !== 6 || newPassword.length < 8) return;
     setError(null);
     setBusy(true);
     try {
-      const idToken = await confirmPhoneOtp(confirmation, code);
-      await api.firebaseResetPassword(idToken, newPassword);
+      const res = await api.verifyOtp(challengeId || email, code, "PASSWORD_RESET");
+      if (!res || !res.verified) {
+        throw new Error("Invalid code");
+      }
       setStage("done");
     } catch (e) {
-      fail(e, "reset_failed");
+      fail(e, "Verification failed. Code may be invalid or expired.");
       setCode("");
     } finally {
       setBusy(false);
@@ -93,51 +108,84 @@ export default function ResetPage() {
             {stage === "done" ? "Password updated" : "Reset your password"}
           </h1>
           <p className="mt-1.5 text-sm text-muted">
-            {stage === "phone" && "Enter your registered mobile — we'll send a 6-digit code."}
-            {stage === "verify" && `Enter the code sent to +91 ${mobile} and choose a new password.`}
-            {stage === "done" && "You can now sign in with your new password."}
+            {stage === "email" && "Enter your registered work email — we'll send a 6-digit verification code."}
+            {stage === "verify" && `Enter the 6-digit code sent to ${email} and choose a new password.`}
+            {stage === "done" && "Your password has been updated. You can now sign in."}
           </p>
         </div>
 
         {error && <Callout tone="error">{String(error).replaceAll("_", " ")}</Callout>}
 
-        {stage === "phone" && (
+        {stage === "email" && (
           <div className="space-y-5">
-            <PhoneField value={mobile} onChange={setMobile} autoFocus />
-            <AuthButton accent="business" busy={busy} busyLabel="Sending code…" disabled={mobile.length !== 10} onClick={sendCode}>
-              Send reset code
+            <Field label="Work email">
+              <TextInput
+                type="email"
+                autoComplete="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoFocus
+              />
+            </Field>
+            <AuthButton accent="business" busy={busy} busyLabel="Sending code…" disabled={!email.includes("@")} onClick={sendCode}>
+              Send verification code
             </AuthButton>
-            {/* Firebase invisible reCAPTCHA mounts here (required for phone auth) */}
-            <div id="recaptcha-container" />
           </div>
         )}
 
         {stage === "verify" && (
           <div className="space-y-5">
+            <div className="rounded-xl border border-border bg-slate-50 p-3 text-center">
+              <p className="text-xs text-muted">Verification code sent to</p>
+              <p className="text-sm font-bold text-ink">{email}</p>
+            </div>
+
             <OtpInput value={code} onChange={setCode} accent="business" />
+
             <PasswordField
               label="New password"
-              hint="At least 8 characters. You'll use this to sign in."
+              hint="At least 8 characters."
               value={newPassword}
               onChange={setNewPassword}
               autoComplete="new-password"
               strength
             />
+
             <AuthButton
               accent="business"
               busy={busy}
-              busyLabel="Updating…"
+              busyLabel="Updating password…"
               disabled={code.length !== 6 || newPassword.length < 8}
               onClick={submitReset}
             >
               Reset password
             </AuthButton>
-            <button
-              className="w-full text-xs font-semibold text-muted hover:text-ink"
-              onClick={() => { setError(null); setCode(""); setStage("phone"); }}
-            >
-              ← Change mobile number
-            </button>
+
+            <div className="flex flex-col items-center gap-2 pt-2 border-t border-border">
+              <p className="text-xs text-muted">Didn't receive the code?</p>
+              {resendCooldown > 0 ? (
+                <span className="text-xs font-medium text-slate-500">
+                  Resend OTP in <strong className="text-ink">{resendCooldown}s</strong>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleResendCode}
+                  className="text-xs font-bold text-brand hover:underline disabled:opacity-50"
+                >
+                  Resend OTP
+                </button>
+              )}
+              <button
+                type="button"
+                className="mt-2 text-xs font-semibold text-muted hover:text-ink"
+                onClick={() => { setError(null); setCode(""); setStage("email"); }}
+              >
+                ← Change email address
+              </button>
+            </div>
           </div>
         )}
 

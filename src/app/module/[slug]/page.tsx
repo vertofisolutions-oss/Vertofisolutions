@@ -1,42 +1,42 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarShell } from "../../../components/SidebarShell";
 import { MODULES } from "../../../components/module/registry";
 
-/**
- * Module engine: every sidebar feature renders its REAL module here (slug =
- * kebab-cased label), wired to its actual backend via the registry. Unknown
- * slugs get an honest not-found state — never fake data.
- */
 export default function ModulePage({ params }: { params: Promise<{ slug: string }> }) {
+  return (
+    <Suspense fallback={null}>
+      <ModuleInner params={params} />
+    </Suspense>
+  );
+}
+
+function ModuleInner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const router = useRouter();
-  const [ready, setReady] = useState(false);
+
+  const workspaceSections: Record<string, string> = {
+    "expenses": "expenses",
+    "bank-reconciliation": "reconciliation",
+    "intelligence": "intelligence",
+  };
+
+  const isRedirect = Boolean(workspaceSections[slug]);
 
   useEffect(() => {
-    // Redirect modules that are integrated into workspace
-    const workspaceSections: Record<string, string> = {
-      "expenses": "expenses",
-      "bank-reconciliation": "reconciliation",
-      "intelligence": "intelligence",
-    };
-    
     if (workspaceSections[slug]) {
       router.replace(`/workspace?section=${workspaceSections[slug]}`);
-      return;
     }
-    
-    setReady(true);
   }, [router, slug]);
 
-  if (!ready) return null;
+  if (isRedirect) return null;
   const mod = MODULES[slug];
 
   return (
     <SidebarShell>
-      <main className="mx-auto max-w-5xl space-y-4 px-4 py-6 sm:px-6">
-        <h1 className="text-[18px] font-semibold tracking-tight text-ink">{mod?.title ?? "Module"}</h1>
+      <main className={`mx-auto ${slug === "business-profile" ? "max-w-6xl" : "max-w-5xl"} space-y-5 px-4 py-6 sm:px-6`}>
+        <h1 className="text-xl font-bold tracking-tight text-slate-800">{mod?.title ?? "Module"}</h1>
         {mod ? (
           <mod.component />
         ) : (

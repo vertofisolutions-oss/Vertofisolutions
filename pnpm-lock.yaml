@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@emailjs/browser':
+        specifier: ^4.4.1
+        version: 4.4.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -58,8 +61,13 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  api: {}
+
   apps/web-landing:
     dependencies:
+      '@emailjs/browser':
+        specifier: ^4.4.1
+        version: 4.4.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -110,11 +118,59 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  packages/api: {}
+
+  packages/auth: {}
+
+  packages/config: {}
+
+  packages/database: {}
+
+  packages/types: {}
+
+  packages/ui: {}
+
+  packages/validations: {}
+
+  services/accounting: {}
+
+  services/ai: {}
+
+  services/banking: {}
+
+  services/benchmarks: {}
+
+  services/documents: {}
+
+  services/gst: {}
+
+  services/health-score: {}
+
+  services/moneymap: {}
+
+  services/notifications: {}
+
+  services/payments: {}
+
+  services/profit-leaks: {}
+
+  services/reports: {}
+
+  services/tax: {}
+
+  services/vendor-trust: {}
+
+  services/whatsapp: {}
+
 packages:
 
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
+
+  '@emailjs/browser@4.4.1':
+    resolution: {integrity: sha512-DGSlP9sPvyFba3to2A50kDtZ+pXVp/0rhmqs2LmbMS3I5J8FSOgLwzY2Xb4qfKlOVHh29EAutLYwe5yuEZmEFg==}
+    engines: {node: '>=14.0.0'}
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -1148,6 +1204,8 @@ packages:
 snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
+
+  '@emailjs/browser@4.4.1': {}
 
   '@emnapi/runtime@1.11.3':
     dependencies:

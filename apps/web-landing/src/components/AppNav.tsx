@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/ui";
@@ -26,15 +27,15 @@ export function AppNav() {
     <header className="sticky top-0 z-40 border-b border-[#E5E7EB] bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         <div className="flex items-center gap-8">
-          <a href="/dashboard" className="flex items-center gap-2.5">
+          <Link href="/dashboard" className="flex items-center gap-2.5">
             <Image src="/logo.jpg" alt="Vertofi" width={30} height={30} className="rounded-lg object-contain" />
             <span className="text-base font-bold tracking-tight text-[#0F172A]">Vertofi</span>
-          </a>
+          </Link>
           <nav className="hidden items-center gap-6 md:flex">
             {ITEMS.map((i) => (
-              <a key={i.label} href={i.href} className="text-sm font-medium text-[#64748B] transition hover:text-[#0F172A]">
+              <Link key={i.label} href={i.href} className="text-sm font-medium text-[#64748B] transition hover:text-[#0F172A]">
                 {i.label}
-              </a>
+              </Link>
             ))}
           </nav>
         </div>
@@ -62,14 +63,14 @@ export function AppNav() {
         <div className="border-t border-[#E5E7EB] bg-white px-4 py-3 md:hidden">
           <nav className="flex flex-col gap-1">
             {ITEMS.map((i) => (
-              <a
+              <Link
                 key={i.label}
                 href={i.href}
                 onClick={() => setOpen(false)}
                 className="rounded-lg px-3 py-2.5 text-sm font-medium text-[#334155] transition hover:bg-slate-50"
               >
                 {i.label}
-              </a>
+              </Link>
             ))}
             <a href="#" className="rounded-lg px-3 py-2.5 text-sm font-medium text-[#334155] transition hover:bg-slate-50">Settings</a>
             <a href="#" className="rounded-lg px-3 py-2.5 text-sm font-medium text-[#334155] transition hover:bg-slate-50">Billing</a>

@@ -1,7 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Building2, Briefcase, Calculator, Gauge, Scale, type LucideIcon } from "lucide-react";
 import { PANELS } from "../lib/panels";
 
@@ -30,57 +29,55 @@ export function ServicesDropdown() {
   return (
     <div
       ref={containerRef}
-      className="relative"
+      className="relative inline-block text-left"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-1 text-sm font-medium text-muted transition hover:text-ink"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-900 focus:outline-none"
         aria-expanded={open}
       >
         Services
-        <ChevronDown className={`h-3.5 w-3.5 transition ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180 text-slate-900" : ""}`} />
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute left-1/2 top-full z-50 w-[440px] -translate-x-1/2 pt-3"
-          >
-            <div className="rounded-2xl border border-border bg-white p-2 shadow-soft">
-              <div className="px-3 pb-2 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted">
-                Vertofi service panels
-              </div>
-              <div className="grid grid-cols-1 gap-0.5">
-                {PANELS.map((p) => {
-                  const Icon = ICONS[p.key] ?? Building2;
-                  return (
-                    <Link
-                      key={p.key}
-                      href={p.href}
-                      onClick={() => setOpen(false)}
-                      className="group flex items-start gap-3 rounded-xl px-3 py-2.5 transition hover:bg-bg2"
-                    >
-                      <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border bg-bg2 text-ink transition group-hover:border-brand/30 group-hover:text-brand">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-ink">{p.name}</span>
-                        <span className="block text-xs text-muted">{p.audience}</span>
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
+
+      {open && (
+        <div
+          className="absolute left-0 top-full z-[9999] w-[410px] pt-1"
+          style={{ position: "absolute", zIndex: 9999 }}
+        >
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xl ring-1 ring-black/5">
+            <div className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              VERTOFI SERVICE PANELS
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            <div className="space-y-1">
+              {PANELS.map((p) => {
+                const Icon = ICONS[p.key] ?? Building2;
+                return (
+                  <Link
+                    key={p.key}
+                    href={p.href}
+                    prefetch={true}
+                    onClick={() => setOpen(false)}
+                    className="group flex items-start gap-3 rounded-lg p-2 transition hover:bg-slate-50"
+                  >
+                    <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 transition group-hover:border-slate-300">
+                      <Icon className="h-4.5 w-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-slate-900 leading-snug">{p.name}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{p.audience}</div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

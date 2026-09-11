@@ -17,9 +17,22 @@ import {
   Truck,
   Receipt,
   Building,
+  LayoutTemplate,
+  FileDown,
+  Sparkles,
+  Layers,
 } from "lucide-react";
 import { Card, Badge } from "@/ui";
 import { api } from "@/lib/api";
+import { DocumentRenderer } from "@/templates/templateEngine/DocumentRenderer";
+import { TEMPLATES_REGISTRY } from "@/templates/templatesData";
+import { DocumentFormData } from "@/templates/types";
+import {
+  exportReportPdfInTemplateFormat,
+  printElementAsPdf,
+  getActiveTemplateNumber,
+  ReportSection,
+} from "@/lib/exportTemplatePdf";
 
 const inr = (n: unknown) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const inrInt = (n: unknown) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -84,11 +97,13 @@ function ReportCard({ orgId, def, onOpen }: { orgId: string; def: (typeof PRIMAR
     setPdfBusy(true);
     try {
       const reportData = data ?? {};
-      await api.acc.downloadReportPdf(
-        orgId,
-        { docType: def.docType, title: def.title, sections: objToSections(reportData) },
-        `${def.title.replace(/\W+/g, "_")}.pdf`
-      );
+      const sections = objToSections(reportData);
+      exportReportPdfInTemplateFormat({
+        title: def.title,
+        docType: def.docType,
+        sections: sections as ReportSection[],
+        templateNum: getActiveTemplateNumber(),
+      });
     } catch {
       window.print();
     } finally {
@@ -129,12 +144,306 @@ function ReportCard({ orgId, def, onOpen }: { orgId: string; def: (typeof PRIMAR
   );
 }
 
+function mapSaleToFormData(
+  sale: Record<string, unknown>,
+  companyProfile: Record<string, unknown>,
+  templateSettings: Record<string, unknown>
+): DocumentFormData {
+  const items = (Array.isArray(sale.items) && sale.items.length > 0)
+    ? (sale.items as Record<string, unknown>[]).map((it, idx) => ({
+        id: String(it.id || `item-${idx + 1}`),
+        name: String(it.name || it.item_name || "Enterprise Services"),
+        description: String(it.description || ""),
+        hsnSac: String(it.hsn || it.hsnSac || "998311"),
+        quantity: Number(it.qty || it.quantity || 1),
+        rate: Number(it.rate || it.price || 0),
+        discountPct: Number(it.discount || it.discountPct || 0),
+        taxPct: Number(it.taxRate || it.taxPct || 18),
+        total: Number(it.total || (Number(it.qty || 1) * Number(it.rate || 0))),
+      }))
+    : [
+        {
+          id: "item-1",
+          name: String(sale.notes || sale.description || "Cloud Platform & Business Consulting"),
+          description: "Monthly subscription & IT services rendered",
+          hsnSac: "998311",
+          quantity: 1,
+          rate: Number(sale.total || 0) > 0 ? Math.round(Number(sale.total || 0) / 1.18) : 5000,
+          discountPct: 0,
+          taxPct: 18,
+          total: Number(sale.total || 0) > 0 ? Math.round(Number(sale.total || 0) / 1.18) : 5000,
+        },
+      ];
+
+  return {
+    primaryColor: String(templateSettings?.primaryColor || "#1E60D5"),
+    secondaryColor: "#0F172A",
+    themePreset: "Vertofi Modern",
+    logoUrl: "",
+
+    companyName: String(companyProfile?.tradeName || companyProfile?.legalName || "Vertofi Solutions Private Limited"),
+    companyTagline: "Next-Gen Enterprise Financial Infrastructure",
+    companyAddress: String(companyProfile?.address || "Plot No. 42, Hitech City, Madhapur"),
+    companyCityState: `${String(companyProfile?.city || "Hyderabad")}, ${String(companyProfile?.state || "Telangana")} - ${String(companyProfile?.postalCode || "500081")}`,
+    companyEmail: String(companyProfile?.email || "billing@vertofi.com"),
+    companyPhone: String(companyProfile?.mobile || "+91 9876543210"),
+    companyGstin: String(companyProfile?.gstin || "36AABCU9603R1ZM"),
+    companyPan: String(companyProfile?.pan || "AABCU9603R"),
+
+    customerName: String(sale.customer_name || sale.buyer || "Valued Client"),
+    customerCompany: String(sale.customer_name || sale.buyer || "Valued Client"),
+    customerAddress: String(sale.customer_address || "Plot 10, HITEC City"),
+    customerCityState: String(sale.place_of_supply || sale.customer_state || "Hyderabad, Telangana"),
+    customerEmail: String(sale.customer_email || "accounts@client.com"),
+    customerPhone: String(sale.customer_phone || "+91 9123456780"),
+    customerGstin: String(sale.customer_gstin || sale.gstin || "36AAACG1234F1Z5"),
+
+    docNumber: String(sale.invoice_no || sale.ref || `INV-${sale.id || "0001"}`),
+    docDate: String(sale.date || sale.created_at || new Date().toISOString().slice(0, 10)),
+    dueDate: String(sale.due_date || new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10)),
+    placeOfSupply: String(sale.place_of_supply || "Telangana (36)"),
+    billingPeriod: "Current Billing Cycle",
+
+    items,
+    discountOverallPct: Number(sale.discountOverallPct || 0),
+    shippingCharges: Number(sale.shippingCharges || 0),
+    extraCharges: Number(sale.extraCharges || 0),
+
+    paymentMethod: "Bank Transfer (NEFT/IMPS/UPI)",
+    paymentStatus: (sale.status === "PAID" || sale.payment_status === "PAID") ? "PAID" : "UNPAID",
+    bankName: "HDFC Bank Ltd.",
+    bankAccountNo: "50200089123456",
+    bankIfsc: "HDFC0001234",
+    bankBranch: "Madhapur, Hyderabad",
+    upiId: "vertofi@hdfcbank",
+    showUpiQr: true,
+
+    termsAndConditions: String(sale.terms || "1. Payment is due within 15 days of invoice date.\n2. Interest @ 18% p.a. applicable on delayed payments.\n3. Goods & services delivered under standard SLA."),
+    signatoryTitle: "Authorized Signatory",
+  };
+}
+
+export function InvoiceTemplatePreviewModal({
+  sale,
+  onClose,
+  initialTemplate,
+}: {
+  sale: Record<string, unknown>;
+  onClose: () => void;
+  initialTemplate?: number;
+}) {
+  const [selectedTemplateNum, setSelectedTemplateNum] = useState<number>(() => {
+    if (initialTemplate && initialTemplate >= 1 && initialTemplate <= 6) return initialTemplate;
+    try {
+      const direct = localStorage.getItem("vertofi_selected_template");
+      if (direct) return Number(direct);
+      const stored = localStorage.getItem("vertofi_invoice_template_settings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.templateId) return Number(parsed.templateId);
+        if (parsed.selectedTemplate) return Number(parsed.selectedTemplate);
+      }
+    } catch {}
+    return 1;
+  });
+
+  const [companyProfile, setCompanyProfile] = useState<Record<string, unknown>>({});
+  const [templateSettings, setTemplateSettings] = useState<Record<string, unknown>>({});
+  const [zoom, setZoom] = useState(100);
+
+  useEffect(() => {
+    try {
+      const p = localStorage.getItem("vertofi_business_profile");
+      if (p) setCompanyProfile(JSON.parse(p));
+    } catch {}
+    try {
+      const t = localStorage.getItem("vertofi_invoice_template_settings");
+      if (t) setTemplateSettings(JSON.parse(t));
+    } catch {}
+  }, []);
+
+  const handleSelectTemplate = (num: number) => {
+    setSelectedTemplateNum(num);
+    try {
+      localStorage.setItem("vertofi_selected_template", String(num));
+      const stored = localStorage.getItem("vertofi_invoice_template_settings");
+      const parsed = stored ? JSON.parse(stored) : {};
+      localStorage.setItem(
+        "vertofi_invoice_template_settings",
+        JSON.stringify({ ...parsed, templateId: num, selectedTemplate: num, theme: `template_${num}` })
+      );
+    } catch {}
+  };
+
+  const templateDef = TEMPLATES_REGISTRY[(selectedTemplateNum - 1) % TEMPLATES_REGISTRY.length] || TEMPLATES_REGISTRY[0];
+  const formData = useMemo(() => {
+    return mapSaleToFormData(sale, companyProfile, templateSettings);
+  }, [sale, companyProfile, templateSettings]);
+
+  const handlePrint = () => {
+    const printable = document.getElementById("printable-invoice-a4-sheet");
+    if (printable) {
+      printElementAsPdf(printable, `${String(sale.invoice_no || "Tax_Invoice")}`);
+    } else {
+      window.print();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-2 sm:p-4 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="relative flex max-h-[96vh] w-full max-w-6xl flex-col rounded-2xl border border-slate-200 bg-slate-100 shadow-2xl overflow-hidden">
+        {/* Header Control Bar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 bg-white px-6 py-3.5 gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600 text-white shadow-sm font-bold text-sm">
+              <LayoutTemplate className="h-5 w-5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">
+                  Invoice Template Preview &amp; PDF Export
+                </h2>
+                <Badge tone="brand" className="text-[10px] font-bold">
+                  {String(sale.invoice_no || "INV")}
+                </Badge>
+                <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                  Template {selectedTemplateNum}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Customer: <strong className="text-slate-700">{String(sale.customer_name || "Client")}</strong> • Ready for standard A4 PDF download &amp; Print
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            {/* Zoom Controls */}
+            <div className="hidden md:flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200 text-xs font-semibold text-slate-700">
+              <button onClick={() => setZoom((z) => Math.max(70, z - 10))} title="Zoom out" className="px-2 py-0.5 rounded hover:bg-white cursor-pointer">-</button>
+              <span className="px-1.5">{zoom}%</span>
+              <button onClick={() => setZoom((z) => Math.min(130, z + 10))} title="Zoom in" className="px-2 py-0.5 rounded hover:bg-white cursor-pointer">+</button>
+            </div>
+
+            <button
+              onClick={handlePrint}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700 shadow-sm cursor-pointer"
+            >
+              <Download className="h-4 w-4" />
+              <span>Download PDF / Print</span>
+            </button>
+            <button onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition cursor-pointer">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Template Information Bar (Applied from Business Profile) */}
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-2.5 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Active Template:
+            </span>
+            <span className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700">
+              Template {selectedTemplateNum} • {templateDef?.name?.replace("Vertofi ", "") || "Standard"}
+            </span>
+            <span className="text-[11px] text-slate-500 hidden sm:inline">
+              (Applied from Business Profile)
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-400 hidden lg:inline">
+            A4 Standard • 100% Tax Compliant
+          </span>
+        </div>
+
+        {/* Live A4 Render Workspace */}
+        <div className="flex-1 overflow-y-auto p-6 flex justify-center bg-slate-100/90">
+          <div id="printable-invoice-a4-sheet" className="w-full max-w-[794px] transition-transform duration-150">
+            <DocumentRenderer
+              formData={formData}
+              templateDef={templateDef}
+              templateNumber={selectedTemplateNum}
+              zoomLevel={zoom}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function getTemplateTheme(num: number) {
+  switch (num) {
+    case 2:
+      return {
+        name: "Emerald Compliance Pro",
+        primary: "#059669",
+        bgLight: "bg-emerald-50",
+        border: "border-emerald-200",
+        text: "text-emerald-700",
+        accent: "#10B981",
+        badge: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+      };
+    case 3:
+      return {
+        name: "Executive Purple",
+        primary: "#6D28D9",
+        bgLight: "bg-purple-50",
+        border: "border-purple-200",
+        text: "text-purple-700",
+        accent: "#8B5CF6",
+        badge: "bg-purple-50 text-purple-700 border border-purple-200",
+      };
+    case 4:
+      return {
+        name: "Midnight Slate Elite",
+        primary: "#0F172A",
+        bgLight: "bg-slate-100",
+        border: "border-slate-300",
+        text: "text-slate-800",
+        accent: "#D97706",
+        badge: "bg-slate-100 text-slate-800 border border-slate-300",
+      };
+    case 5:
+      return {
+        name: "Minimalist Indigo",
+        primary: "#3730A3",
+        bgLight: "bg-indigo-50",
+        border: "border-indigo-200",
+        text: "text-indigo-700",
+        accent: "#4F46E5",
+        badge: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+      };
+    case 6:
+      return {
+        name: "Classic GST Gold & Navy",
+        primary: "#1E3A8A",
+        bgLight: "bg-amber-50",
+        border: "border-amber-200",
+        text: "text-amber-800",
+        accent: "#B45309",
+        badge: "bg-amber-50 text-amber-800 border border-amber-300",
+      };
+    case 1:
+    default:
+      return {
+        name: "Vertofi Modern",
+        primary: "#1E60D5",
+        bgLight: "bg-blue-50",
+        border: "border-blue-200",
+        text: "text-blue-700",
+        accent: "#3B82F6",
+        badge: "bg-blue-50 text-blue-700 border border-blue-200",
+      };
+  }
+}
+
 export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string; reportId: string; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState(reportId);
   const [loading, setLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("ALL");
+  const [previewingInvoice, setPreviewingInvoice] = useState<Record<string, unknown> | null>(null);
 
   const [sales, setSales] = useState<Record<string, unknown>[]>([]);
   const [purchases, setPurchases] = useState<Record<string, unknown>[]>([]);
@@ -157,7 +466,30 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
         api.mod.pnl(orgId).catch(() => ({})),
         api.mod.gstSummary(orgId).catch(() => ({})),
       ]);
-      setSales(Array.isArray(sRes) ? sRes : []);
+
+      let allSales: Record<string, unknown>[] = [];
+      try {
+        const localSales = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+        const serverSales = Array.isArray(sRes) ? sRes : [];
+        const combined = [...localSales, ...serverSales];
+
+        const seenKeys = new Set<string>();
+        for (const loc of combined) {
+          if (!loc) continue;
+          const uniqueKey = String(
+            loc.id ||
+            `${loc.invoice_no || loc.invoiceNo || "INV"}_${loc.customer_name || loc.customerName || "Party"}_${loc.total || 0}_${loc.date || loc.created_at || ""}`
+          );
+          if (!seenKeys.has(uniqueKey)) {
+            seenKeys.add(uniqueKey);
+            allSales.push(loc);
+          }
+        }
+      } catch {
+        allSales = Array.isArray(sRes) ? [...sRes] : [];
+      }
+
+      setSales(allSales);
       setPurchases(Array.isArray(pRes) ? pRes : []);
       setExpenses(Array.isArray(eRes) ? eRes : []);
       setCustomers(Array.isArray(cRes) ? cRes : []);
@@ -172,6 +504,36 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+
+  const [selectedTemplateNum, setSelectedTemplateNum] = useState<number>(() => {
+    try {
+      const direct = localStorage.getItem("vertofi_selected_template");
+      if (direct) return Number(direct);
+      const stored = localStorage.getItem("vertofi_invoice_template_settings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.templateId) return Number(parsed.templateId);
+        if (parsed.selectedTemplate) return Number(parsed.selectedTemplate);
+      }
+    } catch {}
+    return 1;
+  });
+
+  useEffect(() => {
+    const syncTmpl = () => {
+      try {
+        const direct = localStorage.getItem("vertofi_selected_template");
+        if (direct) setSelectedTemplateNum(Number(direct));
+      } catch {}
+    };
+    window.addEventListener("storage", syncTmpl);
+    window.addEventListener("vertofi:template-changed", syncTmpl);
+    return () => {
+      window.removeEventListener("storage", syncTmpl);
+      window.removeEventListener("vertofi:template-changed", syncTmpl);
+    };
+  }, []);
 
   const trialBalanceData = useMemo(() => {
     const totalSales = sales.reduce((acc, s) => acc + Number(s.total || 0), 0);
@@ -578,9 +940,14 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
         ];
       }
 
-      await api.acc.downloadReportPdf(orgId, { docType, title, sections }, `${title.replace(/\W+/g, "_")}.pdf`);
+      exportReportPdfInTemplateFormat({
+        title,
+        docType,
+        sections: sections as ReportSection[],
+        templateNum: selectedTemplateNum,
+      });
     } catch (err) {
-      console.warn("Backend PDF generation failed, falling back to browser print", err);
+      console.warn("PDF export fallback", err);
       window.print();
     } finally {
       setPdfBusy(false);
@@ -589,13 +956,17 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
 
   const activeReport = MORE_REPORTS.find((m) => m.id === activeTab);
   const ActiveIcon = activeReport?.icon || FileText;
+  const templateTheme = getTemplateTheme(selectedTemplateNum);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4 backdrop-blur-sm animate-in fade-in duration-150">
       <div className="relative flex max-h-[92vh] w-full max-w-5xl flex-col rounded-2xl border border-borderCard bg-white shadow-2xl overflow-hidden">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-border bg-slate-50/80 px-5 py-4 gap-3">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-white shadow-sm">
+            <span
+              className="grid h-10 w-10 place-items-center rounded-xl text-white shadow-sm transition-colors"
+              style={{ backgroundColor: templateTheme.primary }}
+            >
               <ActiveIcon className="h-5 w-5" />
             </span>
             <div>
@@ -603,6 +974,9 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
                 <h2 className="text-[16px] font-bold text-ink">
                   {activeReport?.title || "Financial Report"}
                 </h2>
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${templateTheme.badge}`}>
+                  Template {selectedTemplateNum} • {templateTheme.name}
+                </span>
                 <Badge tone="neutral" className="text-[10px] uppercase font-semibold">
                   Live Ledger Data
                 </Badge>
@@ -618,15 +992,16 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
               onClick={() => void loadData()}
               disabled={loading}
               title="Refresh from Database"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-[12px] font-medium text-ink transition hover:border-brand disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-[12px] font-medium text-ink transition hover:border-brand disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh</span>
             </button>
             <button
-              onClick={() => window.print()}
-              title="Print Report"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-[12px] font-medium text-ink transition hover:border-brand"
+              onClick={() => void handleExportPdf()}
+              disabled={loading || pdfBusy}
+              title="Print Report in Selected Template Format"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-[12px] font-medium text-ink transition hover:border-brand disabled:opacity-50 cursor-pointer"
             >
               <Printer className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Print</span>
@@ -634,12 +1009,13 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
             <button
               onClick={handleExportPdf}
               disabled={pdfBusy || loading}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-1.5 text-[12px] font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50 shadow-sm"
+              style={{ backgroundColor: templateTheme.primary }}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-[12px] font-semibold text-white transition hover:opacity-90 disabled:opacity-50 shadow-sm cursor-pointer"
             >
               {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               <span>Export PDF</span>
             </button>
-            <button onClick={onClose} className="ml-1 rounded-lg p-1.5 text-muted transition hover:bg-slate-200 hover:text-ink">
+            <button onClick={onClose} className="ml-1 rounded-lg p-1.5 text-muted transition hover:bg-slate-200 hover:text-ink cursor-pointer">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -653,8 +1029,12 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
               <button
                 key={rep.id}
                 onClick={() => setActiveTab(rep.id)}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition ${
-                  isActive ? "bg-brand text-white shadow-sm" : "text-muted hover:bg-slate-100 hover:text-ink"
+                style={{
+                  backgroundColor: isActive ? templateTheme.primary : undefined,
+                  color: isActive ? "#ffffff" : undefined,
+                }}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition cursor-pointer ${
+                  isActive ? "shadow-sm font-semibold" : "text-muted hover:bg-slate-100 hover:text-ink"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -1041,6 +1421,13 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
           )}
         </div>
       </div>
+
+      {previewingInvoice && (
+        <InvoiceTemplatePreviewModal
+          sale={previewingInvoice}
+          onClose={() => setPreviewingInvoice(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1052,28 +1439,16 @@ const REPORT_DOCUMENTS_LIST = [
   { title: "ITC Reconciliation", mapTo: "itc-reconciliation", icon: CheckCircle2 },
   { title: "E-Invoice", mapTo: "e-invoice", icon: Building },
   { title: "E-Way Bill Summary", mapTo: "eway-bill-summary", icon: Truck },
-  { title: "GST Summary Report", mapTo: "itc-reconciliation", icon: CheckCircle2 },
-  { title: "Profit & Loss", mapTo: "general-ledger", icon: FileSpreadsheet },
-  { title: "Balance Sheet", mapTo: "trial-balance", icon: FileSpreadsheet },
-  { title: "Cash Flow Statement", mapTo: "general-ledger", icon: Receipt },
-  { title: "Business Health Score Report", mapTo: "trial-balance", icon: FileText },
-  { title: "Profit Leak Report", mapTo: "general-ledger", icon: FileText },
-  { title: "Financial Black Box Report", mapTo: "account-statement", icon: FileText },
-  { title: "Predictive Tax Warning Report", mapTo: "itc-reconciliation", icon: AlertTriangle },
-  { title: "Money Map Report", mapTo: "general-ledger", icon: FileSpreadsheet },
-  { title: "Vendor Trust Report", mapTo: "account-statement", icon: Receipt },
-  { title: "Industry Benchmark Report", mapTo: "trial-balance", icon: FileSpreadsheet },
-  { title: "Accounting Warranty Report", mapTo: "account-statement", icon: FileText },
-  { title: "Business Lifeguard Incident Report", mapTo: "general-ledger", icon: AlertTriangle },
 ];
 
 export function ReportsCenter({ orgId }: { orgId: string }) {
   const [modalReportId, setModalReportId] = useState<string | null>(null);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* Financial & GST Statements Cards */}
       <div>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Financial &amp; GST statements</p>
+        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Financial &amp; GST statements</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {PRIMARY_REPORTS.map((r) => (
             <ReportCard key={r.docType} orgId={orgId} def={r} onOpen={() => {
@@ -1097,7 +1472,7 @@ export function ReportsCenter({ orgId }: { orgId: string }) {
               <button
                 key={r.title}
                 onClick={() => setModalReportId(r.mapTo)}
-                className="group inline-flex items-center gap-1.5 rounded-lg border border-borderCard bg-bg2 px-3 py-1.5 text-[12px] font-medium text-ink transition hover:border-brand hover:bg-white hover:text-brand hover:shadow-sm"
+                className="group inline-flex items-center gap-1.5 rounded-lg border border-borderCard bg-bg2 px-3 py-1.5 text-[12px] font-medium text-ink transition hover:border-brand hover:bg-white hover:text-brand hover:shadow-sm cursor-pointer"
               >
                 <Icon className="h-3.5 w-3.5 text-muted transition group-hover:text-brand" />
                 <span>{r.title}</span>
@@ -1107,9 +1482,11 @@ export function ReportsCenter({ orgId }: { orgId: string }) {
         </div>
       </Card>
 
+      {/* Modals */}
       {modalReportId !== null && (
         <ReportViewerModal orgId={orgId} reportId={modalReportId} onClose={() => setModalReportId(null)} />
       )}
     </div>
   );
 }
+

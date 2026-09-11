@@ -1,186 +1,482 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
-import { Plus, AlertTriangle, Warehouse, History, X } from "lucide-react";
-import { Button, Card, EmptyState } from "@/ui";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Download,
+  Search,
+  ArrowUpDown,
+  ShoppingCart,
+  Tag,
+  AlertCircle,
+  Settings,
+  Trash2,
+  AlertTriangle,
+} from "lucide-react";
+import { Card } from "@/ui";
 import { api } from "@/lib/api";
+import { RecordSettingsModal } from "./RecordSettingsModal";
 
-const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+const inr = (n: number) => `₹ ${Number(n || 0).toLocaleString("en-IN")}`;
 
-function InvTile({ label, value, tone }: { label: string; value: string; tone?: "danger" | "warn" }) {
-  return (
-    <Card className="py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{label}</p>
-      <p className={`mt-1 text-2xl font-bold tracking-tight ${tone === "danger" ? "text-danger" : tone === "warn" ? "text-gold" : "text-ink"}`}>{value}</p>
-    </Card>
-  );
-}
-
-/** Comprehensive inventory: valuation tiles, stock list with low-stock alerts,
- *  per-product stock ledger, manual adjustments, and warehouses. */
 export function InventoryView({ orgId }: { orgId: string }) {
-  const [tab, setTab] = useState<"stock" | "low" | "warehouses">("stock");
-  const [val, setVal] = useState<{ skus: number; totalQty: number; totalValue: number; lowStock: number; outOfStock: number } | null>(null);
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
-  const [low, setLow] = useState<Record<string, unknown>[]>([]);
-  const [warehouses, setWarehouses] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [adjust, setAdjust] = useState<Record<string, unknown> | null>(null);
-  const [ledgerFor, setLedgerFor] = useState<Record<string, unknown> | null>(null);
-  const [whName, setWhName] = useState("");
-
-  const reload = useCallback(async () => {
-    setLoading(true);
+  const [items, setItems] = useState<Record<string, unknown>[]>(() => {
+    if (typeof window === "undefined") return [];
     try {
-      const [v, s, l, w] = await Promise.allSettled([
-        api.acc.inventoryValuation(orgId), api.acc.inventory(orgId), api.acc.lowStock(orgId), api.acc.warehouses(orgId),
-      ]);
-      if (v.status === "fulfilled") setVal(v.value);
-      setRows(s.status === "fulfilled" ? s.value : []);
-      setLow(l.status === "fulfilled" ? l.value : []);
-      setWarehouses(w.status === "fulfilled" ? w.value : []);
-    } finally { setLoading(false); }
+      const stored = localStorage.getItem("vertofi_local_inventory");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Discard legacy seed items
+          const isOldSeed = parsed.every((it: Record<string, unknown>) =>
+            ["inv-1", "inv-2", "inv-3"].includes(String(it.id))
+          );
+          if (isOldSeed) {
+            localStorage.removeItem("vertofi_local_inventory");
+            return [];
+          }
+          return parsed.map((it: Record<string, unknown>) => {
+            const name = String(it.name || it.item_name || "Inventory Item");
+            const code = String(it.code || it.sku || "SKU-001");
+            const selling_price = Number(
+              it.selling_price ??
+                it.rate ??
+                (it.value ? Math.round(Number(it.value) / Math.max(Number(it.qty || 1), 1)) : 0)
+            );
+            const purchase_price = Number(
+              it.purchase_price ?? (selling_price > 0 ? Math.round(selling_price * 0.75) : 0)
+            );
+            return {
+              ...it,
+              name,
+              item_name: name,
+              code,
+              sku: code,
+              selling_price,
+              purchase_price,
+            };
+          });
+        }
+      }
+    } catch {}
+    return [];
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [pageSize, setPageSize] = useState(10);
+  const [selectedRecord, setSelectedRecord] = useState<Record<string, unknown> | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Record<string, unknown> | "batch" | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api.acc
+      .inventory(orgId)
+      .then((data) => {
+        if (!alive) return;
+        if (Array.isArray(data)) {
+          setItems(data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, [orgId]);
-  useEffect(() => { void reload(); }, [reload]);
+
+  const kpis = useMemo(() => {
+    let inStock = 0;
+    let outOfStock = 0;
+    const total = items.length;
+
+    for (const item of items) {
+      const qty = Number(item.qty ?? item.stock ?? 0);
+      if (qty > 0) inStock++;
+      else outOfStock++;
+    }
+
+    return { inStock, outOfStock, total };
+  }, [items]);
+
+  const filteredRows = useMemo(() => {
+    return items.filter((r) => {
+      const q = search.toLowerCase().trim();
+      if (!q) return true;
+      const name = String(r.name ?? r.item_name ?? "").toLowerCase();
+      const code = String(r.code ?? r.sku ?? r.hsn ?? "").toLowerCase();
+      return name.includes(q) || code.includes(q);
+    });
+  }, [items, search]);
+
+  function toggleAll() {
+    if (filteredRows.length > 0 && selectedIds.size === filteredRows.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredRows.map((r, idx) => String(r.id ?? idx))));
+    }
+  }
+
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function exportCsv() {
+    if (items.length === 0) return;
+    const headers = ["Product Image", "Name", "Qty", "Code", "Selling Price", "Purchase Price"];
+    const csvRows = items.map((r) => [
+      `"N/A"`,
+      `"${String(r.name ?? r.item_name ?? "—")}"`,
+      `"${Number(r.qty ?? r.stock ?? 0)}"`,
+      `"${String(r.code ?? r.sku ?? r.hsn ?? "—")}"`,
+      `"${Number(r.selling_price ?? r.rate ?? 0)}"`,
+      `"${Number(r.purchase_price ?? 0)}"`,
+    ]);
+    const content =
+      "data:text/csv;charset=utf-8," + [headers.join(","), ...csvRows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(content);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `inventory_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function performDelete(target: Record<string, unknown> | "batch") {
+    let updated: Record<string, unknown>[] = [];
+    if (target === "batch") {
+      selectedIds.forEach((id) => {
+        api.acc.deleteInventory(orgId, id).catch(() => {});
+      });
+      updated = items.filter((r, idx) => !selectedIds.has(String(r.id ?? idx)));
+      setSelectedIds(new Set());
+    } else {
+      if (target.id) {
+        api.acc.deleteInventory(orgId, String(target.id)).catch(() => {});
+      }
+      updated = items.filter((it) => it.id !== target.id && it !== target);
+      if (target.id) {
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(String(target.id));
+          return next;
+        });
+      }
+    }
+
+    setItems(updated);
+    try {
+      localStorage.setItem("vertofi_local_inventory", JSON.stringify(updated));
+    } catch {}
+
+    if (selectedRecord && (target === "batch" || selectedRecord.id === target.id || selectedRecord === target)) {
+      setSelectedRecord(null);
+    }
+    setDeleteTarget(null);
+  }
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <InvTile label="STOCK VALUE" value={val ? inr(val.totalValue) : "₹0"} />
-        <InvTile label="SKUS" value={val ? String(val.skus) : "0"} />
-        <InvTile label="LOW STOCK" value={val ? String(val.lowStock) : "0"} tone={val && val.lowStock > 0 ? "warn" : undefined} />
-        <InvTile label="OUT OF STOCK" value={val ? String(val.outOfStock) : "0"} tone={val && val.outOfStock > 0 ? "danger" : undefined} />
+    <div className="space-y-6">
+      {/* 3 Metric Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* Card 1: In Stock */}
+        <Card className="p-5 flex items-center justify-between shadow-card">
+          <div className="flex items-center gap-4">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-amber-600">
+              <ShoppingCart className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-2xl font-extrabold text-ink">{kpis.inStock}</p>
+              <p className="text-xs font-semibold text-muted">In Stock</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card 2: Out Of Stock */}
+        <Card className="p-5 flex items-center justify-between shadow-card">
+          <div className="flex items-center gap-4">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-amber-600">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-2xl font-extrabold text-ink">{kpis.outOfStock}</p>
+              <p className="text-xs font-semibold text-muted">Out Of Stock</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card 3: Total */}
+        <Card className="p-5 flex items-center justify-between shadow-card">
+          <div className="flex items-center gap-4">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-amber-600">
+              <Tag className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-2xl font-extrabold text-ink">{kpis.total}</p>
+              <p className="text-xs font-semibold text-muted">Total</p>
+            </div>
+          </div>
+        </Card>
       </div>
 
-      <div className="flex gap-1 border-b border-border">
-        {([["stock", "Stock"], ["low", "Low stock"], ["warehouses", "Warehouses"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={`px-4 py-2 text-[13px] font-semibold transition ${tab === k ? "border-b-2 border-brand text-brand" : "text-muted hover:text-ink"}`}>{l}</button>
-        ))}
-      </div>
+      {/* Main Manage Inventory Card */}
+      <Card className="p-6">
+        {/* Header Title & Action Buttons */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold tracking-tight text-ink">Manage Inventory</h2>
+          </div>
 
-      {tab === "stock" && (
-        <Card>
-          {loading ? <p className="text-[12px] text-muted">Loading…</p> : rows.length === 0 ? (
-            <EmptyState title="No products in stock" description="Add products and record purchases — stock tracks automatically." />
-          ) : (
-            <div className="overflow-auto">
-              <table className="w-full text-left text-[13px]">
-                <thead className="border-b border-border text-[11px] font-semibold uppercase tracking-wide text-muted">
-                  <tr><th className="py-2 pr-3">Product</th><th className="px-3">HSN</th><th className="px-3 text-right">Stock</th><th className="px-3 text-right">Avg cost</th><th className="px-3 text-right">Value</th><th /></tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={String(r.id)} className={`border-b border-borderCard ${r.low_stock ? "bg-amber-50/40" : ""}`}>
-                      <td className="py-2 pr-3 font-medium text-ink">{String(r.name)}{r.low_stock ? <AlertTriangle className="ml-1.5 inline h-3.5 w-3.5 text-gold" /> : null}</td>
-                      <td className="px-3 text-muted">{String(r.hsn ?? "—")}</td>
-                      <td className="px-3 text-right text-ink">{String(r.stock ?? 0)} {String(r.unit ?? "")}</td>
-                      <td className="px-3 text-right text-muted">{inr(Number(r.avg_cost))}</td>
-                      <td className="px-3 text-right text-ink">{inr(Number(r.stock_value))}</td>
-                      <td className="px-3 py-2 text-right">
-                        <button onClick={() => setLedgerFor(r)} className="mr-2 text-muted hover:text-brand" title="Stock ledger"><History className="inline h-4 w-4" /></button>
-                        <button onClick={() => setAdjust(r)} className="text-[12px] font-semibold text-brand">Adjust</button>
+          <div className="flex flex-wrap items-center gap-2">
+            {selectedIds.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setDeleteTarget("batch")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 cursor-pointer shadow-sm animate-in fade-in"
+              >
+                <Trash2 className="h-4 w-4 text-rose-600" /> Delete Selected ({selectedIds.size})
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-brand bg-brand-50/20 px-4 py-2 text-xs font-semibold text-brand transition hover:bg-brand hover:text-white cursor-pointer shadow-sm"
+            >
+              <Download className="h-4 w-4" /> Export
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Toolbar */}
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <div className="flex items-center gap-2">
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                placeholder="Search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full sm:w-64 rounded-lg border border-border bg-white pl-3 pr-8 py-1.5 text-xs text-ink outline-none focus:border-brand shadow-sm"
+              />
+              <Search className="absolute right-2.5 h-3.5 w-3.5 text-muted" />
+            </div>
+
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-ink outline-none focus:border-brand shadow-sm cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-border bg-bg2 text-[11px] font-semibold text-muted">
+              <tr>
+                <th className="px-3 py-2.5 text-center w-12">
+                  <div className="flex items-center justify-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={filteredRows.length > 0 && selectedIds.size === filteredRows.length}
+                      onChange={toggleAll}
+                      className="rounded accent-brand cursor-pointer h-3.5 w-3.5"
+                      title="Select All"
+                    />
+                    <span>#</span>
+                  </div>
+                </th>
+                <th className="px-3 py-2.5">
+                  <div className="flex items-center gap-1 cursor-pointer">
+                    Product Image <ArrowUpDown className="h-3 w-3 text-muted/60" />
+                  </div>
+                </th>
+                <th className="px-3 py-2.5">
+                  <div className="flex items-center gap-1 cursor-pointer">
+                    Name <ArrowUpDown className="h-3 w-3 text-muted/60" />
+                  </div>
+                </th>
+                <th className="px-3 py-2.5">
+                  <div className="flex items-center gap-1 cursor-pointer">
+                    Qty <ArrowUpDown className="h-3 w-3 text-muted/60" />
+                  </div>
+                </th>
+                <th className="px-3 py-2.5">
+                  <div className="flex items-center gap-1 cursor-pointer">
+                    Code <ArrowUpDown className="h-3 w-3 text-muted/60" />
+                  </div>
+                </th>
+                <th className="px-3 py-2.5 text-right">
+                  <div className="flex items-center justify-end gap-1 cursor-pointer">
+                    Selling Price <ArrowUpDown className="h-3 w-3 text-muted/60" />
+                  </div>
+                </th>
+                <th className="px-3 py-2.5 text-right">
+                  <div className="flex items-center justify-end gap-1 cursor-pointer">
+                    Purchase Price <ArrowUpDown className="h-3 w-3 text-muted/60" />
+                  </div>
+                </th>
+                <th className="px-3 py-2.5 text-center w-24">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-xs text-muted">
+                    Loading inventory…
+                  </td>
+                </tr>
+              ) : filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-xs text-muted">
+                    <div className="flex flex-col items-center justify-center gap-1">
+                      <p className="font-semibold text-slate-700">No inventory items found</p>
+                      <p className="text-muted">Items generated via manual entry or AI will appear here.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredRows.slice(0, pageSize).map((r, idx) => {
+                  const rowId = String(r.id ?? idx);
+                  const isSelected = selectedIds.has(rowId);
+                  const name = String(r.name ?? r.item_name ?? "—");
+                  const code = String(r.code ?? r.sku ?? r.hsn ?? "—");
+                  const sellingPrice = Number(
+                    r.selling_price ??
+                      r.rate ??
+                      (r.value ? Math.round(Number(r.value) / Math.max(Number(r.qty || 1), 1)) : 0)
+                  );
+                  const purchasePrice = Number(
+                    r.purchase_price ?? (sellingPrice > 0 ? Math.round(sellingPrice * 0.75) : 0)
+                  );
+
+                  return (
+                    <tr
+                      key={`${String(r.id || r.sku || "item")}-${idx}`}
+                      className={`hover:bg-slate-50 transition ${isSelected ? "bg-brand-50/20" : ""}`}
+                    >
+                      <td className="px-3 py-3 text-center text-muted font-medium">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleOne(rowId)}
+                            className="rounded accent-brand cursor-pointer h-3.5 w-3.5"
+                          />
+                          <span>{idx + 1}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="h-8 w-8 rounded bg-slate-100 border border-border grid place-items-center text-[10px] text-muted font-medium">
+                          N/A
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 font-semibold text-ink">{name}</td>
+                      <td className="px-3 py-3 font-medium text-ink">{Number(r.qty ?? r.stock ?? 0)}</td>
+                      <td className="px-3 py-3 text-muted font-mono">{code}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-ink">{inr(sellingPrice)}</td>
+                      <td className="px-3 py-3 text-right text-muted">{inr(purchasePrice)}</td>
+                      <td className="px-3 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRecord(r)}
+                            className="rounded-lg p-1.5 text-muted transition hover:bg-slate-100 hover:text-ink cursor-pointer group"
+                            title="View Details & Settings"
+                          >
+                            <Settings className="h-4 w-4 mx-auto group-hover:rotate-45 transition-transform duration-200" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(r)}
+                            className="rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 cursor-pointer"
+                            title="Delete Inventory Item"
+                          >
+                            <Trash2 className="h-4 w-4 mx-auto" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {tab === "low" && (
-        <Card>
-          {low.length === 0 ? (
-            <EmptyState title="Nothing to reorder" description="Products at or below their reorder level appear here." />
-          ) : (
-            <ul className="divide-y divide-borderCard">
-              {low.map((r) => (
-                <li key={String(r.id)} className="flex items-center justify-between py-2.5">
-                  <div><p className="text-[13px] font-medium text-ink">{String(r.name)}</p><p className="text-[11px] text-muted">Stock {String(r.stock)} · reorder at {String(r.reorder_level)}</p></div>
-                  <button onClick={() => setAdjust(r)} className="border border-border px-3 py-1.5 text-[12px] font-semibold text-ink transition hover:border-brand">Add stock</button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      )}
-
-      {tab === "warehouses" && (
-        <Card>
-          <div className="mb-3 flex items-center gap-2">
-            <input className="vf-win flex-1" placeholder="New warehouse name" value={whName} onChange={(e) => setWhName(e.target.value)} />
-            <Button variant="primary" disabled={!whName.trim()} onClick={async () => { await api.acc.createWarehouse(orgId, { name: whName.trim() }); setWhName(""); void reload(); }}><Plus className="mr-1 h-4 w-4" />Add</Button>
-          </div>
-          {warehouses.length === 0 ? <p className="text-[12px] text-muted">No warehouses yet — add one above to organize stock by location.</p> : (
-            <ul className="divide-y divide-borderCard">
-              {warehouses.map((w) => (
-                <li key={String(w.id)} className="flex items-center gap-2 py-2.5 text-[13px]">
-                  <Warehouse className="h-4 w-4 text-muted" /><span className="font-medium text-ink">{String(w.name)}</span>
-                  {w.is_default ? <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand">Default</span> : null}
-                  <span className="text-muted">{[w.city, w.state].filter(Boolean).join(", ")}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <style>{`.vf-win{border:1px solid #E5E7EB;border-radius:10px;padding:8px 12px;font-size:14px;outline:none}.vf-win:focus{border-color:#1378F8}`}</style>
-        </Card>
-      )}
-
-      {adjust && <AdjustModal orgId={orgId} product={adjust} onClose={() => setAdjust(null)} onDone={() => { setAdjust(null); void reload(); }} />}
-      {ledgerFor && <LedgerDrawer orgId={orgId} product={ledgerFor} onClose={() => setLedgerFor(null)} />}
-    </div>
-  );
-}
-
-function AdjustModal({ orgId, product, onClose, onDone }: { orgId: string; product: Record<string, unknown>; onClose: () => void; onDone: () => void }) {
-  const [direction, setDirection] = useState<"IN" | "OUT">("IN");
-  const [qty, setQty] = useState(""); const [rate, setRate] = useState(""); const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function save() {
-    setBusy(true);
-    try { await api.acc.adjustStock(orgId, { productId: product.id, direction, qty: Number(qty), rate: rate ? Number(rate) : undefined, reason: reason || undefined }); onDone(); }
-    finally { setBusy(false); }
-  }
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl border border-borderCard bg-white p-5 shadow-soft" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-3 flex items-center justify-between"><h3 className="text-[15px] font-semibold text-ink">Adjust stock — {String(product.name)}</h3><button onClick={onClose} className="text-muted hover:text-ink"><X className="h-4 w-4" /></button></div>
-        <div className="mb-3 flex gap-2">
-          {(["IN", "OUT"] as const).map((d) => (
-            <button key={d} onClick={() => setDirection(d)} className={`flex-1 rounded-lg border py-2 text-[13px] font-semibold ${direction === d ? "border-brand bg-brand-50 text-brand" : "border-border text-muted"}`}>{d === "IN" ? "Stock in" : "Stock out"}</button>
-          ))}
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-        <input className="vf-win mb-2 w-full" placeholder="Quantity" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
-        {direction === "IN" && <input className="vf-win mb-2 w-full" placeholder="Cost per unit (optional → updates avg cost)" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />}
-        <input className="vf-win mb-3 w-full" placeholder="Reason (optional)" value={reason} onChange={(e) => setReason(e.target.value)} />
-        <Button variant="primary" className="w-full" disabled={busy || !qty} onClick={save}>{busy ? "Saving…" : "Save adjustment"}</Button>
-        <style>{`.vf-win{border:1px solid #E5E7EB;border-radius:10px;padding:8px 12px;font-size:14px;outline:none}.vf-win:focus{border-color:#1378F8}`}</style>
-      </div>
-    </div>
-  );
-}
+      </Card>
 
-function LedgerDrawer({ orgId, product, onClose }: { orgId: string; product: Record<string, unknown>; onClose: () => void }) {
-  const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
-  useEffect(() => { api.acc.stockLedger(orgId, String(product.id)).then(setRows).catch(() => setRows([])); }, [orgId, product.id]);
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-ink/40" onClick={onClose}>
-      <div className="h-full w-full max-w-md overflow-auto bg-white p-5 shadow-soft" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-3 flex items-center justify-between"><h3 className="text-[15px] font-semibold text-ink">Stock ledger — {String(product.name)}</h3><button onClick={onClose} className="text-muted hover:text-ink"><X className="h-4 w-4" /></button></div>
-        {rows === null ? <p className="text-[12px] text-muted">Loading…</p> : rows.length === 0 ? <p className="text-[12px] text-muted">No movements yet.</p> : (
-          <ul className="divide-y divide-borderCard text-[13px]">
-            {rows.map((r) => (
-              <li key={String(r.id)} className="flex items-center justify-between py-2.5">
-                <div>
-                  <p className="font-medium text-ink">{String(r.movement_type)} <span className={r.direction === "IN" ? "text-emerald-600" : "text-danger"}>{r.direction === "IN" ? "+" : "−"}{String(r.qty)}</span></p>
-                  <p className="text-[11px] text-muted">{new Date(String(r.created_at)).toLocaleString("en-IN")} {r.note ? `· ${String(r.note)}` : ""}</p>
-                </div>
-                <span className="text-muted">bal {String(r.balance_qty)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {/* Record Settings Details Modal with Delete Option */}
+      <RecordSettingsModal
+        isOpen={Boolean(selectedRecord)}
+        record={selectedRecord}
+        type="Inventory Item"
+        onClose={() => setSelectedRecord(null)}
+        onDelete={(rec) => {
+          setDeleteTarget(rec);
+        }}
+      />
+
+      {/* In-App Confirmation Modal for Single or Batch Deletion */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-100 shadow-xs">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  {deleteTarget === "batch" ? "Delete Selected Items" : "Delete Inventory Item"}
+                </h3>
+                <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
+                  {deleteTarget === "batch" ? (
+                    <>
+                      Are you sure you want to delete{" "}
+                      <span className="font-semibold text-slate-900">{selectedIds.size} selected items</span>? This
+                      action will permanently remove them from inventory tracking.
+                    </>
+                  ) : (
+                    <>
+                      Are you sure you want to delete{" "}
+                      <span className="font-semibold text-slate-900">
+                        {String(deleteTarget.name ?? deleteTarget.item_name ?? "this item")}
+                      </span>{" "}
+                      ({String(deleteTarget.code ?? deleteTarget.sku ?? "N/A")})? This action cannot be undone.
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => performDelete(deleteTarget)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 transition cursor-pointer shadow-xs"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete Permanently</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

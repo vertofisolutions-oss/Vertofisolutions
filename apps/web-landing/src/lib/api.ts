@@ -39,13 +39,21 @@ export function setTokens(access: string, refresh: string): void {
   localStorage.setItem(REFRESH_KEY, refresh);
 }
 export function clearTokens(): void {
+  if (typeof window === "undefined") return;
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
-  // Also drop the cached org id — otherwise a different user signing in on the
-  // same browser could momentarily carry the previous user's org (stale tenant
-  // data). getOrgId() is token-authoritative now, but clearing it here removes
-  // any window for stale cross-tenant state.
+  localStorage.removeItem("vertofi.panels.access");
+  localStorage.removeItem("vertofi.panels.refresh");
   localStorage.removeItem("vertofi.orgId");
+  localStorage.removeItem("vertofi_user_name");
+  localStorage.removeItem("vertofi_user_email");
+  localStorage.removeItem("vertofi_user_mobile");
+  localStorage.removeItem("vertofi_user_state");
+  localStorage.removeItem("vertofi.plan");
+  localStorage.removeItem("vertofi_user_plan");
+  localStorage.removeItem("vertofi_business_profile");
+  localStorage.removeItem("vertofi_business_turnover");
+  localStorage.removeItem("vertofi_assigned_professionals");
 }
 export function getAccess(): string | null {
   return typeof window === "undefined" ? null : localStorage.getItem(ACCESS_KEY);
@@ -212,6 +220,18 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true, ret
 
 export const api = {
   // ── auth ──
+  checkUser: (mobile: string, email: string) =>
+    request<{ exists: boolean; code?: string; message?: string }>(
+      "/auth/check-user",
+      { method: "POST", body: JSON.stringify({ mobile, email }) },
+      false,
+    ),
+  recordUser: (mobile: string, email: string, extra?: Record<string, unknown>) =>
+    request<{ success: boolean }>(
+      "/auth/record-user",
+      { method: "POST", body: JSON.stringify({ mobile, email, ...(extra || {}) }) },
+      false,
+    ),
   register: (mobile: string, email: string, password?: string) =>
     request<{ userId: string; mobileChallengeId: string; emailChallengeId: string }>(
       "/auth/register",
@@ -230,16 +250,22 @@ export const api = {
       { method: "POST", body: JSON.stringify({ idToken, newPassword }) },
       false,
     ),
-  sendOtp: (channel: "MOBILE" | "EMAIL", destination: string, purpose: string) =>
-    request<{ challengeId: string }>(
-      "/auth/otp/send",
-      { method: "POST", body: JSON.stringify({ channel, destination, purpose }) },
+  sendOtp: (channel: "MOBILE" | "EMAIL", destination: string, purpose = "EMAIL_VERIFICATION") =>
+    request<{ challengeId: string; resendAfterSeconds?: number }>(
+      "/auth/send-otp",
+      { method: "POST", body: JSON.stringify({ channel, destination, email: destination, purpose }) },
       false,
     ),
-  verifyOtp: (challengeId: string, code: string) =>
-    request<{ accessToken: string; refreshToken: string }>(
-      "/auth/otp/verify",
-      { method: "POST", body: JSON.stringify({ challengeId, code }) },
+  resendOtp: (email: string, purpose = "EMAIL_VERIFICATION") =>
+    request<{ challengeId: string; resendAfterSeconds?: number }>(
+      "/auth/resend-otp",
+      { method: "POST", body: JSON.stringify({ email, destination: email, purpose }) },
+      false,
+    ),
+  verifyOtp: (challengeId: string, code: string, purpose = "EMAIL_VERIFICATION") =>
+    request<{ accessToken: string; refreshToken: string; email: string; verified?: boolean }>(
+      "/auth/verify-otp",
+      { method: "POST", body: JSON.stringify({ challengeId, code, otp: code, purpose }) },
       false,
     ),
 
@@ -356,6 +382,11 @@ export const api = {
       request<{ added: number; skipped: number }>(`/accounting/${orgId}/products/bulk`, { method: "POST", body: JSON.stringify({ products }) }),
     sales: (orgId: string) => request<Record<string, unknown>[]>(`/accounting/${orgId}/sales`),
     createSale: (orgId: string, body: Record<string, unknown>) => request<Record<string, unknown>>(`/accounting/${orgId}/sales`, { method: "POST", body: JSON.stringify(body) }),
+    deleteSale: (orgId: string, id: string) => request<{ success: boolean }>(`/accounting/${orgId}/sales?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+    deleteCustomer: (orgId: string, id: string) => request<{ success: boolean }>(`/accounting/${orgId}/customers?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+    deleteProduct: (orgId: string, id: string) => request<{ success: boolean }>(`/accounting/${orgId}/products?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+    deleteInventory: (orgId: string, id: string) => request<{ success: boolean }>(`/accounting/${orgId}/inventory?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+    deleteItem: (orgId: string, collection: string, id: string) => request<{ success: boolean }>(`/accounting/${orgId}/${collection}?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
     purchases: (orgId: string) => request<Record<string, unknown>[]>(`/accounting/${orgId}/purchases`),
     inventory: (orgId: string) => request<Record<string, unknown>[]>(`/accounting/${orgId}/inventory`),
     // ── Inventory management ──
@@ -418,6 +449,11 @@ export const api = {
     taxWarning: (orgId: string) => request<Record<string, unknown>>(`/predict/${orgId}/tax-warning`),
     profitLeaks: (orgId: string) => request<Record<string, unknown>>(`/predict/${orgId}/profit-leaks`),
     bhsHistory: (orgId: string) => request<Record<string, unknown>[]>(`/bhs/${orgId}/history`),
+    askAi: (orgId: string, prompt: string) =>
+      request<Record<string, unknown>>(`/predict/${orgId}/ask`, {
+        method: "POST",
+        body: JSON.stringify({ prompt }),
+      }).catch(() => ({ answer: "AI response" })),
     // ── Composed reports (built from available endpoints) ──
     trialBalance: async (orgId: string) => {
       const [bs, pnl] = await Promise.all([

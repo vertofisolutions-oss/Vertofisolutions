@@ -224,17 +224,17 @@ export function PanelLogin({
     : "Sign in";
   const subtitle =
     phase === "otp"
-      ? "Enter the 6-digit code sent to your mobile."
+      ? "Enter the 6-digit code sent via WhatsApp to your mobile."
       : phase === "mfa-phone"
-        ? "Confirm your registered mobile number to receive a one-time code."
+        ? "Confirm your registered mobile number to receive a WhatsApp one-time code."
         : phase === "reset-phone"
-          ? "Enter your registered mobile — we'll send a one-time reset code."
+          ? "Enter your registered mobile — we'll send a WhatsApp one-time reset code."
           : phase === "reset-code"
-            ? "Enter the code we sent and choose a new password (min 8 characters)."
+            ? "Enter the code sent via WhatsApp and choose a new password (min 8 characters)."
             : phase === "reset-done"
               ? "All sessions were signed out. Sign in with your new password."
               : method === "otp"
-                ? "Enter your registered mobile number to receive a one-time code."
+                ? "Enter your registered mobile number to receive a WhatsApp one-time code."
                 : "Use your credentials to access the panel.";
 
   return (

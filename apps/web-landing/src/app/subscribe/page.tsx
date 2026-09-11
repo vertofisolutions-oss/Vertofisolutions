@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { SidebarShell } from "../../components/SidebarShell";
 import { api, getOrgId, ApiError } from "@/lib/api";
+import { setPlanForTesting, PlanTier } from "@/lib/plans";
 
 declare global {
   interface Window {
@@ -11,26 +13,38 @@ declare global {
 
 const PLAN_CARDS = [
   {
+    key: "FREE",
+    name: "Free",
+    monthlyPrice: 0,
+    blurb: "Pre-revenue / testing · Know your financial health",
+  },
+  {
     key: "STARTER",
     name: "Starter",
     monthlyPrice: 499,
-    originalMonthly: 699,
-    blurb: "Solo founders & small businesses",
+    founderPrice: 399,
+    blurb: "Up to ₹40L turnover · Automate finances",
   },
   {
     key: "GROWTH",
     name: "Growth",
     popular: true,
     monthlyPrice: 1499,
-    originalMonthly: 1999,
-    blurb: "Growing companies & SMEs",
+    founderPrice: 1199,
+    blurb: "₹40L–₹2Cr turnover · Predict risks",
   },
   {
-    key: "POWER",
-    name: "Power",
-    monthlyPrice: 3499,
-    originalMonthly: 4999,
-    blurb: "High-volume operations & firms",
+    key: "SCALE",
+    name: "Scale",
+    monthlyPrice: 3999,
+    founderPrice: 2999,
+    blurb: "₹2Cr–₹15Cr turnover · Full command center",
+  },
+  {
+    key: "ENTERPRISE",
+    name: "Enterprise",
+    monthlyPrice: "Custom",
+    blurb: "₹15Cr+ turnover · Build Vertofi around you",
   },
 ];
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
@@ -47,33 +61,42 @@ function loadRazorpay(): Promise<boolean> {
 }
 
 function BillingContent() {
+  const searchParams = useSearchParams();
+  const queryPlan = searchParams.get("plan");
+
   const [orgId, setOrgId] = useState<string>("demo-business-org");
   const [access, setAccess] = useState<{ active: boolean; plan: string | null; status: string | null }>({
     active: true,
-    plan: "Power",
-    status: "TRIAL",
+    plan: "Free",
+    status: "ACTIVE",
   });
-  const [selectedPlan, setSelectedPlan] = useState("POWER");
+  const [selectedPlan, setSelectedPlan] = useState("STARTER");
   const [cycle, setCycle] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
+    const stored = localStorage.getItem("vertofi.plan") || localStorage.getItem("vertofi_user_plan") || "FREE";
+    const initialPlan = (queryPlan || (stored === "FREE" ? "STARTER" : stored)).toUpperCase();
+    if (["FREE", "STARTER", "GROWTH", "SCALE", "ENTERPRISE", "POWER"].includes(initialPlan)) {
+      setSelectedPlan(initialPlan === "POWER" ? "SCALE" : initialPlan);
+    }
+    setAccess({ active: true, plan: stored, status: stored === "FREE" ? "FREE" : "ACTIVE" });
+  }, [queryPlan]);
+
+  useEffect(() => {
     const oid = typeof window !== "undefined" ? (getOrgId() || "demo-business-org") : "demo-business-org";
     setOrgId(oid);
     void api.access(oid).then((a) => {
-      if (a) {
+      if (a && a.plan) {
         setAccess({
           active: a.active ?? true,
-          plan: a.plan || "Power",
-          status: a.status || "TRIAL",
+          plan: a.plan,
+          status: a.status || "ACTIVE",
         });
-        if (a.plan) setSelectedPlan(a.plan.toUpperCase());
       }
-    }).catch(() => {
-      setAccess({ active: true, plan: "Power", status: "TRIAL" });
-    });
+    }).catch(() => {});
   }, []);
 
   async function pay() {
@@ -82,6 +105,7 @@ function BillingContent() {
     setError(null);
     setNotice(null);
     try {
+      setPlanForTesting(selectedPlan as PlanTier);
       const sub = await api.subscribe(orgId, selectedPlan, cycle);
       const ok = await loadRazorpay();
       if (ok && window.Razorpay && sub.keyId) {
@@ -91,12 +115,19 @@ function BillingContent() {
           name: "Vertofi",
           description: `${selectedPlan} plan · ${cycle === "YEARLY" ? "annual" : "monthly"}`,
           theme: { color: "#1378F8" },
-          handler: () => setNotice("Payment authorized — your plan updates as soon as Razorpay confirms (usually seconds)."),
+          handler: () => {
+            setNotice("Payment authorized — your plan is now active!");
+            setPlanForTesting(selectedPlan as PlanTier);
+            setAccess((prev) => ({ ...prev, plan: selectedPlan }));
+          },
           modal: { ondismiss: () => setBusy(false) },
         });
         rzp.open();
       } else if (sub.shortUrl) {
         window.location.href = sub.shortUrl;
+      } else {
+        setNotice(`Plan successfully updated to ${selectedPlan}!`);
+        setAccess((prev) => ({ ...prev, plan: selectedPlan }));
       }
     } catch (e) {
       setError(e instanceof ApiError ? e.code : "billing_failed");
@@ -105,7 +136,7 @@ function BillingContent() {
     }
   }
 
-  const currentPlanName = access.plan ? (access.plan.charAt(0).toUpperCase() + access.plan.slice(1).toLowerCase()) : "Power";
+  const currentPlanName = access.plan ? (access.plan.charAt(0).toUpperCase() + access.plan.slice(1).toLowerCase()) : "Free";
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-2 py-4">
@@ -150,9 +181,11 @@ function BillingContent() {
           {PLAN_CARDS.map((p) => {
             const isSelected = selectedPlan === p.key;
             const isCurrent = (access.plan || "Power").toUpperCase() === p.key;
-            const price = cycle === "MONTHLY" ? p.monthlyPrice : Math.round(p.monthlyPrice * 0.8 * 12);
-            const orig = cycle === "MONTHLY" ? p.originalMonthly : Math.round(p.originalMonthly * 12);
-            const unit = cycle === "MONTHLY" ? "/mo" : "/yr";
+            const isCustom = typeof p.monthlyPrice === "string";
+            const price = isCustom ? p.monthlyPrice : (cycle === "MONTHLY" ? p.monthlyPrice : Math.round(Number(p.monthlyPrice) * 0.8 * 12));
+            const founder = p.founderPrice ? (cycle === "MONTHLY" ? p.founderPrice : Math.round(p.founderPrice * 12)) : null;
+            const unit = isCustom ? "" : (cycle === "MONTHLY" ? "/mo" : "/yr");
+            const displayPrice = isCustom ? price : inr(price as number);
 
             return (
               <div
@@ -179,16 +212,16 @@ function BillingContent() {
                   <p className="mt-1 text-[12px] text-muted">{p.blurb}</p>
                 </div>
 
-                <div className="text-right">
-                  <p className="text-[18px] font-bold text-ink">
-                    {inr(price)}<span className="text-[12px] font-normal text-muted">{unit}</span>
-                  </p>
-                  <p className="text-[11px] text-muted line-through">
-                    {inr(orig)}{unit}
-                  </p>
-                  <p className="mt-0.5 text-[10px] font-bold tracking-wide text-amber-600">
-                    LOCKED FOR LIFE
-                  </p>
+                <div className="mt-4 flex flex-col gap-1 text-right">
+                  <div className="flex items-baseline gap-1 justify-end">
+                    <span className="text-2xl font-extrabold text-slate-900">{displayPrice}</span>
+                    <span className="text-xs font-semibold text-slate-400">{unit}</span>
+                  </div>
+                  {p.founderPrice && (
+                    <p className="text-[11px] font-semibold text-amber-700/80">
+                      Founder Price: {inr(founder ?? p.founderPrice)}{unit}
+                    </p>
+                  )}
                 </div>
               </div>
             );

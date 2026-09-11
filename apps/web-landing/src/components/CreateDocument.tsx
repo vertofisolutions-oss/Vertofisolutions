@@ -29,8 +29,21 @@ function totals(items: Item[], interState: boolean, taxed: boolean) {
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
-export function CreateDocument({ orgId, presetType, onClose, onCreated }: { orgId: string; presetType?: string; onClose: () => void; onCreated?: () => void }) {
-  const [catalog, setCatalog] = useState<DocTypeInfo[]>([]);
+const DEFAULT_CATALOG: DocTypeInfo[] = [
+  { type: "TAX_INVOICE", title: "Tax Invoice (B2B / B2C)", category: "SALES", description: "Standard GST Tax Invoice for goods & services", taxTable: true, postsToLedger: true, needsReference: false },
+  { type: "B2C_INVOICE", title: "B2C Retail Bill", category: "SALES", description: "Bill of Supply / Retail tax invoice for consumers", taxTable: true, postsToLedger: true, needsReference: false },
+  { type: "QUOTATION", title: "Quotation / Estimate", category: "PRE_SALE", description: "Price quote or estimate for client proposal", taxTable: true, postsToLedger: false, needsReference: false },
+  { type: "PROFORMA", title: "Proforma Invoice", category: "PRE_SALE", description: "Preliminary invoice sent to buyers prior to delivery", taxTable: true, postsToLedger: false, needsReference: false },
+  { type: "CREDIT_NOTE", title: "Credit Note", category: "ADJUSTMENT", description: "Issued to reduce amount owed by customer for returns/discounts", taxTable: true, postsToLedger: true, needsReference: true },
+  { type: "DEBIT_NOTE", title: "Debit Note", category: "ADJUSTMENT", description: "Issued for additional charges or under-billing", taxTable: true, postsToLedger: true, needsReference: true },
+  { type: "ADVANCE", title: "Advance Receipt Voucher", category: "VOUCHER", description: "Receipt voucher for advance payments received", taxTable: true, postsToLedger: true, needsReference: false },
+  { type: "DELIVERY_CHALLAN", title: "Delivery Challan", category: "LOGISTICS", description: "Transport document for goods sent on approval or job work", taxTable: false, postsToLedger: false, needsReference: false },
+  { type: "PURCHASE_ORDER", title: "Purchase Order", category: "PURCHASE", description: "Official order sent to vendor for purchasing items", taxTable: true, postsToLedger: false, needsReference: false },
+  { type: "PURCHASE_BILL", title: "Vendor Purchase Bill", category: "PURCHASE", description: "Vendor bill received for purchases & ITC claim", taxTable: true, postsToLedger: true, needsReference: false },
+];
+
+export function CreateDocument({ orgId, presetType, onClose, onCreated, inline = false }: { orgId: string; presetType?: string; onClose: () => void; onCreated?: () => void; inline?: boolean }) {
+  const [catalog, setCatalog] = useState<DocTypeInfo[]>(DEFAULT_CATALOG);
   const [docType, setDocType] = useState(presetType ?? "TAX_INVOICE");
   const [party, setParty] = useState({ name: "", gstin: "", state: "", address: "", phone: "", email: "" });
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -44,7 +57,13 @@ export function CreateDocument({ orgId, presetType, onClose, onCreated }: { orgI
   const [done, setDone] = useState<{ number: string; download: () => Promise<void> } | null>(null);
   const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => { void api.acc.docTypes().then(setCatalog).catch(() => setCatalog([])); }, []);
+  useEffect(() => {
+    void api.acc.docTypes()
+      .then((d) => {
+        if (Array.isArray(d) && d.length > 0) setCatalog(d);
+      })
+      .catch(() => {});
+  }, []);
 
   const info = useMemo(() => catalog.find((c) => c.type === docType), [catalog, docType]);
   const taxed = info?.taxTable ?? true;
@@ -124,13 +143,12 @@ export function CreateDocument({ orgId, presetType, onClose, onCreated }: { orgI
     return by;
   }, [catalog]);
 
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4" onClick={onClose}>
-      <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl border border-borderCard bg-white shadow-soft" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h3 className="flex items-center gap-2 text-base font-semibold text-ink"><FileText className="h-4 w-4 text-brand" /> Create Document</h3>
-          <button onClick={onClose} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
-        </div>
+  const content = (
+    <div className={`w-full overflow-hidden rounded-2xl border border-border bg-white ${inline ? "shadow-sm" : "max-h-[92vh] max-w-3xl shadow-soft"}`} onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between border-b border-border px-6 py-4">
+        <h3 className="flex items-center gap-2 text-base font-semibold text-ink"><FileText className="h-4 w-4 text-brand" /> Create Document</h3>
+        <button onClick={onClose} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
+      </div>
 
         {done ? (
           <div className="space-y-5 p-8 text-center">
@@ -247,6 +265,13 @@ export function CreateDocument({ orgId, presetType, onClose, onCreated }: { orgI
 
         <style>{`.vf-in{width:100%;border:1px solid #E5E7EB;border-radius:10px;padding:8px 12px;font-size:14px;color:#0F172A;outline:none}.vf-in:focus{border-color:#1378F8}`}</style>
       </div>
+    );
+
+  if (inline) return content;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4" onClick={onClose}>
+      {content}
     </div>
   );
 }

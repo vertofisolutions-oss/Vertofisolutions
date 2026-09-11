@@ -1,0 +1,27 @@
+[
+  {
+    "id": "sal-1789056362642-81",
+    "created_at": "2026-09-10T16:06:02.642Z",
+    "updated_at": "2026-09-10T16:06:02.642Z",
+    "customerName": "Geethika Parvatham",
+    "invoiceNo": "INV/0001",
+    "date": "2026-09-10",
+    "placeOfSupply": "Telangana",
+    "reference": "",
+    "vehicleNumber": "",
+    "items": [
+      {
+        "name": "Laptop",
+        "description": "",
+        "qty": 1,
+        "rate": 5000,
+        "hsn": "",
+        "taxRate": 18,
+        "cessRate": 0,
+        "discount": 0
+      }
+    ],
+    "total": 5900,
+    "source": "FORM"
+  }
+]

@@ -1,0 +1,54 @@
+[
+  {
+    "id": "usr_1789056242270",
+    "created_at": "2026-09-10T16:03:41.313Z",
+    "updated_at": "2026-09-10T16:04:02.270Z",
+    "name": "Geethika",
+    "mobile": "9603556970",
+    "email": "geethikaparvatham@gmail.com",
+    "orgId": "org_1789056235127",
+    "plan": "FREE",
+    "registered_at": "2026-09-10T16:04:02.270Z"
+  },
+  {
+    "id": "usr_1789017916678",
+    "created_at": "2026-09-10T05:25:16.679Z",
+    "updated_at": "2026-09-10T05:25:16.679Z",
+    "name": "Rahul Sharma",
+    "mobile": "9876500001",
+    "email": "rahul@techstartup.com",
+    "orgId": "org_rahul_real",
+    "plan": "FREE",
+    "registered_at": "2026-09-10T05:25:16.678Z"
+  },
+  {
+    "id": "usr_1789017916221",
+    "created_at": "2026-09-10T05:18:50.073Z",
+    "updated_at": "2026-09-10T05:25:16.221Z",
+    "name": "Parvatham Geethika",
+    "mobile": "9123456780",
+    "email": "geethika@mycompany.com",
+    "orgId": "org_geethika_real",
+    "plan": "FREE",
+    "registered_at": "2026-09-10T05:25:16.221Z"
+  },
+  {
+    "id": "usr_gouthambadiga01",
+    "created_at": "2026-09-10T18:09:19.672Z",
+    "updated_at": "2026-09-10T18:09:19.672Z",
+    "name": "gouthambadiga01",
+    "mobile": "9876543210",
+    "email": "gouthambadiga01@gmail.com",
+    "orgId": "org_gouthambadiga01_gmail_com",
+    "plan": "ENTERPRISE",
+    "registered_at": "2026-09-10T18:09:19.672Z"
+  },
+  {
+    "id": "reg-1789016938170-263",
+    "created_at": "2026-09-10T05:08:58.170Z",
+    "updated_at": "2026-09-10T05:08:58.170Z",
+    "mobile": "9876543210",
+    "email": "testduplicate@example.com",
+    "registered_at": "2026-09-10T05:08:58.170Z"
+  }
+]

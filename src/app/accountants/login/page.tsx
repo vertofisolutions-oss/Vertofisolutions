@@ -7,7 +7,7 @@ export default function AccountantsLoginPage() {
       accent="accountants"
       method="password+otp"
       panelName="Accountant Panel"
-      eyebrow="For Accountant Teams"
+      eyebrow="ACCOUNTANT TEAMS"
       tagline="The associate's accounts team. View your associate's clients, review the books and flag issues for approval."
       bullets={["Review assigned client books", "Flag accounting issues", "Secure, scoped access"]}
       identifierLabel="Email"
