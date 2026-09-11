@@ -2,5 +2,8 @@
   "name": "@vertofi/service-ai",
   "version": "1.0.0",
   "private": true,
-  "main": "./src/index.ts"
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "echo No build required"
+  }
 }
