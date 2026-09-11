@@ -13,13 +13,19 @@ const nestedWebLandingNext = path.join(repoRoot, "apps", "web-landing", "apps", 
 console.log("[post-build] Syncing Next.js build artifacts across all target paths...");
 console.log("[post-build] repoRoot:", repoRoot);
 
-const sourceNext = fs.existsSync(webLandingNext)
-  ? webLandingNext
-  : fs.existsSync(rootNext)
-  ? rootNext
-  : null;
+let sourceNext = null;
+if (fs.existsSync(webLandingNext) && fs.existsSync(rootNext)) {
+  const mtimeWeb = fs.statSync(webLandingNext).mtimeMs;
+  const mtimeRoot = fs.statSync(rootNext).mtimeMs;
+  sourceNext = mtimeWeb >= mtimeRoot ? webLandingNext : rootNext;
+} else if (fs.existsSync(webLandingNext)) {
+  sourceNext = webLandingNext;
+} else if (fs.existsSync(rootNext)) {
+  sourceNext = rootNext;
+}
 
 if (sourceNext) {
+  console.log(`[post-build] Using primary source: ${path.relative(repoRoot, sourceNext)}`);
   const destinations = [rootNext, webLandingNext, nestedWebLandingNext];
   for (const dest of destinations) {
     if (dest !== sourceNext) {

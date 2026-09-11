@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @vertofi/web-landing dev",
-    "build": "pnpm --filter @vertofi/web-landing build && node scripts/post-build.mjs",
+    "build": "next build && node scripts/post-build.mjs",
     "start": "pnpm --filter @vertofi/web-landing start",
     "typecheck": "pnpm --filter @vertofi/web-landing typecheck"
   },
