@@ -1,0 +1,12 @@
+{
+  "name": "@vertofi/api-root",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/server.ts",
+  "scripts": {
+    "build": "node ../scripts/build-from-api.mjs"
+  },
+  "dependencies": {
+    "@swc/helpers": "^0.5.15"
+  }
+}

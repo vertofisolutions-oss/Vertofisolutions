@@ -64,6 +64,12 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  api:
+    dependencies:
+      '@swc/helpers':
+        specifier: ^0.5.15
+        version: 0.5.15
+
   apps/web-landing:
     dependencies:
       '@emailjs/browser':
