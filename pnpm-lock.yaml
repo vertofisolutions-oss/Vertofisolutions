@@ -11,6 +11,9 @@ importers:
       '@emailjs/browser':
         specifier: ^4.4.1
         version: 4.4.1
+      '@swc/helpers':
+        specifier: ^0.5.15
+        version: 0.5.15
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -61,13 +64,20 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  api: {}
+  api:
+    dependencies:
+      '@swc/helpers':
+        specifier: ^0.5.15
+        version: 0.5.15
 
   apps/web-landing:
     dependencies:
       '@emailjs/browser':
         specifier: ^4.4.1
         version: 4.4.1
+      '@swc/helpers':
+        specifier: ^0.5.15
+        version: 0.5.15
       clsx:
         specifier: ^2.1.1
         version: 2.1.1

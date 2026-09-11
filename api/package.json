@@ -5,5 +5,8 @@
   "main": "./src/server.ts",
   "scripts": {
     "build": "node ../scripts/build-from-api.mjs"
+  },
+  "dependencies": {
+    "@swc/helpers": "^0.5.15"
   }
 }
