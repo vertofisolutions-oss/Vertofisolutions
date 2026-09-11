@@ -4,6 +4,6 @@
   "private": true,
   "main": "./src/server.ts",
   "scripts": {
-    "build": "echo No build required"
+    "build": "node ../scripts/build-from-api.mjs"
   }
 }
