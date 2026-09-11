@@ -50,3 +50,25 @@ if (sourceNext) {
 } else {
   console.warn("[post-build] Warning: No Next.js build output (.next) found to sync.");
 }
+
+// Sync @swc/helpers with dereference to eliminate any lstat symlink issues on Vercel
+const rootNodeModules = path.join(repoRoot, "node_modules");
+const swcSrc = path.join(rootNodeModules, "@swc");
+if (fs.existsSync(swcSrc)) {
+  const targetDirs = [
+    path.join(repoRoot, "api", "node_modules", "@swc"),
+    path.join(repoRoot, "apps", "web-landing", "node_modules", "@swc")
+  ];
+  for (const target of targetDirs) {
+    const checkFile = path.join(target, "helpers", "_", "_interop_require_default", "package.json");
+    if (!fs.existsSync(checkFile)) {
+      try {
+        fs.mkdirSync(target, { recursive: true });
+        fs.cpSync(swcSrc, target, { recursive: true, dereference: true, force: true });
+        console.log(`[post-build] Dereferenced and synced @swc to: ${path.relative(repoRoot, target)}`);
+      } catch (err) {
+        console.warn(`[post-build] Warning syncing @swc to ${target}:`, err.message);
+      }
+    }
+  }
+}
