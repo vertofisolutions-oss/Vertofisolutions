@@ -1,5 +1,3 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "buildCommand": "node ../scripts/build-from-api.mjs"
+  "$schema": "https://openapi.vercel.sh/vercel.json"
 }
