@@ -99,7 +99,11 @@ export function AddCustomerView({
               type="text"
               placeholder="Phone"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "");
+                if (val && !/^[6-9]/.test(val)) return;
+                setPhone(val);
+              }}
               className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-xs text-ink outline-none focus:border-brand shadow-sm"
             />
           </div>

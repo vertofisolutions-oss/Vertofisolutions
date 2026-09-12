@@ -149,29 +149,83 @@ function mapSaleToFormData(
   companyProfile: Record<string, unknown>,
   templateSettings: Record<string, unknown>
 ): DocumentFormData {
+  const party = String(
+    sale.customer_name ||
+    sale.customerName ||
+    sale.vendor_name ||
+    sale.supplier_name ||
+    sale.party_name ||
+    sale.buyer ||
+    sale.name ||
+    "Valued Party"
+  );
+
+  const docNo = String(
+    sale.invoice_no ||
+    sale.invoiceNo ||
+    sale.bill_no ||
+    sale.billNo ||
+    sale.purchase_no ||
+    sale.purchaseNo ||
+    sale.number ||
+    sale.doc_number ||
+    sale.ref ||
+    `DOC-${sale.id || "0001"}`
+  );
+
+  const isSaleWithoutGst = Boolean(
+    sale.doc_type === "Bill of Supply" ||
+    sale.docType === "Bill of Supply" ||
+    sale.tax_type === "NON_GST" ||
+    sale.totalTax === 0 ||
+    sale.tax_amount === 0 ||
+    String(sale.invoice_no || sale.invoiceNo || "").toUpperCase().startsWith("BILL/") ||
+    String(sale.doc_type || "").toLowerCase().includes("without gst") ||
+    String(sale.notes || "").toLowerCase().includes("without gst") ||
+    (Array.isArray(sale.items) && sale.items.some((it: any) => String(it.description || "").toLowerCase().includes("without gst")))
+  );
+
   const items = (Array.isArray(sale.items) && sale.items.length > 0)
-    ? (sale.items as Record<string, unknown>[]).map((it, idx) => ({
-        id: String(it.id || `item-${idx + 1}`),
-        name: String(it.name || it.item_name || "Enterprise Services"),
-        description: String(it.description || ""),
-        hsnSac: String(it.hsn || it.hsnSac || "998311"),
-        quantity: Number(it.qty || it.quantity || 1),
-        rate: Number(it.rate || it.price || 0),
-        discountPct: Number(it.discount || it.discountPct || 0),
-        taxPct: Number(it.taxRate || it.taxPct || 18),
-        total: Number(it.total || (Number(it.qty || 1) * Number(it.rate || 0))),
-      }))
+    ? (sale.items as Record<string, unknown>[]).map((it, idx) => {
+        let tax = 18;
+        if (isSaleWithoutGst) {
+          tax = 0;
+        } else if (it.taxPct !== undefined && it.taxPct !== null && !isNaN(Number(it.taxPct))) {
+          tax = Number(it.taxPct);
+        } else if (it.taxRate !== undefined && it.taxRate !== null && !isNaN(Number(it.taxRate))) {
+          tax = Number(it.taxRate);
+        }
+
+        const qty = Number(it.qty || it.quantity || 1);
+        const rate = Number(it.rate || it.price || 0);
+        const discPct = Number(it.discount || it.discountPct || 0);
+        const taxable = qty * rate * (1 - discPct / 100);
+        const calculatedTotal = tax > 0 ? Math.round(taxable * (1 + tax / 100)) : Math.round(taxable);
+        const total = isSaleWithoutGst ? Math.round(taxable) : Number(it.total || calculatedTotal);
+
+        return {
+          id: String(it.id || `item-${idx + 1}`),
+          name: String(it.name || it.item_name || "Goods / Materials"),
+          description: String(it.description || ""),
+          hsnSac: String(it.hsn || it.hsnSac || (tax === 0 ? "000000" : "847130")),
+          quantity: qty,
+          rate,
+          discountPct: discPct,
+          taxPct: tax,
+          total,
+        };
+      })
     : [
         {
           id: "item-1",
-          name: String(sale.notes || sale.description || "Cloud Platform & Business Consulting"),
-          description: "Monthly subscription & IT services rendered",
-          hsnSac: "998311",
+          name: String(sale.notes || sale.description || sale.item_name || "Commercial Purchase / Procurement"),
+          description: "Procurement & supplies delivered under standard terms",
+          hsnSac: isSaleWithoutGst ? "000000" : "847130",
           quantity: 1,
-          rate: Number(sale.total || 0) > 0 ? Math.round(Number(sale.total || 0) / 1.18) : 5000,
+          rate: Number(sale.total || 0) > 0 ? (isSaleWithoutGst ? Number(sale.total) : Math.round(Number(sale.total) / 1.18)) : 5000,
           discountPct: 0,
-          taxPct: 18,
-          total: Number(sale.total || 0) > 0 ? Math.round(Number(sale.total || 0) / 1.18) : 5000,
+          taxPct: isSaleWithoutGst ? 0 : 18,
+          total: Number(sale.total || 0) > 0 ? (isSaleWithoutGst ? Number(sale.total) : Math.round(Number(sale.total) / 1.18)) : 5000,
         },
       ];
 
@@ -190,15 +244,15 @@ function mapSaleToFormData(
     companyGstin: String(companyProfile?.gstin || "36AABCU9603R1ZM"),
     companyPan: String(companyProfile?.pan || "AABCU9603R"),
 
-    customerName: String(sale.customer_name || sale.buyer || "Valued Client"),
-    customerCompany: String(sale.customer_name || sale.buyer || "Valued Client"),
-    customerAddress: String(sale.customer_address || "Plot 10, HITEC City"),
-    customerCityState: String(sale.place_of_supply || sale.customer_state || "Hyderabad, Telangana"),
-    customerEmail: String(sale.customer_email || "accounts@client.com"),
-    customerPhone: String(sale.customer_phone || "+91 9123456780"),
-    customerGstin: String(sale.customer_gstin || sale.gstin || "36AAACG1234F1Z5"),
+    customerName: party,
+    customerCompany: party,
+    customerAddress: String(sale.customer_address || sale.supplier_address || sale.vendor_address || "Plot 10, HITEC City"),
+    customerCityState: String(sale.place_of_supply || sale.customer_state || sale.supplier_state || "Hyderabad, Telangana"),
+    customerEmail: String(sale.customer_email || sale.supplier_email || sale.vendor_email || "accounts@partner.com"),
+    customerPhone: String(sale.customer_phone || sale.supplier_phone || sale.vendor_phone || "+91 9123456780"),
+    customerGstin: String(sale.customer_gstin || sale.supplier_gstin || sale.vendor_gstin || sale.gstin || "36AAACG1234F1Z5"),
 
-    docNumber: String(sale.invoice_no || sale.ref || `INV-${sale.id || "0001"}`),
+    docNumber: docNo,
     docDate: String(sale.date || sale.created_at || new Date().toISOString().slice(0, 10)),
     dueDate: String(sale.due_date || new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10)),
     placeOfSupply: String(sale.place_of_supply || "Telangana (36)"),
@@ -220,6 +274,26 @@ function mapSaleToFormData(
 
     termsAndConditions: String(sale.terms || "1. Payment is due within 15 days of invoice date.\n2. Interest @ 18% p.a. applicable on delayed payments.\n3. Goods & services delivered under standard SLA."),
     signatoryTitle: "Authorized Signatory",
+    isProforma: Boolean(
+      sale.isProforma ||
+      sale.doc_type === "Proforma Invoice" ||
+      sale.doc_type === "PROFORMA" ||
+      sale.doc_type === "PROFORMA_INVOICE" ||
+      String(sale.doc_type || "").toLowerCase().includes("proforma") ||
+      String(sale.docType || "").toLowerCase().includes("proforma") ||
+      String(sale.invoice_no || sale.invoiceNo || "").toUpperCase().startsWith("PI-")
+    ),
+    docTitle: (
+      sale.isProforma ||
+      sale.doc_type === "Proforma Invoice" ||
+      sale.doc_type === "PROFORMA" ||
+      sale.doc_type === "PROFORMA_INVOICE" ||
+      String(sale.doc_type || "").toLowerCase().includes("proforma") ||
+      String(sale.docType || "").toLowerCase().includes("proforma") ||
+      String(sale.invoice_no || sale.invoiceNo || "").toUpperCase().startsWith("PI-")
+    ) ? "PROFORMA INVOICE" : isSaleWithoutGst ? "BILL OF SUPPLY (0% GST)" : undefined,
+    docType: String(sale.doc_type || sale.docType || (isSaleWithoutGst ? "Bill of Supply" : "Tax Invoice")),
+    isWithoutGst: isSaleWithoutGst,
   };
 }
 
@@ -227,10 +301,14 @@ export function InvoiceTemplatePreviewModal({
   sale,
   onClose,
   initialTemplate,
+  autoExport,
+  isProforma: isProformaProp,
 }: {
   sale: Record<string, unknown>;
   onClose: () => void;
   initialTemplate?: number;
+  autoExport?: boolean;
+  isProforma?: boolean;
 }) {
   const [selectedTemplateNum, setSelectedTemplateNum] = useState<number>(() => {
     if (initialTemplate && initialTemplate >= 1 && initialTemplate <= 6) return initialTemplate;
@@ -250,6 +328,7 @@ export function InvoiceTemplatePreviewModal({
   const [companyProfile, setCompanyProfile] = useState<Record<string, unknown>>({});
   const [templateSettings, setTemplateSettings] = useState<Record<string, unknown>>({});
   const [zoom, setZoom] = useState(100);
+  const [exportingNum, setExportingNum] = useState<number | null>(null);
 
   useEffect(() => {
     try {
@@ -280,56 +359,105 @@ export function InvoiceTemplatePreviewModal({
     return mapSaleToFormData(sale, companyProfile, templateSettings);
   }, [sale, companyProfile, templateSettings]);
 
-  const handlePrint = () => {
-    const printable = document.getElementById("printable-invoice-a4-sheet");
-    if (printable) {
-      printElementAsPdf(printable, `${String(sale.invoice_no || "Tax_Invoice")}`);
-    } else {
-      window.print();
+  const isProforma = Boolean(
+    isProformaProp ||
+    sale.isProforma ||
+    sale.doc_type === "Proforma Invoice" ||
+    sale.doc_type === "PROFORMA" ||
+    sale.doc_type === "PROFORMA_INVOICE" ||
+    String(sale.doc_type || "").toLowerCase().includes("proforma") ||
+    String(sale.docType || "").toLowerCase().includes("proforma") ||
+    String(sale.invoice_no || sale.invoiceNo || "").toUpperCase().startsWith("PI-")
+  );
+
+  const handleExportPdf = (num?: number) => {
+    const targetNum = num ?? selectedTemplateNum;
+    setExportingNum(targetNum);
+    if (num !== undefined && num !== selectedTemplateNum) {
+      handleSelectTemplate(num);
     }
+    setTimeout(() => {
+      const printable = document.getElementById("printable-invoice-a4-sheet") || document.getElementById("vertofi-printable-invoice");
+      const titleName = isProforma
+        ? `${displayDocNum}_Proforma_Invoice`
+        : `${String(sale.invoice_no || sale.invoiceNo || sale.bill_no || sale.billNo || sale.purchase_no || sale.purchaseNo || "Document")}_T${targetNum}`;
+      if (printable) {
+        printElementAsPdf(printable, titleName);
+      } else {
+        window.print();
+      }
+      setExportingNum(null);
+    }, 350);
   };
+
+  useEffect(() => {
+    if (autoExport) {
+      const timer = setTimeout(() => {
+        handleExportPdf();
+      }, 450);
+      return () => clearTimeout(timer);
+    }
+  }, [autoExport]);
+
+  const TEMPLATE_META = [
+    { num: 1, name: "Modern Blue", primary: "#1E60D5", accent: "#3B82F6", dotClass: "bg-blue-600" },
+  ];
+
+  const displayDocNum = String(
+    sale.invoice_no || sale.invoiceNo || sale.bill_no || sale.billNo || sale.purchase_no || sale.purchaseNo || sale.doc_number || "DOC"
+  );
+  const displayParty = String(
+    sale.customer_name || sale.customerName || sale.vendor_name || sale.supplier_name || sale.party_name || "Client / Supplier"
+  );
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-2 sm:p-4 backdrop-blur-sm animate-in fade-in duration-150">
       <div className="relative flex max-h-[96vh] w-full max-w-6xl flex-col rounded-2xl border border-slate-200 bg-slate-100 shadow-2xl overflow-hidden">
-        {/* Header Control Bar */}
+
+        {/* ── Header Control Bar ── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 bg-white px-6 py-3.5 gap-3">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600 text-white shadow-sm font-bold text-sm">
-              <LayoutTemplate className="h-5 w-5" />
+            <span className={`grid h-10 w-10 place-items-center rounded-xl text-white shadow-sm ${isProforma ? "bg-slate-900" : "bg-blue-600"}`}>
+              {isProforma ? <FileText className="h-5 w-5" /> : <LayoutTemplate className="h-5 w-5" />}
             </span>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base font-bold text-slate-900">
-                  Invoice Template Preview &amp; PDF Export
+                  {isProforma ? "Proforma Invoice Preview & PDF Export" : "Document Template Preview & PDF Export"}
                 </h2>
-                <Badge tone="brand" className="text-[10px] font-bold">
-                  {String(sale.invoice_no || "INV")}
-                </Badge>
-                <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                  Template {selectedTemplateNum}
-                </span>
+                <Badge tone="brand" className="text-[10px] font-bold">{displayDocNum}</Badge>
+                {isProforma ? (
+                  <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                    PROFORMA INVOICE
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                    Template 1
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500">
-                Customer: <strong className="text-slate-700">{String(sale.customer_name || "Client")}</strong> • Ready for standard A4 PDF download &amp; Print
+                Party: <strong className="text-slate-700">{displayParty}</strong>
+                {" "}&bull; {isProforma ? "Official Proforma Invoice (Estimate) ready for PDF Export" : <><span className="font-semibold text-blue-600">Template 1 (Modern Blue)</span> ready for PDF Export</>}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 self-end sm:self-auto">
-            {/* Zoom Controls */}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            {/* Zoom */}
             <div className="hidden md:flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200 text-xs font-semibold text-slate-700">
-              <button onClick={() => setZoom((z) => Math.max(70, z - 10))} title="Zoom out" className="px-2 py-0.5 rounded hover:bg-white cursor-pointer">-</button>
+              <button onClick={() => setZoom(z => Math.max(70, z - 10))} className="px-2 py-0.5 rounded hover:bg-white cursor-pointer">−</button>
               <span className="px-1.5">{zoom}%</span>
-              <button onClick={() => setZoom((z) => Math.min(130, z + 10))} title="Zoom in" className="px-2 py-0.5 rounded hover:bg-white cursor-pointer">+</button>
+              <button onClick={() => setZoom(z => Math.min(130, z + 10))} className="px-2 py-0.5 rounded hover:bg-white cursor-pointer">+</button>
             </div>
 
             <button
-              onClick={handlePrint}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700 shadow-sm cursor-pointer"
+              onClick={() => handleExportPdf()}
+              disabled={exportingNum !== null}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 px-4 py-2 text-xs font-bold text-white transition shadow-sm cursor-pointer"
             >
-              <Download className="h-4 w-4" />
-              <span>Download PDF / Print</span>
+              {exportingNum !== null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Export PDF
             </button>
             <button onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition cursor-pointer">
               <X className="h-5 w-5" />
@@ -337,25 +465,93 @@ export function InvoiceTemplatePreviewModal({
           </div>
         </div>
 
-        {/* Template Information Bar (Applied from Business Profile) */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-2.5 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Active Template:
-            </span>
-            <span className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700">
-              Template {selectedTemplateNum} • {templateDef?.name?.replace("Vertofi ", "") || "Standard"}
-            </span>
-            <span className="text-[11px] text-slate-500 hidden sm:inline">
-              (Applied from Business Profile)
-            </span>
-          </div>
-          <span className="text-[11px] text-slate-400 hidden lg:inline">
-            A4 Standard • 100% Tax Compliant
-          </span>
-        </div>
+        {/* ── Template Picker Strip (Hidden for Proforma Invoices) ── */}
+        {!isProforma && (
+          <div className="border-b border-slate-200 bg-white px-6 py-3">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">
+              Template &amp; Export PDF
+            </p>
+            <div className="flex items-start gap-2.5 overflow-x-auto pb-1">
+              {TEMPLATE_META.map(({ num, name, primary, accent, dotClass }) => {
+                const isActive = selectedTemplateNum === num;
+                const isExp = exportingNum === num;
+                return (
+                  <div
+                    key={num}
+                    onClick={() => handleSelectTemplate(num)}
+                    className={`flex-shrink-0 flex flex-col gap-1.5 cursor-pointer rounded-xl border-2 p-2.5 transition-all duration-150 ${
+                      isActive
+                        ? "border-blue-500 bg-blue-50 shadow-md ring-1 ring-blue-300"
+                        : "border-slate-200 bg-white hover:border-blue-300 hover:shadow"
+                    }`}
+                    style={{ minWidth: 110 }}
+                  >
+                    {/* Colour swatch */}
+                    <div
+                      className="w-full h-11 rounded-lg relative overflow-hidden flex items-center justify-between px-2 select-none"
+                      style={{ background: primary }}
+                    >
+                      {isActive && (
+                        <div className="absolute top-1 left-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-white drop-shadow" />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-0.5 ml-3.5">
+                        <div className="w-9 h-1 rounded bg-white/80" />
+                        <div className="w-5 h-0.5 rounded bg-white/50" />
+                        <div className="w-7 h-0.5 rounded bg-white/40" />
+                      </div>
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black text-white shadow"
+                        style={{ background: accent }}
+                      >
+                        T{num}
+                      </div>
+                    </div>
 
-        {/* Live A4 Render Workspace */}
+                    {/* Label */}
+                    <div className="text-center px-0.5">
+                      <div className={`flex items-center justify-center gap-1 text-[10px] font-bold ${isActive ? "text-blue-700" : "text-slate-700"}`}>
+                        <span className={`inline-block h-2 w-2 rounded-full ${dotClass}`} />
+                        T{num}
+                      </div>
+                      <div className="text-[9px] text-slate-500 truncate max-w-[90px] mx-auto">{name}</div>
+                    </div>
+
+                    {/* Per-template Export PDF button */}
+                    <button
+                      type="button"
+                      disabled={isExp}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectTemplate(num);
+                        setExportingNum(num);
+                        setTimeout(() => {
+                          const el = document.getElementById("printable-invoice-a4-sheet");
+                          if (el) printElementAsPdf(el, `${String(sale.invoice_no || sale.invoiceNo || "Invoice")}_T${num}`);
+                          else window.print();
+                          setExportingNum(null);
+                        }, 380);
+                      }}
+                      className={`w-full rounded-lg py-1 text-[9px] font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
+                        isActive
+                          ? "bg-blue-600 text-white hover:bg-blue-700"
+                          : "bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white"
+                      } disabled:opacity-60`}
+                    >
+                      {isExp
+                        ? <><Loader2 className="h-2.5 w-2.5 animate-spin" /> Exporting…</>
+                        : <><FileDown className="h-2.5 w-2.5" /> Export PDF</>
+                      }
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Live A4 Render ── */}
         <div className="flex-1 overflow-y-auto p-6 flex justify-center bg-slate-100/90">
           <div id="printable-invoice-a4-sheet" className="w-full max-w-[794px] transition-transform duration-150">
             <DocumentRenderer
@@ -477,8 +673,8 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
         for (const loc of combined) {
           if (!loc) continue;
           const uniqueKey = String(
-            loc.id ||
-            `${loc.invoice_no || loc.invoiceNo || "INV"}_${loc.customer_name || loc.customerName || "Party"}_${loc.total || 0}_${loc.date || loc.created_at || ""}`
+            loc.invoice_no || loc.invoiceNo || loc.id ||
+            `INV_${loc.customer_name || loc.customerName || "Party"}_${loc.total || 0}_${loc.date || loc.created_at || ""}`
           );
           if (!seenKeys.has(uniqueKey)) {
             seenKeys.add(uniqueKey);
@@ -537,7 +733,19 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
 
   const trialBalanceData = useMemo(() => {
     const totalSales = sales.reduce((acc, s) => acc + Number(s.total || 0), 0);
-    const salesTax = sales.reduce((acc, s) => acc + Number(s.tax || s.cgst || 0) + Number(s.sgst || 0) + Number(s.igst || 0), 0);
+    let salesTax = 0;
+    sales.forEach(s => {
+      if (s.tax) salesTax += Number(s.tax);
+      else if (s.items && Array.isArray(s.items)) {
+        s.items.forEach((it: any) => {
+          salesTax += Number(it.totalTax || 0);
+        });
+      }
+    });
+    // Fallback if no item-level tax is found but total > 0
+    if (salesTax === 0 && totalSales > 0) {
+      salesTax = totalSales - Math.round(totalSales / 1.18);
+    }
     const netSales = Math.max(0, totalSales - salesTax);
 
     const totalPurchases = purchases.reduce((acc, p) => acc + Number(p.total || 0), 0);
@@ -545,34 +753,24 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
     const netPurchases = Math.max(0, totalPurchases - purchaseTax);
 
     const totalExpenses = expenses.reduce((acc, e) => acc + Number(e.amount || e.total || 0), 0);
-    const debtors = totalSales;
-    const creditors = totalPurchases;
-    const inputGst = Number(gstSummary.inputTaxCredit || gstSummary.inputGst || purchaseTax);
-    const outputGst = Number(gstSummary.outputTax || gstSummary.outputGst || salesTax);
-    const pnlProfit = Number(pnl.netProfit || 0);
 
     const accounts = [
-      { code: "1001", name: "Trade Receivables (Sundry Debtors)", category: "Current Assets", debit: debtors, credit: 0 },
-      { code: "1002", name: "Input Tax Credit (GST ITC Pool)", category: "Current Assets", debit: inputGst, credit: 0 },
-      { code: "1003", name: "Bank & Cash Accounts (Operating)", category: "Current Assets", debit: Math.max(0, totalSales - totalPurchases - totalExpenses), credit: 0 },
-      { code: "2001", name: "Trade Payables (Sundry Creditors)", category: "Current Liabilities", debit: 0, credit: creditors },
-      { code: "2002", name: "GST Output Liability (Duties & Taxes)", category: "Current Liabilities", debit: 0, credit: outputGst },
-      { code: "3001", name: "Owner Equity / Retained Capital", category: "Equity", debit: 0, credit: Math.max(0, (debtors + inputGst) - (creditors + outputGst)) },
+      { code: "1001", name: "Trade Receivables (Sundry Debtors)", category: "Current Assets", debit: totalSales, credit: 0 },
+      { code: "1002", name: "Input Tax Credit (GST ITC Pool)", category: "Current Assets", debit: purchaseTax, credit: 0 },
+      { code: "1003", name: "Bank & Cash Accounts (Operating)", category: "Current Assets", debit: 0, credit: totalExpenses },
+      { code: "2001", name: "Trade Payables (Sundry Creditors)", category: "Current Liabilities", debit: 0, credit: totalPurchases },
+      { code: "2002", name: "GST Output Liability (Duties & Taxes)", category: "Current Liabilities", debit: 0, credit: salesTax },
       { code: "4001", name: "Sales Revenue (Turnover)", category: "Revenue", debit: 0, credit: netSales },
       { code: "5001", name: "Cost of Goods Sold (Purchases)", category: "Direct Expense", debit: netPurchases, credit: 0 },
       { code: "5002", name: "Operating Expenses (Admin / General)", category: "Indirect Expense", debit: totalExpenses, credit: 0 },
-    ];
-
-    if (pnlProfit < 0) {
-      accounts.push({ code: "3002", name: "Current Period Net Loss", category: "Equity Adjustment", debit: Math.abs(pnlProfit), credit: 0 });
-    }
+    ].filter(a => a.debit > 0 || a.credit > 0);
 
     const totalDebit = accounts.reduce((acc, a) => acc + a.debit, 0);
     const totalCredit = accounts.reduce((acc, a) => acc + a.credit, 0);
     const diff = Math.abs(totalDebit - totalCredit);
 
     return { accounts, totalDebit, totalCredit, diff, isBalanced: diff < 0.01 };
-  }, [sales, purchases, expenses, gstSummary, pnl]);
+  }, [sales, purchases, expenses]);
 
   const generalLedgerData = useMemo(() => {
     const entries: { id: string; date: string; ref: string; account: string; type: string; debit: number; credit: number; notes: string; balance?: number }[] = [];
@@ -748,7 +946,7 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
 
   const ewayData = useMemo(() => {
     const eligibleSales = sales.filter((s) => Number(s.total || 0) >= 50000 || s.eway_bill_no);
-    const bills = (eligibleSales.length > 0 ? eligibleSales : sales).map((s, idx) => {
+    const bills = eligibleSales.map((s, idx) => {
       const val = Number(s.total || 0);
       const isHighValue = val >= 50000;
       const hasEwb = Boolean(s.eway_bill_no);

@@ -126,7 +126,11 @@ export function AddSupplierView({
                 type="text"
                 placeholder="Phone"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  if (val && !/^[6-9]/.test(val)) return;
+                  setPhone(val);
+                }}
                 className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-red-500 shadow-sm transition"
               />
             </div>

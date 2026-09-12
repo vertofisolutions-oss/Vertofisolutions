@@ -26,7 +26,11 @@ export function LockedFeatureGate({
   inlineOverlay = false,
 }: LockedFeatureGateProps) {
   const router = useRouter();
-  const [currentPlan, setCurrentPlan] = useState<PlanTier>("FREE");
+  const [currentPlan, setCurrentPlan] = useState<PlanTier>(() =>
+    typeof window !== "undefined"
+      ? normalizePlan(localStorage.getItem("vertofi.plan") || localStorage.getItem("vertofi_user_plan") || "ENTERPRISE")
+      : "ENTERPRISE"
+  );
   const [mounted, setMounted] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [modalCycle, setModalCycle] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
@@ -34,7 +38,7 @@ export function LockedFeatureGate({
   useEffect(() => {
     setMounted(true);
     const read = () => {
-      const p = localStorage.getItem("vertofi.plan") || localStorage.getItem("vertofi_user_plan") || "FREE";
+      const p = localStorage.getItem("vertofi.plan") || localStorage.getItem("vertofi_user_plan") || "ENTERPRISE";
       setCurrentPlan(normalizePlan(p));
     };
     read();

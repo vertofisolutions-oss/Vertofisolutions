@@ -161,6 +161,7 @@ export function CreateDeliveryChallan({
         };
         const existing = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
         localStorage.setItem("vertofi_local_sales", JSON.stringify([newRecord, ...existing]));
+        window.dispatchEvent(new Event("storage"));
       } catch (_err) {}
 
       onCreated();

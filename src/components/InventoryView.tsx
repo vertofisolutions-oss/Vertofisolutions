@@ -69,17 +69,66 @@ export function InventoryView({ orgId }: { orgId: string }) {
 
   useEffect(() => {
     let alive = true;
+
+    function syncInventory() {
+      if (typeof window === "undefined") return;
+      try {
+        const stored = localStorage.getItem("vertofi_local_inventory");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setItems((prev) => {
+              const map = new Map<string, Record<string, unknown>>();
+              for (const item of parsed) {
+                const key = String(item.id || item.code || item.name);
+                if (key) map.set(key, item);
+              }
+              for (const item of prev) {
+                const key = String(item.id || item.code || item.name);
+                if (key && !map.has(key)) map.set(key, item);
+              }
+              return Array.from(map.values());
+            });
+          }
+        }
+      } catch {}
+    }
+
+    syncInventory();
+
     api.acc
       .inventory(orgId)
       .then((data) => {
         if (!alive) return;
-        if (Array.isArray(data)) {
-          setItems(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setItems((prev) => {
+            const map = new Map<string, Record<string, unknown>>();
+            for (const item of prev) {
+              const key = String(item.id || item.code || item.name);
+              if (key) map.set(key, item);
+            }
+            for (const item of data) {
+              const key = String(item.id || item.code || item.name);
+              if (key && !map.has(key)) map.set(key, item);
+            }
+            return Array.from(map.values());
+          });
         }
       })
       .catch(() => {});
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "vertofi_local_inventory") syncInventory();
+    };
+    const handleCustom = () => syncInventory();
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("vertofi-inventory-changed", handleCustom);
+
     return () => {
       alive = false;
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("vertofi-inventory-changed", handleCustom);
     };
   }, [orgId]);
 

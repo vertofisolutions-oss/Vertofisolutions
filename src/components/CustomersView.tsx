@@ -59,23 +59,62 @@ export function CustomersView({
     }
   }
   const [customerList, setCustomerList] = useState<Record<string, unknown>[]>(() => {
-    let combined: Record<string, unknown>[] = Array.isArray(rows) && rows.length > 0 ? [...rows] : [];
+    let salesCustomers: Record<string, unknown>[] = [];
     if (typeof window !== "undefined") {
       try {
-        const stored = JSON.parse(localStorage.getItem("vertofi_local_customers") || "[]");
-        if (Array.isArray(stored) && stored.length > 0) {
-          combined = [...stored, ...combined];
+        const salesData = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+        const cmap = new Map();
+        for (const sale of salesData) {
+          if (sale.customer_name) {
+            const custKey = String(sale.customer_name).toLowerCase().trim();
+            if (!cmap.has(custKey)) {
+              cmap.set(custKey, {
+                id: `cust-${custKey}`,
+                name: sale.customer_name,
+                customer_name: sale.customer_name,
+                phone: sale.customer_phone || "",
+                mobile: sale.customer_phone || "",
+                gstin: sale.customer_gstin || "",
+                state: sale.customer_state || "",
+                status: "ACTIVE",
+              });
+            }
+          }
         }
+        salesCustomers = Array.from(cmap.values());
       } catch {}
     }
-    // Removed mock data
-    return dedupeCustomers(combined);
+    return dedupeCustomers(salesCustomers);
   });
 
   useEffect(() => {
-    if (Array.isArray(rows) && rows.length > 0) {
-      setCustomerList((prev) => dedupeCustomers([...rows, ...prev]));
-    }
+    const handleStorageChange = () => {
+      try {
+        const salesData = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+        const cmap = new Map();
+        for (const sale of salesData) {
+          if (sale.customer_name) {
+            const custKey = String(sale.customer_name).toLowerCase().trim();
+            if (!cmap.has(custKey)) {
+              cmap.set(custKey, {
+                id: `cust-${custKey}`,
+                name: sale.customer_name,
+                customer_name: sale.customer_name,
+                phone: sale.customer_phone || "",
+                mobile: sale.customer_phone || "",
+                gstin: sale.customer_gstin || "",
+                state: sale.customer_state || "",
+                status: "ACTIVE",
+              });
+            }
+          }
+        }
+        setCustomerList(dedupeCustomers(Array.from(cmap.values())));
+      } catch {}
+    };
+    handleStorageChange();
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, [rows]);
 
   const filteredRows = useMemo(() => {

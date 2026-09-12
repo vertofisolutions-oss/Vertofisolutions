@@ -33,12 +33,23 @@ export const DocumentRenderer: React.FC<DocumentRendererProps> = ({
   // Calculate average tax or total GST
   const totalTax = (formData.items || []).reduce((acc, item) => {
     const itemNet = (item.quantity * item.rate * (1 - item.discountPct / 100));
-    return acc + (itemNet * item.taxPct) / 100;
+    return acc + (itemNet * (item.taxPct || 0)) / 100;
   }, 0);
+
+  const isWithoutGst = Boolean(
+    formData.docType === "Bill of Supply" ||
+    formData.docType === "BILL_OF_SUPPLY" ||
+    String(formData.docNumber || "").toUpperCase().startsWith("BILL/") ||
+    (formData.items || []).every((item) => Number(item.taxPct || 0) === 0) ||
+    (formData.items || []).some((item) => String(item.description || "").toLowerCase().includes("without gst")) ||
+    totalTax === 0
+  );
+
+  const effectiveTax = isWithoutGst ? 0 : totalTax;
 
   const grandTotal =
     taxableAmount +
-    totalTax +
+    effectiveTax +
     (formData.shippingCharges || 0) +
     (formData.extraCharges || 0);
 
@@ -361,6 +372,13 @@ export const DocumentRenderer: React.FC<DocumentRendererProps> = ({
     }
   })();
 
+  const isProforma = Boolean(
+    formData.isProforma ||
+    formData.docTitle?.toUpperCase().includes("PROFORMA") ||
+    String(formData.docNumber || "").toUpperCase().startsWith("PI-") ||
+    templateDef?.name?.toLowerCase().includes("proforma")
+  );
+
   // Master Standard Document (Invoices, Quotations, Receipts, Billing, Client Statements)
   return (
     <div
@@ -376,8 +394,8 @@ export const DocumentRenderer: React.FC<DocumentRendererProps> = ({
       <div className="space-y-6">
         {/* Template watermark banner */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
-          <span>{templateStyles.complianceWatermark}</span>
-          <span>Template {activeTemplateNum} • GST Registered</span>
+          <span>{isProforma ? "PROFORMA INVOICE • ESTIMATE" : isWithoutGst ? "BILL OF SUPPLY • 0% GST (TAX EXEMPT)" : templateStyles.complianceWatermark}</span>
+          <span>{isProforma ? "NOT A TAX INVOICE" : isWithoutGst ? "EXEMPTED SUPPLY • COMPOSITION / NON-GST" : `Template ${activeTemplateNum} • GST Registered`}</span>
         </div>
 
         {/* Header Bar */}
@@ -411,9 +429,11 @@ export const DocumentRenderer: React.FC<DocumentRendererProps> = ({
           {/* Document Title & Reference */}
           <div className="text-right space-y-1">
             <span
-              className={`inline-block font-black text-xs uppercase px-3 py-1 rounded-full text-white tracking-widest shadow-2xs ${templateStyles.badgeBg}`}
+              className={`inline-block font-black text-xs uppercase px-3 py-1 rounded-full text-white tracking-widest shadow-2xs ${
+                isProforma ? "bg-slate-900 text-white" : isWithoutGst ? "bg-emerald-700 text-white" : templateStyles.badgeBg
+              }`}
             >
-              {templateDef?.name?.replace("Vertofi ", "").toUpperCase() || templateStyles.titleText}
+              {isProforma ? "PROFORMA INVOICE" : isWithoutGst ? "BILL OF SUPPLY (0% GST)" : (formData.docTitle || templateDef?.name?.replace("Vertofi ", "").toUpperCase() || templateStyles.titleText)}
             </span>
 
             {formData.paymentStatus === "PAID" && (
@@ -425,9 +445,10 @@ export const DocumentRenderer: React.FC<DocumentRendererProps> = ({
             )}
 
             <p className="text-sm font-bold text-slate-900 pt-1">
-              Invoice #: <span className="font-black" style={{ color: templateStyles.primary }}>{formData.docNumber}</span>
+              {isProforma ? "Proforma #: " : "Invoice #: "}
+              <span className="font-black" style={{ color: templateStyles.primary }}>{formData.docNumber}</span>
             </p>
-            <p className="text-xs text-slate-500">Invoice Date: <strong className="text-slate-700">{formData.docDate}</strong></p>
+            <p className="text-xs text-slate-500">{isProforma ? "Proforma Date: " : "Invoice Date: "}<strong className="text-slate-700">{formData.docDate}</strong></p>
             {formData.dueDate && <p className="text-xs text-slate-500">Due Date: <strong className="text-slate-700">{formData.dueDate}</strong></p>}
             {formData.validUntilDate && <p className="text-xs text-amber-700 font-semibold">Valid Until: {formData.validUntilDate}</p>}
           </div>
@@ -458,36 +479,85 @@ export const DocumentRenderer: React.FC<DocumentRendererProps> = ({
         </div>
 
         {/* Items Table */}
-        <div className="overflow-hidden rounded-xl border border-slate-200">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-hidden rounded-xl border border-slate-200 mt-4">
+          <table className="w-full text-left border-collapse text-[10px]">
             <thead>
-              <tr className={`text-white font-bold text-[11px] ${templateStyles.tableHeaderBg}`}>
-                <th className="p-3 w-10 text-center">#</th>
-                <th className="p-3">Item / Service Description</th>
-                <th className="p-3 text-center">HSN/SAC</th>
-                <th className="p-3 text-center">Qty</th>
-                <th className="p-3 text-right">Rate (₹)</th>
-                <th className="p-3 text-right">Tax (%)</th>
-                <th className="p-3 text-right">Total (₹)</th>
+              <tr className={`text-white font-bold ${templateStyles.tableHeaderBg}`}>
+                <th className="p-2 text-center border-r border-slate-300/30">#</th>
+                <th className="p-2 border-r border-slate-300/30">Item / Service Description</th>
+                <th className="p-2 text-center border-r border-slate-300/30">HSN/SAC</th>
+                <th className="p-2 text-center border-r border-slate-300/30">Qty</th>
+                <th className="p-2 text-right border-r border-slate-300/30">Rate (₹)</th>
+                <th className="p-2 text-right border-r border-slate-300/30">Taxable Value</th>
+                {isWithoutGst ? (
+                  <th className="p-2 text-center border-r border-slate-300/30">GST Rate</th>
+                ) : (
+                  <>
+                    <th className="p-2 text-center border-r border-slate-300/30" colSpan={2}>CGST</th>
+                    <th className="p-2 text-center border-r border-slate-300/30" colSpan={2}>SGST</th>
+                  </>
+                )}
+                <th className="p-2 text-right">Total (₹)</th>
+              </tr>
+              <tr className={`text-white font-semibold text-[9px] ${templateStyles.tableHeaderBg}`}>
+                <th className="border-r border-slate-300/30"></th>
+                <th className="border-r border-slate-300/30"></th>
+                <th className="border-r border-slate-300/30"></th>
+                <th className="border-r border-slate-300/30"></th>
+                <th className="border-r border-slate-300/30"></th>
+                <th className="border-r border-slate-300/30"></th>
+                {isWithoutGst ? (
+                  <th className="p-1 text-center border-r border-slate-300/30 border-t border-slate-300/30 bg-black/10">0% (Nil)</th>
+                ) : (
+                  <>
+                    <th className="p-1 text-right border-r border-slate-300/30 border-t border-slate-300/30 bg-black/10">Rate</th>
+                    <th className="p-1 text-right border-r border-slate-300/30 border-t border-slate-300/30 bg-black/10">Amt</th>
+                    <th className="p-1 text-right border-r border-slate-300/30 border-t border-slate-300/30 bg-black/10">Rate</th>
+                    <th className="p-1 text-right border-r border-slate-300/30 border-t border-slate-300/30 bg-black/10">Amt</th>
+                  </>
+                )}
+                <th></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {(formData.items || []).map((item, idx) => (
-                <tr key={item.id || idx} className="hover:bg-slate-50/50">
-                  <td className="p-3 text-center font-medium text-slate-400">{idx + 1}</td>
-                  <td className="p-3">
-                    <p className="font-bold text-slate-900">{item.name}</p>
-                    {item.description && <p className="text-[11px] text-slate-500 mt-0.5">{item.description}</p>}
-                  </td>
-                  <td className="p-3 text-center text-slate-500 font-mono">{item.hsnSac || "998311"}</td>
-                  <td className="p-3 text-center font-bold text-slate-800">{item.quantity}</td>
-                  <td className="p-3 text-right font-medium">₹{Number(item.rate || 0).toLocaleString("en-IN")}</td>
-                  <td className="p-3 text-right text-slate-500">{item.taxPct || 0}%</td>
-                  <td className="p-3 text-right font-bold text-slate-900">
-                    ₹{Number(item.total || 0).toLocaleString("en-IN")}
-                  </td>
-                </tr>
-              ))}
+              {(formData.items || []).map((item, idx) => {
+                const itemNet = (item.quantity * item.rate * (1 - item.discountPct / 100));
+                const itemTaxPct = isWithoutGst ? 0 : Number(item.taxPct || 0);
+                const totalTaxAmt = isWithoutGst ? 0 : (itemNet * itemTaxPct) / 100;
+                
+                // Assuming intra-state for standard CGST/SGST split (50% each)
+                const cgstRate = itemTaxPct / 2;
+                const sgstRate = itemTaxPct / 2;
+                const cgstAmt = totalTaxAmt / 2;
+                const sgstAmt = totalTaxAmt / 2;
+
+                return (
+                  <tr key={item.id || idx} className="hover:bg-slate-50/50">
+                    <td className="p-2 text-center font-medium text-slate-400 border-r border-slate-100">{idx + 1}</td>
+                    <td className="p-2 border-r border-slate-100">
+                      <p className="font-bold text-slate-900 text-xs">{item.name}</p>
+                      {item.description && <p className="text-[9px] text-slate-500 mt-0.5">{item.description}</p>}
+                    </td>
+                    <td className="p-2 text-center text-slate-500 font-mono border-r border-slate-100">{item.hsnSac || (isWithoutGst ? "000000" : "998311")}</td>
+                    <td className="p-2 text-center font-bold text-slate-800 border-r border-slate-100">{item.quantity}</td>
+                    <td className="p-2 text-right font-medium border-r border-slate-100">₹{Number(item.rate || 0).toLocaleString("en-IN")}</td>
+                    <td className="p-2 text-right font-semibold text-slate-700 border-r border-slate-100">₹{itemNet.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                    {isWithoutGst ? (
+                      <td className="p-2 text-center text-slate-500 font-semibold border-r border-slate-100">0% (Nil)</td>
+                    ) : (
+                      <>
+                        <td className="p-2 text-right text-slate-500 border-r border-slate-100">{cgstRate}%</td>
+                        <td className="p-2 text-right text-slate-600 border-r border-slate-100">₹{cgstAmt.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                        <td className="p-2 text-right text-slate-500 border-r border-slate-100">{sgstRate}%</td>
+                        <td className="p-2 text-right text-slate-600 border-r border-slate-100">₹{sgstAmt.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                      </>
+                    )}
+                    <td className="p-2 text-right font-bold text-slate-900 text-xs">
+                      ₹{Number(isWithoutGst ? itemNet : (item.total || itemNet)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -534,10 +604,24 @@ export const DocumentRenderer: React.FC<DocumentRendererProps> = ({
               </div>
             )}
 
-            <div className="flex justify-between text-slate-600">
-              <span>Estimated GST (CGST + SGST):</span>
-              <span className="font-semibold">₹{totalTax.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
-            </div>
+            {!isWithoutGst && effectiveTax > 0 ? (
+              <>
+                <div className="flex justify-between text-slate-600">
+                  <span>CGST Amount:</span>
+                  <span className="font-semibold">₹{(effectiveTax / 2).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                </div>
+                
+                <div className="flex justify-between text-slate-600">
+                  <span>SGST Amount:</span>
+                  <span className="font-semibold">₹{(effectiveTax / 2).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-between text-emerald-700 font-medium">
+                <span>GST Tax (0% Without GST):</span>
+                <span className="font-semibold">₹0.00</span>
+              </div>
+            )}
 
             {Boolean(formData.shippingCharges && formData.shippingCharges > 0) && (
               <div className="flex justify-between text-slate-600">

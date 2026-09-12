@@ -50,18 +50,40 @@ export function AddCustomerView({
     setBusy(true);
     setError(null);
     try {
-      await api.acc.addCustomer(orgId, {
-        name: name.trim(),
-        phone: phone.trim() || undefined,
-        email: email.trim() || undefined,
-        placeOfSupply,
-        taxTreatment,
-        taxPreference,
-        licenceNo: licenceNo.trim() || undefined,
-        legalName: legalName.trim() || undefined,
-        address: `${addressLine1} ${addressLine2} ${city} ${state} ${pinCode}`.trim() || undefined,
-      });
-      onCreated();
+      const payload = {
+          name: name.trim(),
+          phone: phone.trim() || undefined,
+          email: email.trim() || undefined,
+          placeOfSupply,
+          taxTreatment,
+          taxPreference,
+          licenceNo: licenceNo.trim() || undefined,
+          legalName: legalName.trim() || undefined,
+          address: `${addressLine1} ${addressLine2} ${city} ${state} ${pinCode}`.trim() || undefined,
+        };
+        await api.acc.addCustomer(orgId, payload);
+        
+        // Also save locally so it syncs with Manage Customers instantly
+        if (typeof window !== "undefined") {
+          try {
+            const existing = JSON.parse(localStorage.getItem("vertofi_local_customers") || "[]");
+            existing.push({
+              id: `cust-manual-${Date.now()}`,
+              name: payload.name,
+              phone: payload.phone,
+              email: payload.email,
+              gstin: payload.licenceNo,
+              state: payload.placeOfSupply,
+              status: "ACTIVE"
+            });
+            localStorage.setItem("vertofi_local_customers", JSON.stringify(existing));
+            window.dispatchEvent(new Event("storage"));
+          } catch (err) {
+            console.error("Local save failed", err);
+          }
+        }
+        
+        onCreated();
     } catch (e) {
       setError(e instanceof ApiError ? e.code.replaceAll("_", " ") : "Failed to add customer");
     } finally {
@@ -99,7 +121,11 @@ export function AddCustomerView({
               type="text"
               placeholder="Phone"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "");
+                if (val && !/^[6-9]/.test(val)) return;
+                setPhone(val);
+              }}
               className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-xs text-ink outline-none focus:border-brand shadow-sm"
             />
           </div>
@@ -124,7 +150,7 @@ export function AddCustomerView({
               onChange={(e) => setPlaceOfSupply(e.target.value)}
               className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-xs text-ink outline-none focus:border-brand cursor-pointer shadow-sm"
             >
-              <option value="36-TELANGANA">36-TELENGANA</option>
+              <option value="36-TELANGANA">36-TELANGANA</option>
               <option value="37-ANDHRA PRADESH">37-ANDHRA PRADESH</option>
               <option value="29-KARNATAKA">29-KARNATAKA</option>
               <option value="27-MAHARASHTRA">27-MAHARASHTRA</option>

@@ -71,23 +71,198 @@ export function CreateProformaInvoice({ orgId, onClose, onCreated, inline = fals
       /* ignore */
     }
 
-    let custName = "Ramesh Traders";
-    let itemName = "Cement bags";
-    let qty = 50;
-    let rate = 420;
+    let custName = "";
+    let itemName = "";
+    let qty = 1;
+    let rate = 0;
 
-    const forMatch = text.match(/for\s+([^—\-\n\d]+)/i);
-    if (forMatch && forMatch[1]) custName = forMatch[1].trim();
+    const KNOWN_PRODUCTS = [
+      "mobile phones", "mobile phone", "mobiles", "mobile", "smartphones", "smartphone", "phones", "phone", "cellphones", "cellphone",
+      "laptops", "laptop", "computers", "computer", "monitors", "monitor", "keyboards", "keyboard", "mouse",
+      "cement bags", "cement bag", "cement", "steel", "sand", "bricks", "paint", "tiles", "pipes", "pipe",
+      "shirts", "shirt", "pants", "pant", "sarees", "saree", "clothes", "cloth", "garments", "textiles", "fabric",
+      "rice bags", "rice bag", "rice", "sugar", "oil", "groceries", "grocery", "wheat", "flour",
+      "consulting services", "consulting", "consultation", "service", "services", "software development", "software", "hardware",
+      "maintenance", "repairs", "design", "installation", "subscription",
+      "chairs", "chair", "tables", "table", "desks", "desk", "furniture",
+      "books", "book", "stationery", "notebooks", "notebook", "pens", "pen",
+      "tablets", "medicines", "medicine", "drugs", "pharma",
+      "electronics", "appliances", "batteries", "battery", "cables", "cable", "spare parts", "parts",
+      "materials", "supplies", "office supplies", "goods", "products"
+    ];
 
-    const qtyMatch = text.match(/(\d+)\s+([a-zA-Z\s]+)\s+at/i);
-    if (qtyMatch) {
-      qty = parseInt(qtyMatch[1]) || 50;
-      itemName = qtyMatch[2].trim();
+    // 1. Check explicit key-value pairs
+    const explicitCustMatch = text.match(/(?:customer(?:\s*name)?|party(?:\s*name)?|client|billed\s*to|to|name)\s*[:=]\s*([^,\n;—–\-]+)/i);
+    if (explicitCustMatch && explicitCustMatch[1]) {
+      const cand = explicitCustMatch[1].trim();
+      if (cand && !/^invoice|^bill|^quotation|^proforma/i.test(cand)) {
+        custName = cand;
+      }
     }
 
-    const rateMatch = text.match(/at\s+₹?(\d+)/i);
-    if (rateMatch) {
-      rate = parseFloat(rateMatch[1]) || 420;
+    const explicitItemMatch = text.match(/(?:item(?:\s*name)?|product|goods|description|service)\s*[:=]\s*([^,\n;—–\-]+)/i);
+    if (explicitItemMatch && explicitItemMatch[1]) {
+      itemName = explicitItemMatch[1].trim();
+    }
+
+    const explicitQtyMatch = text.match(/(?:qty|quantity|count|nos|units|pieces|bags|pcs|boxes|sets|kg|mtr|hours)\s*[:=]\s*(\d+)/i);
+    if (explicitQtyMatch && explicitQtyMatch[1]) {
+      qty = parseInt(explicitQtyMatch[1], 10) || 1;
+    }
+
+    const explicitRateMatch = text.match(/(?:rate|price|amount|cost|total|rs\.?|₹|inr)\s*[:=]?\s*(?:rs\.?|₹|inr)?\s*([\d,]+)/i);
+    if (explicitRateMatch && explicitRateMatch[1]) {
+      const val = parseInt(explicitRateMatch[1].replace(/,/g, ""), 10);
+      if (val > 0) rate = val;
+    }
+
+    // 2. Detect Product Keyword
+    let foundProductWord = "";
+    for (const prod of KNOWN_PRODUCTS) {
+      const reg = new RegExp(`\\b${prod}\\b`, "i");
+      if (reg.test(text)) {
+        foundProductWord = prod;
+        if (!itemName) {
+          itemName = prod.charAt(0).toUpperCase() + prod.slice(1);
+        }
+        break;
+      }
+    }
+
+    // 3. Multi-part combo matching: e.g. "50 cement bags at 420", "10 laptops at ₹45000", "5 monitors 8000 each"
+    const comboMatch = text.match(/(\d+)\s*(?:nos|pcs|items|units|bags|boxes|sets|kg|mtr|hours|pieces)?\s+(?:of\s+)?([a-zA-Z\s]+?)\s+(?:at|@|rate|price|for|each|per(?:\s+[a-zA-Z]+)?)\s+(?:rs\.?|₹|inr)?\s*([\d,]+)/i);
+    if (comboMatch) {
+      const parsedQty = parseInt(comboMatch[1], 10);
+      const parsedItem = comboMatch[2].trim().replace(/^(?:for|of|with|the|a|an)\s+/i, "");
+      const parsedRate = parseInt(comboMatch[3].replace(/,/g, ""), 10);
+      if (parsedQty > 0) qty = parsedQty;
+      if (parsedItem && !itemName) itemName = parsedItem;
+      if (parsedRate > 0) rate = parsedRate;
+    }
+
+    // 4. Rate / Money search if not yet resolved
+    if (!rate) {
+      const currencyMatch = text.match(/(?:rs\.?|₹|inr|\/-)\s*([\d,]+)/i) ||
+                           text.match(/([\d,]+)\s*(?:rs|rupees|inr|\/-)/i) ||
+                           text.match(/(?:at|@|rate|price|amount|total|for|cost|worth|valuing)\s*(?:rs\.?|₹|inr)?\s*([\d,]+)/i);
+      if (currencyMatch && currencyMatch[1]) {
+        const val = parseInt(currencyMatch[1].replace(/,/g, ""), 10);
+        if (val > 0) rate = val;
+      }
+    }
+
+    if (!rate) {
+      const kMatch = text.match(/(\d+(?:\.\d+)?)\s*k\b/i);
+      if (kMatch) {
+        rate = Math.round(parseFloat(kMatch[1]) * 1000);
+      }
+      const lakhMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:lakh|lac|l)\b/i);
+      if (lakhMatch) {
+        rate = Math.round(parseFloat(lakhMatch[1]) * 100000);
+      }
+    }
+
+    // Search for ANY numeric digits in the prompt
+    if (!rate) {
+      const allNums = Array.from(text.matchAll(/\b(\d[\d,]*)\b/g))
+        .map(m => parseInt(m[1].replace(/,/g, ""), 10))
+        .filter(n => !isNaN(n) && n > 0);
+      
+      if (allNums.length === 1) {
+        rate = allNums[0];
+      } else if (allNums.length >= 2) {
+        if (allNums[0] < allNums[1]) {
+          if (!qty || qty === 1) qty = allNums[0];
+          rate = allNums[1];
+        } else {
+          rate = allNums[0];
+        }
+      }
+    }
+
+    if (!rate || rate <= 0) {
+      rate = 5000;
+    }
+
+    // 5. Customer Name extraction
+    if (!custName) {
+      // Pattern A: "create invoice for/to <Customer> [of/with/for/having <Item>] [Amount]"
+      const forToMatch = text.match(/(?:create\s+|make\s+|generate\s+|draft\s+)?(?:invoice|bill|draft|sale|order|quotation|proforma)?\s*(?:for|to)\s+([a-zA-Z0-9\s&.']+)/i);
+      if (forToMatch && forToMatch[1]) {
+        const segment = forToMatch[1].trim();
+        const splitItemMatch = segment.match(/^(.+?)\s+(?:of|with|having|buying|for|at|@)\s+(.+)$/i);
+        if (splitItemMatch) {
+          custName = splitItemMatch[1].trim();
+          const possibleItem = splitItemMatch[2].trim().replace(/[\d,]+.*$/, "").trim();
+          if (possibleItem && !itemName) {
+            itemName = possibleItem;
+          }
+        } else {
+          let cleaned = segment;
+          if (foundProductWord) {
+            cleaned = cleaned.replace(new RegExp(`\\b(?:of\\s+)?${foundProductWord}\\b`, "i"), "");
+          }
+          cleaned = cleaned.replace(/[\d,]+.*$/, "").trim();
+          if (cleaned.length > 0) {
+            custName = cleaned;
+          }
+        }
+      }
+    }
+
+    // Pattern B: No "for/to", e.g. "Radhika mobiles 20000", "Radhika 20000"
+    if (!custName) {
+      let stripped = text
+        .replace(/^(?:create|make|generate|draft|add|send|please|new)\s+(?:a\s+)?(?:invoice|bill|order|sale|draft|quotation|proforma)?\s*(?:for|to)?\s*/i, "")
+        .trim();
+
+      if (foundProductWord) {
+        const parts = stripped.split(new RegExp(`\\b(?:of\\s+|with\\s+|for\\s+)?${foundProductWord}\\b`, "i"));
+        if (parts[0] && parts[0].trim().length > 0) {
+          custName = parts[0].replace(/[\d,]+.*$/, "").replace(/[-—–,;:]+$/, "").trim();
+        }
+      } else {
+        const parts = stripped.split(/(?=\s+[\d₹RsINR@]+|\s*[-—–,;:])/i);
+        if (parts[0] && parts[0].trim().length > 0) {
+          custName = parts[0].trim();
+        }
+      }
+    }
+
+    // Pattern C: Clean up custName
+    if (custName) {
+      const junkPrefixes = /^(?:a|an|the|new|client|customer|party|bill|invoice|for|to|of|with)\s+/i;
+      custName = custName.replace(junkPrefixes, "").trim();
+
+      const junkSuffixes = /\s+(?:for|to|of|with|at|having|buying|items?|goods|rs|rupees|inr|amt|amount|rate)$/i;
+      custName = custName.replace(junkSuffixes, "").trim();
+
+      if (foundProductWord && custName.toLowerCase() !== foundProductWord.toLowerCase()) {
+        custName = custName.replace(new RegExp(`\\s+(?:of\\s+)?${foundProductWord}$`, "i"), "").trim();
+      }
+
+      custName = custName
+        .split(/\s+/)
+        .filter(w => w.length > 0)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
+    }
+
+    if (!custName || custName.length < 2) {
+      custName = "General Customer";
+    }
+
+    // 6. Clean up Item Name
+    if (!itemName) {
+      if (foundProductWord) {
+        itemName = foundProductWord.charAt(0).toUpperCase() + foundProductWord.slice(1);
+      } else {
+        itemName = "Office Supplies";
+      }
+    } else {
+      itemName = itemName.replace(/^(?:of|for|with|the|a|an)\s+/i, "").replace(/[\d,]+.*$/, "").trim();
+      if (!itemName) itemName = "Office Supplies";
+      itemName = itemName.charAt(0).toUpperCase() + itemName.slice(1);
     }
 
     setCustomerSearch(custName);
@@ -98,7 +273,7 @@ export function CreateProformaInvoice({ orgId, onClose, onCreated, inline = fals
         description: "Auto-drafted by AI",
         qty,
         rate,
-        hsn: "2523",
+        hsn: "998311",
         taxRate: 18,
         cessRate: 0,
         discount: 0,
@@ -234,6 +409,7 @@ export function CreateProformaInvoice({ orgId, onClose, onCreated, inline = fals
 
         const existingLocal = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
         localStorage.setItem("vertofi_local_sales", JSON.stringify([fullInvoiceRecord, ...existingLocal]));
+        window.dispatchEvent(new Event("storage"));
       } catch (_err) {}
 
       onCreated();

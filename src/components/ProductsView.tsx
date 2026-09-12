@@ -59,15 +59,41 @@ export function ProductsView({
 
   useEffect(() => {
     let alive = true;
+
+    function syncProducts() {
+      if (typeof window === "undefined") return;
+      try {
+        const stored = JSON.parse(localStorage.getItem("vertofi_local_products") || "[]");
+        if (Array.isArray(stored)) {
+          setItems((prev) => dedupeProducts([...stored, ...prev]));
+        }
+      } catch {}
+    }
+
+    syncProducts();
+
     api.acc
       .products(orgId)
       .then((data) => {
         if (!alive) return;
-        if (Array.isArray(data)) setItems(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setItems((prev) => dedupeProducts([...prev, ...data]));
+        }
       })
       .catch(() => {});
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "vertofi_local_products") syncProducts();
+    };
+    const handleCustom = () => syncProducts();
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("vertofi-products-changed", handleCustom);
+
     return () => {
       alive = false;
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("vertofi-products-changed", handleCustom);
     };
   }, [orgId]);
 
@@ -361,9 +387,17 @@ export function ProductsView({
                         </div>
                       </td>
                       <td className="px-3 py-3">
-                        <div className="h-8 w-8 rounded bg-slate-100 border border-border grid place-items-center text-[10px] text-muted">
-                          N/A
-                        </div>
+                        {r.image || r.imageUrl ? (
+                          <img
+                            src={String(r.image || r.imageUrl)}
+                            alt={String(r.name || "Product")}
+                            className="h-8 w-8 rounded object-cover border border-border shadow-xs"
+                          />
+                        ) : (
+                          <div className="h-8 w-8 rounded bg-slate-100 border border-border grid place-items-center text-[10px] text-muted font-medium">
+                            N/A
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-3 font-semibold text-ink">{String(r.name ?? "—")}</td>
                       <td className="px-3 py-3 font-medium text-ink">{Number(r.qty ?? r.stock ?? 0)}</td>

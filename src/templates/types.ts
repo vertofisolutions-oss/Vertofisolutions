@@ -108,6 +108,10 @@ export interface DocumentFormData {
   termsAndConditions?: string;
   notes?: string;
   signatoryTitle?: string;
+  isProforma?: boolean;
+  docTitle?: string;
+  docType?: string;
+  isWithoutGst?: boolean;
 
   // HR / Payslip Specific Fields
   employeeName?: string;

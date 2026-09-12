@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "id": "cus-1789232837223-5",
+    "created_at": "2026-09-12T17:07:17.223Z",
+    "updated_at": "2026-09-12T17:07:17.223Z",
+    "name": "geetha",
+    "phone": "9603556970",
+    "email": "geethikaparvatham@gmail.com",
+    "legalName": "Vertofi",
+    "placeOfSupply": "36-TELANGANA"
+  },
+  {
+    "id": "cus-1789232786305-516",
+    "created_at": "2026-09-12T17:06:26.305Z",
+    "updated_at": "2026-09-12T17:06:26.305Z",
+    "name": "Geethika Parvatham",
+    "phone": "9603556970",
+    "email": "geethikaparvatham@gmail.com",
+    "legalName": "Vertofi",
+    "placeOfSupply": "36-TELANGANA"
+  }
+]

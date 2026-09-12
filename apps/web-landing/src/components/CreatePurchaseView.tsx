@@ -108,29 +108,224 @@ export function CreatePurchaseView({
   }, [items, shippingCharges, roundOff]);
 
   async function create() {
-    if (!supplierSearch.trim() && !supplier?.name) {
+    const suppName = (supplier?.name || supplierSearch).trim();
+    if (!suppName) {
       setError("Please enter or select a supplier.");
       return;
     }
+
+    const validItems = items.filter((it) => it.name && it.name.trim().length > 0);
+    if (validItems.length === 0) {
+      setError("Please enter at least one product name in the items list.");
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
-      await api.acc.createSale(orgId, {
-        customerName: supplier?.name || supplierSearch.trim(),
-        invoiceNo: purchaseNo || `PUR-${Date.now().toString().slice(-4)}`,
-        date: purchaseDate,
+      const pNo = purchaseNo.trim() || `PUR-${Date.now().toString().slice(-5)}`;
+      const pDate = purchaseDate || new Date().toISOString().slice(0, 10);
+      const grandTotal = calculated.grandTotal;
+
+      // ── 1. Create & Save Purchase Record ──
+      const newPurchase: Record<string, unknown> = {
+        id: `pur-${Date.now()}`,
+        vendor_name: suppName,
+        supplier_name: suppName,
+        bill_no: pNo,
+        purchase_no: pNo,
+        number: pNo,
+        date: pDate,
         doc_type: "PURCHASE_BILL",
         rcm,
-        vehicleNumber,
-        reference,
-        items,
-        total: calculated.grandTotal,
+        vehicleNumber: vehicleNumber.trim() || undefined,
+        reference: reference.trim() || undefined,
+        items: validItems,
+        total: grandTotal,
+        amount: grandTotal,
+        subtotal: calculated.subtotal,
+        tax: calculated.totalTax,
+        cess: calculated.totalCess,
+        discount: calculated.totalDiscount,
+        shipping_charges: Number(shippingCharges || 0),
+        round_off: Number(roundOff || 0),
         updateStock: updateStock === "YES",
         source: "FORM",
-      });
+        status: "PAID",
+        created_at: new Date().toISOString(),
+      };
+
+      try {
+        const existingPurchases = JSON.parse(localStorage.getItem("vertofi_local_purchases") || "[]");
+        existingPurchases.unshift(newPurchase);
+        localStorage.setItem("vertofi_local_purchases", JSON.stringify(existingPurchases));
+      } catch {}
+
+      // ── 2. Add / Update Products in Products List (vertofi_local_products) ──
+      try {
+        const storedProducts = JSON.parse(localStorage.getItem("vertofi_local_products") || "[]");
+        const updatedProducts = Array.isArray(storedProducts) ? [...storedProducts] : [];
+
+        for (const it of validItems) {
+          const itName = it.name.trim();
+          const itQty = Math.max(1, Number(it.qty || 1));
+          const itRate = Number(it.rate || 0);
+          const itTax = Number(it.taxRate || 18);
+          const itCode = it.hsn?.trim() || `PRD-${itName.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+          const sellingPrice = Math.round(itRate > 0 ? itRate * 1.25 : 100);
+
+          const existingIdx = updatedProducts.findIndex(
+            (p: Record<string, unknown>) =>
+              String(p.name || "").trim().toLowerCase() === itName.toLowerCase() ||
+              (it.hsn && String(p.code || p.hsn || "").trim().toLowerCase() === it.hsn.trim().toLowerCase())
+          );
+
+          if (existingIdx >= 0) {
+            const currentProd = updatedProducts[existingIdx];
+            const oldQty = Number(currentProd.qty ?? currentProd.stock ?? 0);
+            updatedProducts[existingIdx] = {
+              ...currentProd,
+              qty: oldQty + itQty,
+              stock: oldQty + itQty,
+              purchase_price: itRate > 0 ? itRate : Number(currentProd.purchase_price ?? 0),
+              selling_price: Number(currentProd.selling_price || sellingPrice),
+              tax_rate: itTax,
+              hsn: it.hsn?.trim() || String(currentProd.hsn ?? ""),
+              updated_at: new Date().toISOString(),
+            };
+          } else {
+            const newProd = {
+              id: `prod-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              name: itName,
+              code: itCode,
+              hsn: it.hsn?.trim() || "",
+              qty: itQty,
+              stock: itQty,
+              category: "General Goods",
+              purchase_price: itRate,
+              selling_price: sellingPrice,
+              tax_rate: itTax,
+              cess_rate: Number(it.cessRate || 0),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+            updatedProducts.unshift(newProd);
+
+            // Background sync product to API
+            void fetch(`/api/v1/accounting/${orgId}/products`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(newProd),
+            }).catch(() => {});
+          }
+        }
+        localStorage.setItem("vertofi_local_products", JSON.stringify(updatedProducts));
+      } catch {}
+
+      // ── 3. Add / Update Inventory (vertofi_local_inventory) ──
+      try {
+        const storedInventory = JSON.parse(localStorage.getItem("vertofi_local_inventory") || "[]");
+        const updatedInventory = Array.isArray(storedInventory) ? [...storedInventory] : [];
+
+        for (const it of validItems) {
+          const itName = it.name.trim();
+          const itQty = Math.max(1, Number(it.qty || 1));
+          const itRate = Number(it.rate || 0);
+          const itCode = it.hsn?.trim() || `SKU-${itName.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+          const sellingPrice = Math.round(itRate > 0 ? itRate * 1.25 : 100);
+
+          const existingIdx = updatedInventory.findIndex(
+            (inv: Record<string, unknown>) =>
+              String(inv.name || inv.item_name || "").trim().toLowerCase() === itName.toLowerCase() ||
+              (it.hsn && String(inv.code || inv.sku || "").trim().toLowerCase() === it.hsn.trim().toLowerCase())
+          );
+
+          if (existingIdx >= 0) {
+            const currentInv = updatedInventory[existingIdx];
+            const oldQty = Number(currentInv.qty ?? currentInv.stock ?? 0);
+            const newQty = oldQty + itQty;
+            const unitPrice = itRate > 0 ? itRate : Number(currentInv.purchase_price ?? 0);
+            updatedInventory[existingIdx] = {
+              ...currentInv,
+              qty: newQty,
+              stock: newQty,
+              purchase_price: unitPrice,
+              selling_price: Number(currentInv.selling_price || sellingPrice),
+              value: newQty * unitPrice,
+              updated_at: new Date().toISOString(),
+            };
+          } else {
+            const newInv = {
+              id: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              name: itName,
+              item_name: itName,
+              code: itCode,
+              sku: itCode,
+              qty: itQty,
+              stock: itQty,
+              min_stock: 10,
+              purchase_price: itRate,
+              selling_price: sellingPrice,
+              value: itQty * itRate,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+            updatedInventory.unshift(newInv);
+
+            // Background sync inventory to API
+            void fetch(`/api/v1/accounting/${orgId}/inventory`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(newInv),
+            }).catch(() => {});
+          }
+        }
+        localStorage.setItem("vertofi_local_inventory", JSON.stringify(updatedInventory));
+      } catch {}
+
+      // ── 4. Save Supplier if not already present ──
+      try {
+        const storedSuppliers = JSON.parse(localStorage.getItem("vertofi_local_suppliers") || "[]");
+        const existingSupp = storedSuppliers.find(
+          (s: Record<string, unknown>) => String(s.name || "").trim().toLowerCase() === suppName.toLowerCase()
+        );
+        if (!existingSupp) {
+          const newSupp = {
+            id: `supp-${Date.now()}`,
+            name: suppName,
+            gstin: supplier?.gstin || "",
+            phone: supplier?.phone || "",
+            address: supplier?.address || "",
+            created_at: new Date().toISOString(),
+          };
+          storedSuppliers.unshift(newSupp);
+          localStorage.setItem("vertofi_local_suppliers", JSON.stringify(storedSuppliers));
+          void fetch(`/api/v1/accounting/${orgId}/suppliers`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newSupp),
+          }).catch(() => {});
+        }
+      } catch {}
+
+      // ── 5. Post Purchase to Backend API ──
+      const oid = orgId || "demo-business-org";
+      void fetch(`/api/v1/accounting/${oid}/purchases`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newPurchase),
+      }).catch(() => {});
+
+      // ── 6. Trigger Real-time Cross-Module Storage Events ──
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("vertofi-purchases-changed"));
+      window.dispatchEvent(new Event("vertofi-products-changed"));
+      window.dispatchEvent(new Event("vertofi-inventory-changed"));
+      window.dispatchEvent(new Event("vertofi-suppliers-changed"));
+
       onCreated();
     } catch (e) {
-      setError(e instanceof ApiError ? e.code.replaceAll("_", " ") : "Failed to create purchase");
+      setError("Failed to create purchase. Please check the details.");
     } finally {
       setBusy(false);
     }

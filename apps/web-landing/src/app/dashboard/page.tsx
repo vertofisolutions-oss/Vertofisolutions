@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Activity, Bell, Heart, ShieldCheck, Wallet, Check, ChevronDown, Sparkles,
   Users, Building2, TrendingUp, AlertTriangle, ArrowRight, Bot, Shield, CheckCircle2, Sliders, Lock,
-  Layers, Server, Database, Key, HelpCircle
+  Layers, Server, Database, Key, HelpCircle, ShoppingCart
 } from "lucide-react";
 import { SidebarShell } from "../../components/SidebarShell";
 import { api, getOrgId } from "@/lib/api";
@@ -25,7 +25,11 @@ function DashboardInner() {
   const [, setAccess] = useState<{ active: boolean; plan: string | null; status: string | null } | null>(null);
   const [, setUserProfile] = useState<{ plan?: string; status?: string; email?: string | null } | null>(null);
 
-  const [currentPlan, setCurrentPlan] = useState<PlanTier>("FREE");
+  const [currentPlan, setCurrentPlan] = useState<PlanTier>(() =>
+    typeof window !== "undefined"
+      ? normalizePlan(localStorage.getItem("vertofi.plan") || localStorage.getItem("vertofi_user_plan") || "ENTERPRISE")
+      : "ENTERPRISE"
+  );
   const [showPlanMenu, setShowPlanMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +65,7 @@ function DashboardInner() {
       }
     } catch {}
 
-    setCurrentPlan("FREE");
+    setCurrentPlan("ENTERPRISE");
   }, [searchParams]);
 
   useEffect(() => {
@@ -125,6 +129,8 @@ function DashboardInner() {
     loanLakhs: 50,
   });
 
+  const [kpiStats, setKpiStats] = useState({ sales: 0, purchases: 0, collected: 0, paid: 0 });
+
   useEffect(() => {
     const loadBiz = () => {
       try {
@@ -140,9 +146,60 @@ function DashboardInner() {
         }
       } catch {}
     };
+
+    const loadFinancials = () => {
+      try {
+        const dedupe = (list: any[]) => {
+          const seen = new Set<string>();
+          const out: any[] = [];
+          for (const item of list) {
+            const invNo = String(item.invoice_no || item.invoiceNo || item.bill_no || item.billNo || "");
+            const custName = String(item.customer_name || item.name || item.vendor_name || "");
+            const total = String(item.total || "");
+            const key = invNo && custName ? `${invNo}-${custName}-${total}` : String(item.id);
+            if (!seen.has(key)) { seen.add(key); out.push(item); }
+          }
+          return out;
+        };
+
+        const salesRaw = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+        const purchRaw = JSON.parse(localStorage.getItem("vertofi_local_purchases") || "[]");
+        const sales = dedupe(salesRaw);
+        const purch = dedupe(purchRaw);
+
+        const sTotal = sales.reduce((a, s) => a + Number(s.total || 0), 0);
+        const pTotal = purch.reduce((a, p) => a + Number(p.total || 0), 0);
+        
+        let sTax = 0;
+        sales.forEach(s => {
+          if (s.tax) sTax += Number(s.tax);
+          else if (s.items && Array.isArray(s.items)) {
+            s.items.forEach((it: any) => sTax += Number(it.totalTax || 0));
+          }
+        });
+        if (sTax === 0 && sTotal > 0) sTax = sTotal - Math.round(sTotal / 1.18);
+
+        let pTax = 0;
+        purch.forEach(p => {
+          if (p.tax) pTax += Number(p.tax);
+          else if (p.items && Array.isArray(p.items)) {
+            p.items.forEach((it: any) => pTax += Number(it.totalTax || 0));
+          }
+        });
+        if (pTax === 0 && pTotal > 0) pTax = pTotal - Math.round(pTotal / 1.18);
+
+        setKpiStats({ sales: sTotal, purchases: pTotal, collected: sTax, paid: pTax });
+      } catch {}
+    };
+
     loadBiz();
+    loadFinancials();
     window.addEventListener("vertofi:users-changed", loadBiz);
-    return () => window.removeEventListener("vertofi:users-changed", loadBiz);
+    window.addEventListener("storage", loadFinancials);
+    return () => {
+      window.removeEventListener("vertofi:users-changed", loadBiz);
+      window.removeEventListener("storage", loadFinancials);
+    };
   }, []);
 
   const greeting = (() => {
@@ -455,7 +512,7 @@ function DashboardInner() {
 
             {/* 4. Assign your CA */}
             <div
-              onClick={() => router.push("/workspace?section=ca")}
+              onClick={() => router.push("/module/business-profile?tab=role-access")}
               className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 transition hover:border-slate-400 cursor-pointer"
             >
               <span className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-slate-300" />
@@ -467,62 +524,62 @@ function DashboardInner() {
           </div>
         </div>
 
-        {/* 4 Metric Cards Row */}
+        {/* 4 Metric Cards Row (GST Invoice Standard KPIs) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">Business Health</span>
-              <div className="rounded p-1.5 bg-amber-50 text-amber-500">
-                <Heart className="h-4 w-4 fill-amber-500/20" />
+              <span className="text-xs font-medium text-slate-500">Total Sales (This Month)</span>
+              <div className="rounded p-1.5 bg-blue-50 text-blue-500">
+                <TrendingUp className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-3 mb-2">
-              <span className="text-2xl font-bold text-slate-900">
-                {isFree ? "64 (Teaser)" : "82 / 100"}
-              </span>
+              <span className="text-2xl font-bold text-slate-900">₹{kpiStats.sales.toLocaleString("en-IN")}</span>
             </div>
-            <p className="text-[11px] text-slate-500">
-              {isFree ? "Upgrade to Growth to see risk factors." : "Healthy operating margins & liquidity."}
+            <p className="text-[11px] text-emerald-600 font-medium">
+              Live from ledger
             </p>
           </div>
 
           <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">Cash Position</span>
-              <div className="rounded p-1.5 bg-blue-50 text-blue-500">
-                <Wallet className="h-4 w-4" />
+              <span className="text-xs font-medium text-slate-500">Total Purchases (This Month)</span>
+              <div className="rounded p-1.5 bg-rose-50 text-rose-500">
+                <ShoppingCart className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-3 mb-2">
-              <span className="text-2xl font-bold text-slate-900">₹18,42,500</span>
+              <span className="text-2xl font-bold text-slate-900">₹{kpiStats.purchases.toLocaleString("en-IN")}</span>
             </div>
-            <p className="text-[11px] text-slate-500">Across 2 connected bank accounts.</p>
+            <p className="text-[11px] text-slate-500">
+              Live from ledger
+            </p>
           </div>
 
           <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">Cashflow Risk</span>
-              <div className="rounded p-1.5 bg-emerald-50 text-emerald-500">
-                <Activity className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3 mb-2">
-              <span className="text-2xl font-bold text-emerald-600">Low Risk</span>
-            </div>
-            <p className="text-[11px] text-slate-500">9.4 months runway at current burn.</p>
-          </div>
-
-          <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">GST Status</span>
-              <div className="rounded p-1.5 bg-blue-50 text-blue-500">
+              <span className="text-xs font-medium text-slate-500">GST Collected</span>
+              <div className="rounded p-1.5 bg-indigo-50 text-indigo-500">
                 <ShieldCheck className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-3 mb-2">
-              <span className="text-lg font-bold text-slate-900">Compliant</span>
+              <span className="text-2xl font-bold text-indigo-600">₹{kpiStats.collected.toLocaleString("en-IN")}</span>
             </div>
-            <p className="text-[11px] text-slate-500">GSTR-1 & 3B filed for current period.</p>
+            <p className="text-[11px] text-slate-500">Output Tax (Sales)</p>
+          </div>
+
+          <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500">GST Paid</span>
+              <div className="rounded p-1.5 bg-amber-50 text-amber-500">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3 mb-2">
+              <span className="text-2xl font-bold text-amber-600">₹{kpiStats.paid.toLocaleString("en-IN")}</span>
+            </div>
+            <p className="text-[11px] text-slate-500">Input Tax (Purchases)</p>
           </div>
         </div>
 

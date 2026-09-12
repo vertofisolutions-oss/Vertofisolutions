@@ -42,6 +42,7 @@ import { ReconciliationView } from "../../components/ReconciliationView";
 import { DocumentCenter } from "../../components/DocumentCenter";
 import { ReportsCenter } from "../../components/ReportsCenter";
 import { IntelligenceHub } from "../../components/IntelligenceHub";
+import { GstDashboardView } from "../../components/GstDashboardView";
 import { Badge, Button, Card, EmptyState } from "@/ui";
 import { SidebarShell } from "../../components/SidebarShell";
 import { CreateInvoice } from "../../components/CreateInvoice";
@@ -64,6 +65,7 @@ const SECTIONS = [
   { key: "reconciliation", label: "Bank Reconciliation", icon: Landmark },
   { key: "reports", label: "Reports", icon: PieChart },
   { key: "intelligence", label: "AI Intelligence", icon: Sparkles },
+  { key: "gst", label: "GST Dashboard", icon: FileText },
   { key: "ewaybill", label: "E-Way Bills", icon: Truck },
 ] as const;
 
@@ -71,10 +73,30 @@ function dedupeWorkspaceRows(items: Record<string, unknown>[]): Record<string, u
   const seen = new Set<string>();
   const out: Record<string, unknown>[] = [];
   for (const item of items) {
-    const key = String(item.id || item.invoice_no || item.invoiceNo || `${item.name || item.customer_name}-${item.total || ""}`);
-    if (!seen.has(key)) {
+    const docType = String(item.doc_type || item.docType || "").toUpperCase();
+    const invNoRaw = String(item.invoice_no ?? item.invoiceNo ?? "").trim();
+    if (docType === "PURCHASE_BILL" || docType === "PURCHASE" || invNoRaw.startsWith("PUR-")) {
+      continue;
+    }
+
+    const custName = String(item.customer_name || item.customerName || item.name || item.vendor_name || "").toLowerCase().trim();
+    const invNo = invNoRaw.toUpperCase();
+    const total = String(Math.round(Number(item.total || item.amount || 0)));
+
+    const key = invNo ? `inv:${invNo}` : `cust:${custName}:${total}`;
+    const custKey = custName ? `cust:${custName}:${total}` : null;
+
+    if (!seen.has(key) && (!custKey || !seen.has(custKey))) {
       seen.add(key);
-      out.push(item);
+      if (custKey) seen.add(custKey);
+      out.push({
+        ...item,
+        customer_name: item.customer_name || item.customerName || "—",
+        customerName: item.customer_name || item.customerName || "—",
+        invoice_no: item.invoice_no || item.invoiceNo || "INV-001",
+        invoiceNo: item.invoice_no || item.invoiceNo || "INV-001",
+        doc_type: item.doc_type || item.docType || "Tax Invoice",
+      });
     }
   }
   return out;
@@ -178,6 +200,48 @@ function WorkspaceInner() {
       localStorage.setItem("vertofi_demo_cleared_v1", "1");
     }
 
+    const renumbered = localStorage.getItem("vertofi_renumbered_v1");
+    if (!renumbered) {
+      try {
+        const raw = localStorage.getItem("vertofi_local_sales");
+        if (raw) {
+          const parsed: Record<string, unknown>[] = JSON.parse(raw);
+          // Reverse so oldest is first
+          parsed.reverse();
+          parsed.forEach((r, idx) => {
+            r.invoice_no = `INV/${String(idx + 1).padStart(4, "0")}`;
+            if (r.invoiceNo) r.invoiceNo = r.invoice_no;
+          });
+          // Reverse back so newest is first
+          parsed.reverse();
+          localStorage.setItem("vertofi_local_sales", JSON.stringify(parsed));
+          window.dispatchEvent(new Event("storage"));
+        }
+      } catch { /* ignore */ }
+      localStorage.setItem("vertofi_renumbered_v1", "1");
+    }
+
+    try {
+      const salesRaw = localStorage.getItem("vertofi_local_sales");
+      if (salesRaw) {
+        const sales: Record<string, unknown>[] = JSON.parse(salesRaw);
+        const purchases = sales.filter((s) => String(s.doc_type || s.docType).toUpperCase() === "PURCHASE_BILL" || String(s.invoice_no || s.invoiceNo || "").startsWith("PUR-"));
+        const pureSales = sales.filter((s) => String(s.doc_type || s.docType).toUpperCase() !== "PURCHASE_BILL" && !String(s.invoice_no || s.invoiceNo || "").startsWith("PUR-"));
+
+        if (purchases.length > 0) {
+          const existingPurchRaw = localStorage.getItem("vertofi_local_purchases");
+          const existingPurch = existingPurchRaw ? JSON.parse(existingPurchRaw) : [];
+          localStorage.setItem("vertofi_local_purchases", JSON.stringify([...purchases, ...existingPurch]));
+          window.dispatchEvent(new Event("vertofi-purchases-changed"));
+        }
+
+        const dedupedSales = dedupeWorkspaceRows(pureSales);
+        localStorage.setItem("vertofi_local_sales", JSON.stringify(dedupedSales));
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("vertofi-sales-changed"));
+      }
+    } catch { /* ignore */ }
+
     try {
       // Only load what the user actually created — no fallback seed rows
       const salesData: Record<string, unknown>[] = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
@@ -241,13 +305,28 @@ function WorkspaceInner() {
         }));
       }
     };
+    const handleStorageChange = () => {
+      try {
+        const salesData: Record<string, unknown>[] = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+        setRowsCache((prev) => ({
+          ...prev,
+          sales: dedupeWorkspaceRows(salesData),
+          purchases: JSON.parse(localStorage.getItem("vertofi_local_purchases") || "[]"),
+          customers: JSON.parse(localStorage.getItem("vertofi_local_customers") || "[]"),
+          products: JSON.parse(localStorage.getItem("vertofi_local_products") || "[]"),
+          inventory: JSON.parse(localStorage.getItem("vertofi_local_inventory") || "[]"),
+        }));
+      } catch {}
+    };
     window.addEventListener("vertofi:workspace-nav", handleWorkspaceNav);
     window.addEventListener("vertofi:invoice-deleted", handleInvoiceDeleted);
     window.addEventListener("popstate", handlePopState);
+    window.addEventListener("storage", handleStorageChange);
     return () => {
       window.removeEventListener("vertofi:workspace-nav", handleWorkspaceNav);
       window.removeEventListener("vertofi:invoice-deleted", handleInvoiceDeleted);
       window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 
@@ -309,10 +388,10 @@ function WorkspaceInner() {
           // Only merge user-created local sales (no generated demo invoices)
           const storedStr = localStorage.getItem("vertofi_local_sales");
           const stored: Record<string, unknown>[] = storedStr ? JSON.parse(storedStr) : [];
-          const existingIds = new Set(data.map((x) => String(x.id ?? x.invoice_no ?? x.invoiceNo)));
+          const existingIds = new Set(data.map((x) => String(x.invoice_no ?? x.invoiceNo ?? x.id)));
           const extraLocal = stored.filter(
             (x) => x.id !== "seed-1" && x.id !== "seed-2" &&
-            !existingIds.has(String(x.id ?? x.invoice_no ?? x.invoiceNo))
+            !existingIds.has(String(x.invoice_no ?? x.invoiceNo ?? x.id))
           );
           data = dedupeWorkspaceRows([...extraLocal, ...data]);
         } catch (_e) {
@@ -588,6 +667,9 @@ function WorkspaceInner() {
             <LockedFeatureGate feature="pnl_reports">
               <ReportsCenter orgId={orgId} />
             </LockedFeatureGate>
+          )}
+          {section === "gst" && orgId && (
+            <GstDashboardView orgId={orgId} />
           )}
           {section === "intelligence" && orgId && (
             <LockedFeatureGate feature="ai_advisor">

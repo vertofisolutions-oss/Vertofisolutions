@@ -24,10 +24,33 @@ function dedupeInvoices(list: Record<string, unknown>[]): Record<string, unknown
   const seen = new Set<string>();
   const out: Record<string, unknown>[] = [];
   for (const item of list) {
-    const key = String(item.id || item.invoice_no || item.invoiceNo || `${item.customer_name}-${item.total}-${item.date}`);
-    if (!seen.has(key)) {
+    // 1. Exclude any purchase bills from Sales
+    const docType = String(item.doc_type || item.docType || "").toUpperCase();
+    const invNoRaw = String(item.invoice_no ?? item.invoiceNo ?? "").trim();
+    if (docType === "PURCHASE_BILL" || docType === "PURCHASE" || invNoRaw.startsWith("PUR-")) {
+      continue;
+    }
+
+    // 2. Normalize customer name and invoice number
+    const custName = String(item.customer_name || item.customerName || item.name || item.vendor_name || "").toLowerCase().trim();
+    const invNo = invNoRaw.toUpperCase();
+    const total = String(Math.round(Number(item.total || item.amount || 0)));
+
+    // 3. Strict uniqueness by invoice number and customer + total
+    const key = invNo ? `inv:${invNo}` : `cust:${custName}:${total}`;
+    const custKey = custName ? `cust:${custName}:${total}` : null;
+
+    if (!seen.has(key) && (!custKey || !seen.has(custKey))) {
       seen.add(key);
-      out.push(item);
+      if (custKey) seen.add(custKey);
+      out.push({
+        ...item,
+        customer_name: item.customer_name || item.customerName || "—",
+        customerName: item.customer_name || item.customerName || "—",
+        invoice_no: item.invoice_no || item.invoiceNo || "INV-001",
+        invoiceNo: item.invoice_no || item.invoiceNo || "INV-001",
+        doc_type: item.doc_type || item.docType || "Tax Invoice",
+      });
     }
   }
   return out;
@@ -64,7 +87,21 @@ export function SalesView({ orgId, rows = [], loading, onNewInvoice, onNewDoc }:
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
-    setLocalRows(dedupeInvoices(rows));
+    function load() {
+      try {
+        const local = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+        setLocalRows(dedupeInvoices([...local, ...rows]));
+      } catch {
+        setLocalRows(dedupeInvoices(rows));
+      }
+    }
+    load();
+    window.addEventListener("storage", load);
+    window.addEventListener("vertofi-sales-changed", load);
+    return () => {
+      window.removeEventListener("storage", load);
+      window.removeEventListener("vertofi-sales-changed", load);
+    };
   }, [rows]);
 
   useEffect(() => { api.mod.gstSummary(orgId).then(setGst).catch(() => setGst(null)); }, [orgId]);
@@ -184,7 +221,7 @@ export function SalesView({ orgId, rows = [], loading, onNewInvoice, onNewDoc }:
   const kpis = useMemo(() => {
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    let monthSales = 0, total = 0, unpaidCount = 0, unpaidAmt = 0;
+    let monthSales = 0, total = 0, unpaidCount = 0, unpaidAmt = 0, localGst = 0;
     const byCustomer: Record<string, number> = {};
     for (const r of localRows) {
       const t = num(r.total);
@@ -193,9 +230,12 @@ export function SalesView({ orgId, rows = [], loading, onNewInvoice, onNewDoc }:
       if (String(r.status ?? "").toUpperCase() !== "PAID") { unpaidCount++; unpaidAmt += t; }
       const c = String(r.customer_name ?? "—");
       byCustomer[c] = (byCustomer[c] ?? 0) + t;
+      
+      localGst += num(r.totalTax);
     }
     const topCustomers = Object.entries(byCustomer).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const gstCollected = gst ? num(gst.cgst) + num(gst.sgst) + num(gst.igst) + num(gst.total_tax) + num(gst.outputTax) : 0;
+    const apiGst = gst ? num(gst.cgst) + num(gst.sgst) + num(gst.igst) + num(gst.total_tax) + num(gst.outputTax) : 0;
+    const gstCollected = apiGst > 0 ? apiGst : localGst;
     return { monthSales, total, count: localRows.length, unpaidCount, unpaidAmt, topCustomers, gstCollected };
   }, [localRows, gst]);
 

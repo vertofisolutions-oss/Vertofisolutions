@@ -66,9 +66,25 @@ export function GstDashboardView({ orgId }: { orgId?: string }) {
         api.acc.sales(currentOrgId).catch(() => []),
         api.acc.purchases(currentOrgId).catch(() => []),
       ]);
+      let localSales = [];
+      try {
+        localSales = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+      } catch {}
+      
+      const allSales = [...localSales, ...(Array.isArray(salesRes) ? salesRes : [])];
+      const seen = new Set();
+      const mergedSales = [];
+      for (const item of allSales) {
+        const key = String(item.invoice_no || item.invoiceNo || item.id || `${item.customer_name}-${item.total}`);
+        if (!seen.has(key)) {
+          seen.add(key);
+          mergedSales.push(item);
+        }
+      }
+
       setSummary(sumRes as GstSummaryData);
       setPortalStatus(statRes);
-      setSales(Array.isArray(salesRes) ? salesRes : []);
+      setSales(mergedSales);
       setPurchases(Array.isArray(purRes) ? purRes : []);
     } catch {
       // fallback
@@ -79,6 +95,8 @@ export function GstDashboardView({ orgId }: { orgId?: string }) {
 
   useEffect(() => {
     loadData();
+    window.addEventListener("storage", loadData);
+    return () => window.removeEventListener("storage", loadData);
   }, [currentOrgId]);
 
   const handleSync = async () => {

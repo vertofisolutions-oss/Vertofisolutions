@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { PackagePlus, Info, UploadCloud, Loader2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { PackagePlus, Info, UploadCloud, Loader2, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/ui";
 import { api, ApiError } from "@/lib/api";
 
@@ -29,8 +29,32 @@ export function AddProductView({
   const [alertQty, setAlertQty] = useState("");
   const [description, setDescription] = useState("");
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageFile, setImageFile] = useState<{ name: string; size: string; preview: string } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function handleFile(file: File | undefined | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file (PNG, JPG, GIF, WebP).");
+      return;
+    }
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const preview = String(e.target?.result || "");
+      const sizeKb = (file.size / 1024).toFixed(1) + " KB";
+      setImageFile({
+        name: file.name,
+        size: sizeKb,
+        preview,
+      });
+    };
+    reader.readAsDataURL(file);
+  }
 
   async function create() {
     if (!name.trim()) {
@@ -40,21 +64,64 @@ export function AddProductView({
     setBusy(true);
     setError(null);
     try {
-      await api.acc.addProduct(orgId, {
+      const prodPayload = {
         name: name.trim(),
         itemType,
         rate: Number(sellingPrice) || 0,
+        selling_price: Number(sellingPrice) || 0,
         purchasePrice: Number(purchasePrice) || 0,
+        purchase_price: Number(purchasePrice) || 0,
         hsn: hsn.trim() || undefined,
         taxRate: Number(taxRate) || 18,
+        tax_rate: Number(taxRate) || 18,
         code: code.trim() || undefined,
         cess: Number(cess) || 0,
         category,
         unit,
         stock: Number(qty) || 0,
+        qty: Number(qty) || 0,
         alertQty: Number(alertQty) || 0,
         description: description.trim() || undefined,
-      });
+        image: imageFile?.preview || undefined,
+        imageUrl: imageFile?.preview || undefined,
+      };
+
+      await api.acc.addProduct(orgId, prodPayload);
+
+      // Save locally to vertofi_local_products
+      try {
+        const stored = JSON.parse(localStorage.getItem("vertofi_local_products") || "[]");
+        const newProduct = {
+          id: `pr-${Date.now()}`,
+          ...prodPayload,
+          created_at: new Date().toISOString(),
+        };
+        localStorage.setItem("vertofi_local_products", JSON.stringify([newProduct, ...stored]));
+        window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("vertofi-products-changed"));
+
+        // Also add to inventory
+        const invStored = JSON.parse(localStorage.getItem("vertofi_local_inventory") || "[]");
+        const invItem = {
+          id: `inv-${Date.now()}`,
+          product_id: newProduct.id,
+          name: newProduct.name,
+          category: newProduct.category,
+          code: newProduct.code || newProduct.hsn || "—",
+          qty: newProduct.stock,
+          stock: newProduct.stock,
+          min_stock: newProduct.alertQty || 5,
+          unit: newProduct.unit,
+          selling_price: newProduct.rate,
+          purchase_price: newProduct.purchasePrice,
+          image: newProduct.image,
+          imageUrl: newProduct.imageUrl,
+          updated_at: new Date().toISOString(),
+        };
+        localStorage.setItem("vertofi_local_inventory", JSON.stringify([invItem, ...invStored]));
+        window.dispatchEvent(new Event("vertofi-inventory-changed"));
+      } catch {}
+
       onCreated();
     } catch (e) {
       setError(e instanceof ApiError ? e.code.replaceAll("_", " ") : "Failed to add product");
@@ -323,15 +390,91 @@ export function AddProductView({
           />
         </div>
 
+        {/* Hidden File Input for laptop file browsing */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp,image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFile(f);
+          }}
+        />
+
         {/* Drag and Drop Image Box */}
-        <div className="w-full sm:w-1/2 border-2 border-dashed border-border/80 rounded-xl bg-amber-50/20 p-6 text-center space-y-2">
-          <UploadCloud className="mx-auto h-8 w-8 text-brand" />
-          <p className="text-xs text-ink font-medium">
-            Drag & Drop or <span className="text-red-500 font-bold underline cursor-pointer">Choose file</span> to upload
-          </p>
-          <p className="text-[11px] text-muted">
-            Allowed: gif, jpeg, png (Use light small weight images for fast loading – 200x200)
-          </p>
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            const f = e.dataTransfer.files?.[0];
+            if (f) handleFile(f);
+          }}
+          onClick={() => fileInputRef.current?.click()}
+          className={`w-full sm:w-1/2 border-2 border-dashed rounded-xl p-5 text-center transition cursor-pointer ${
+            isDragging
+              ? "border-brand bg-brand-50/30 scale-[1.01]"
+              : imageFile
+              ? "border-emerald-400 bg-emerald-50/30"
+              : "border-border/80 bg-amber-50/20 hover:border-brand/60 hover:bg-amber-50/40"
+          }`}
+        >
+          {imageFile ? (
+            <div className="flex items-center gap-4 text-left">
+              <img
+                src={imageFile.preview}
+                alt="Uploaded product preview"
+                className="h-16 w-16 rounded-lg object-cover border border-emerald-200 shadow-sm shrink-0 bg-white"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span className="truncate">{imageFile.name}</span>
+                </div>
+                <p className="text-[11px] text-muted mt-0.5">{imageFile.size}</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                    className="text-[11px] font-semibold text-brand underline cursor-pointer hover:text-brand/80"
+                  >
+                    Change file
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setImageFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <X className="h-3 w-3" /> Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <UploadCloud className="mx-auto h-8 w-8 text-brand" />
+              <p className="text-xs text-ink font-medium">
+                Drag & Drop or <span className="text-red-500 font-bold underline cursor-pointer">Choose file</span> to upload
+              </p>
+              <p className="text-[11px] text-muted">
+                Allowed: gif, jpeg, png (Use light small weight images for fast loading – 200x200)
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

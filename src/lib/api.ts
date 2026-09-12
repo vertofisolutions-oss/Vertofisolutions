@@ -431,6 +431,9 @@ export const api = {
     /** Record a document lifecycle action (APPROVED/SENT/DOWNLOADED/…). */
     docAction: (orgId: string, docId: string, action: string) =>
       request<{ id: string; action: string }>(`/accounting/${orgId}/documents/${docId}/action`, { method: "POST", body: JSON.stringify({ action }) }),
+    expenses: (orgId: string) => request<Record<string, unknown>[]>(`/accounting/${orgId}/expenses`),
+    addExpense: (orgId: string, body: Record<string, unknown>) =>
+      request<Record<string, unknown>>(`/accounting/${orgId}/expenses`, { method: "POST", body: JSON.stringify(body) }),
   },
 
   // ── GST e-invoice / e-way bill + GSTIN lookup (via GSP connector) ──

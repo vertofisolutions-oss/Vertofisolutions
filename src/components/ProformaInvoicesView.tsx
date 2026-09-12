@@ -223,10 +223,15 @@ export function ProformaInvoicesView({ orgId, rows = [], loading, onNewInvoice }
         </div>
       </div>
 
-      {/* Generated Invoice Preview Modal */}
+      {/* Generated Proforma Invoice Preview Modal (Normal PDF, no template strip) */}
       {previewingInvoice && (
         <InvoiceTemplatePreviewModal
-          sale={previewingInvoice}
+          sale={{
+            ...previewingInvoice,
+            doc_type: "Proforma Invoice",
+            isProforma: true,
+          }}
+          isProforma={true}
           onClose={() => setPreviewingInvoice(null)}
         />
       )}

@@ -629,6 +629,53 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
         const lastPart = path[path.length - 1];
         if (lastPart && lastPart !== matchedCol) idsToDelete = [lastPart];
       }
+
+      // Cascading deletion for purchases -> remove / decrement matching products and inventory
+      if (matchedCol === "purchases") {
+        const existingPurchases = serverDb.get("purchases", orgId);
+        for (const pid of idsToDelete) {
+          const found = existingPurchases.find((p: any) => String(p.id) === pid || String(p.bill_no) === pid || String(p.purchase_no) === pid);
+          if (found && Array.isArray(found.items)) {
+            for (const it of found.items) {
+              const itName = String(it.name || "").trim().toLowerCase();
+              if (itName) {
+                // Clean from products
+                const prods = serverDb.get("products", orgId);
+                const prodMatch = prods.find((prod: any) => String(prod.name || "").trim().toLowerCase() === itName);
+                if (prodMatch) {
+                  const currStock = Number(prodMatch.qty ?? prodMatch.stock ?? 0);
+                  const purQty = Number(it.qty || 1);
+                  if (currStock <= purQty) {
+                    serverDb.delete("products", orgId, String(prodMatch.id));
+                  } else {
+                    serverDb.update("products", orgId, String(prodMatch.id), {
+                      qty: currStock - purQty,
+                      stock: currStock - purQty,
+                    });
+                  }
+                }
+
+                // Clean from inventory
+                const invs = serverDb.get("inventory", orgId);
+                const invMatch = invs.find((inv: any) => String(inv.name || inv.item_name || "").trim().toLowerCase() === itName);
+                if (invMatch) {
+                  const currInvQty = Number(invMatch.qty ?? invMatch.stock ?? 0);
+                  const purQty = Number(it.qty || 1);
+                  if (currInvQty <= purQty) {
+                    serverDb.delete("inventory", orgId, String(invMatch.id));
+                  } else {
+                    serverDb.update("inventory", orgId, String(invMatch.id), {
+                      qty: currInvQty - purQty,
+                      stock: currInvQty - purQty,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
       if (idsToDelete.length > 1) {
         const deletedCount = serverDb.bulkDelete(matchedCol, orgId, idsToDelete);
         return NextResponse.json({ success: true, deletedCount }, { status: 200 });

@@ -201,7 +201,11 @@ export function CreateDocument({ orgId, presetType, onClose, onCreated, inline =
             {(party.address || party.phone || party.email) && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <input className="vf-in" value={party.address} onChange={(e) => setParty({ ...party, address: e.target.value })} placeholder="Address" />
-                <input className="vf-in" value={party.phone} onChange={(e) => setParty({ ...party, phone: e.target.value })} placeholder="Phone" />
+                <input className="vf-in" value={party.phone} onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  if (val && !/^[6-9]/.test(val)) return;
+                  setParty({ ...party, phone: val });
+                }} placeholder="Phone" />
                 <input className="vf-in" value={party.email} onChange={(e) => setParty({ ...party, email: e.target.value })} placeholder="Email" />
               </div>
             )}

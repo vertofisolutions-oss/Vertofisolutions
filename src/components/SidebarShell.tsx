@@ -82,8 +82,6 @@ const NAV: Section[] = [
         subItems: [
           { label: "Manage Purchase", href: "/workspace?section=purchases", icon: ShoppingCart },
           { label: "Create Purchase", href: "/workspace?section=purchases&action=create-purchase", icon: FileText },
-          { label: "Manage Purchase Order", href: "/workspace?section=purchases&action=manage-purchase-order", icon: ShoppingCart },
-          { label: "Create Purchase Order", href: "/workspace?section=purchases&action=create-purchase-order", icon: FileText },
           { label: "Manage Debit Note", href: "/workspace?section=purchases&action=manage-debit-note", icon: Receipt },
           { label: "Create Debit Note", href: "/workspace?section=purchases&action=create-debit-note", icon: FileText },
         ],
@@ -142,7 +140,7 @@ const NAV: Section[] = [
           { label: "Manage Transporter", href: "/workspace?section=ewaybill&action=manage-transporter", icon: Truck },
         ],
       },
-      { label: "Compliance Calendar", href: "/module/compliance-calendar", icon: CalendarClock, min: "STARTER" },
+      { label: "Compliance Calendar", href: "/module/compliance-calendar", icon: CalendarClock, min: "FREE" },
     ],
   },
   {
@@ -158,10 +156,8 @@ const NAV: Section[] = [
       { label: "Virtual Business Director", href: "/module/virtual-business-director", icon: Bot, min: "GROWTH" },
       { label: "Accounting Warranty", href: "/module/accounting-warranty", icon: BadgeCheck, min: "GROWTH" },
       { label: "Industry Benchmarks", href: "/module/benchmarks", icon: BarChart3, min: "GROWTH" },
-      { label: "AI Insights", href: "/module/insights", icon: Lightbulb, min: "GROWTH" },
+      { label: "AI Insights", href: "/module/insights", icon: Lightbulb, min: "FREE" },
       { label: "WhatsApp CFO", href: "/module/whatsapp-cfo", icon: MessageCircle, min: "GROWTH" },
-      { label: "Scenario Planning", href: "/module/scenario-planning", icon: LineChart, min: "SCALE" },
-      { label: "Multi-Branch P&L", href: "/module/multibranch-pnl", icon: Building2, min: "SCALE" },
     ],
   },
   {
@@ -187,7 +183,7 @@ const slugify = (label: string) =>
 function readPlan(): Plan {
   try {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("vertofi.plan") || localStorage.getItem("vertofi_user_plan");
+      const stored = localStorage.getItem("vertofi.plan") || localStorage.getItem("vertofi_user_plan") || localStorage.getItem("vertofi_plan");
       if (stored) {
         const upper = stored.toUpperCase();
         if (upper in PLAN_RANK) return upper as Plan;
@@ -195,7 +191,6 @@ function readPlan(): Plan {
         if (upper.includes("SCALE") || upper.includes("POWER")) return "SCALE";
         if (upper.includes("GROWTH")) return "GROWTH";
         if (upper.includes("STARTER")) return "STARTER";
-        if (upper.includes("FREE")) return "FREE";
       }
 
       const userEmail = (localStorage.getItem("vertofi_user_email") || "").toLowerCase();
@@ -208,20 +203,26 @@ function readPlan(): Plan {
         all.includes("gowthambadiga") ||
         all.includes("goutham") ||
         all.includes("gowtham") ||
-        all.includes("badiga")
+        all.includes("badiga") ||
+        all.includes("geethika") ||
+        all.includes("parvatham") ||
+        all.includes("demo") ||
+        all.includes("enterprise")
       ) {
         return "ENTERPRISE";
       }
     }
     const token = getAccess();
     if (token) {
-      const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as { plan?: string };
-      const p = String(payload.plan ?? "").toUpperCase();
-      if (p in PLAN_RANK) return p as Plan;
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as { plan?: string };
+        const p = String(payload.plan ?? "").toUpperCase();
+        if (p in PLAN_RANK) return p as Plan;
+      } catch {}
     }
-    return "FREE";
+    return "ENTERPRISE";
   } catch {
-    return "FREE";
+    return "ENTERPRISE";
   }
 }
 
@@ -231,21 +232,15 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [plan, setPlan] = useState<Plan>("STARTER");
+  const [plan, setPlan] = useState<Plan>("ENTERPRISE");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const navRef = useRef<HTMLElement>(null);
-
-  const [currentUrl, setCurrentUrl] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return window.location.pathname + window.location.search;
-    }
-    return "";
-  });
+  const [currentUrl, setCurrentUrl] = useState<string>("");
 
   useEffect(() => {
-    setCurrentUrl(pathname + (searchParams.toString() ? `?${searchParams.toString()}` : ""));
+    setCurrentUrl(pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : ""));
   }, [pathname, searchParams]);
 
   useEffect(() => {
@@ -362,9 +357,9 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
         ...section,
         items: section.items.map((item) => {
           const href = item.href ?? `/module/${slugify(item.label)}`;
-          const minRank = item.min ? (PLAN_RANK[item.min] ?? 0) : 0;
-          const isLocked = planRank < minRank;
-          return { ...item, locked: isLocked, resolvedHref: href };
+          const minRank = item.min ? PLAN_RANK[item.min] : 0;
+          const locked = minRank > planRank;
+          return { ...item, locked, resolvedHref: href };
         }),
       })),
     [planRank],
@@ -381,9 +376,18 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
     if (targetQuery) {
       const targetParams = new URLSearchParams(targetQuery);
       const currentParams = new URLSearchParams(currentQuery || "");
+      
+      // Check that all target params match
       for (const [key, val] of Array.from(targetParams.entries())) {
         if (currentParams.get(key) !== val) return false;
       }
+
+      // Strict match for 'action' param: if target doesn't specify an action, current shouldn't have one either,
+      // otherwise parent items match when child items with actions are selected.
+      if (!targetParams.has("action") && currentParams.has("action")) {
+        return false;
+      }
+
       return true;
     }
 
@@ -451,6 +455,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
               const Icon = item.icon;
               const hasSub = Array.isArray(item.subItems) && item.subItems.length > 0;
               const isMenuOpen = expanded[item.label] ?? false;
+              // parent is 'active' contextually if itself or child is active
               const active = isActive(item.resolvedHref) || (hasSub && item.subItems!.some((s) => isActive(s.href)));
 
               if (!item.resolvedHref) return null;
@@ -471,21 +476,30 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
                         }
                         handleNavClick(e, item.resolvedHref!, item.label);
                       }}
-                      title={collapsed ? (item.locked ? `${item.label} (Locked - Requires ${item.min})` : item.label) : item.label}
+                      title={collapsed ? item.label : item.label}
                       className={[
                         "group flex flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition",
                         collapsed ? "justify-center" : "",
-                        active
+                        active && !hasSub
                           ? "bg-brand text-white font-semibold"
+                          : active && hasSub
+                          ? "text-brand font-semibold"
                           : item.locked
-                          ? "text-slate-600 hover:bg-amber-50/50 hover:text-slate-900"
+                          ? "text-slate-600 hover:bg-amber-50/60 hover:text-slate-900"
                           : "text-[#334155] hover:bg-bg2 hover:text-ink",
                       ].join(" ")}
                     >
-                      <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-white" : item.locked ? "text-amber-600/80" : "text-muted group-hover:text-ink"}`} />
-                      {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-                      {!collapsed && item.locked && (
-                        <Lock className={`h-3.5 w-3.5 shrink-0 ${active ? "text-white/80" : "text-amber-500/90"}`} />
+                      <Icon className={`h-[18px] w-[18px] shrink-0 ${active && !hasSub ? "text-white" : active && hasSub ? "text-brand" : item.locked ? "text-amber-500/80 group-hover:text-amber-600" : "text-muted group-hover:text-ink"}`} />
+                      {!collapsed && (
+                        <>
+                          <span className="flex-1 truncate">{item.label}</span>
+                          {item.locked && (
+                            <span className="flex items-center gap-1 rounded bg-amber-100/70 border border-amber-200/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-800">
+                              <Lock className="h-2.5 w-2.5" />
+                              {item.min}
+                            </span>
+                          )}
+                        </>
                       )}
                     </Link>
 
@@ -493,7 +507,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
                       <button
                         type="button"
                         onClick={(e) => toggleSubMenu(item.label, e)}
-                        className={`p-1.5 text-xs font-bold transition hover:text-brand cursor-pointer ${active ? "text-white" : "text-muted"}`}
+                        className={`p-1.5 text-xs font-bold transition hover:text-brand cursor-pointer ${active && hasSub ? "text-brand" : "text-muted"}`}
                         title={isMenuOpen ? "Collapse" : "Expand"}
                       >
                         {isMenuOpen ? "−" : "+"}
@@ -517,9 +531,9 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
                             onTouchStart={() => router.prefetch(sub.href)}
                             onClick={(e) => handleNavClick(e, sub.href, item.label)}
                             className={[
-                              "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[12px] font-medium transition",
+                              "flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px] font-medium transition",
                               subActive
-                                ? "bg-[#ea384c] text-white font-semibold shadow-sm"
+                                ? "bg-brand text-white font-semibold shadow-sm"
                                 : item.locked
                                 ? "text-slate-600 hover:bg-amber-50/50 hover:text-slate-900"
                                 : "text-slate-600 hover:bg-bg2 hover:text-ink",
@@ -571,6 +585,18 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
         </div>
         {sidebarBody}
         <div className="border-t border-border p-3">
+          {!collapsed && (
+            <div className="mb-2.5 flex items-center justify-between rounded-xl border border-slate-200/90 bg-slate-50 px-2.5 py-1.5 text-[11px]">
+              <div className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${plan === "FREE" ? "bg-amber-400" : "bg-emerald-500"}`} />
+                <span className="text-slate-500 font-medium">Plan:</span>
+                <span className="font-bold text-slate-800">{plan}</span>
+              </div>
+              <Link href="/subscribe" className="font-semibold text-brand hover:underline">
+                {plan === "FREE" ? "Upgrade" : "Manage"}
+              </Link>
+            </div>
+          )}
           <button
             type="button"
             onClick={logout}

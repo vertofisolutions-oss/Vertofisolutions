@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": "pro-1789250319214-749",
+    "created_at": "2026-09-12T21:58:39.214Z",
+    "updated_at": "2026-09-12T21:58:39.214Z",
+    "name": "geethika (Category Sample)",
+    "category": "geethika",
+    "rate": 0,
+    "taxRate": 18
+  },
+  {
+    "id": "prod-1789250289390-54ql",
+    "created_at": "2026-09-12T21:58:09.390Z",
+    "updated_at": "2026-09-12T21:58:09.390Z",
+    "name": "mobiles",
+    "code": "PRD-MOB-9390",
+    "hsn": "",
+    "qty": 40,
+    "stock": 40,
+    "category": "General Goods",
+    "purchase_price": 5000,
+    "selling_price": 6250,
+    "tax_rate": 18,
+    "cess_rate": 0
+  }
+]

@@ -277,17 +277,6 @@ export function EWayBillsView({
 
               <button
                 type="button"
-                onClick={() => setShowBuyCreditsModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[#22c55e] px-5 py-2 text-xs font-bold text-white transition hover:bg-green-600 cursor-pointer shadow-xs"
-              >
-                <span>Credit – {manageCredit}</span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-green-800 bg-green-700 px-2 py-0.5 text-[10px] font-black text-white">
-                  BUY 👆
-                </span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setShowConnectModal(true)}
                 className="inline-flex items-center gap-1.5 rounded-full bg-[#22c55e] px-5 py-2 text-xs font-bold text-white transition hover:bg-green-600 cursor-pointer shadow-xs"
               >

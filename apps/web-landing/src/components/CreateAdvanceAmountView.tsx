@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { AddCustomerModal } from "./AddCustomerModal";
 
 const INDIAN_STATES = [
-  "36-TELENGANA",
+  "36-TELANGANA",
   "37-ANDHRA PRADESH",
   "29-KARNATAKA",
   "27-MAHARASHTRA",
@@ -55,7 +55,7 @@ export function CreateAdvanceAmountView({
   const [customerName, setCustomerName] = useState("");
   const [customerSuggestions, setCustomerSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [placeOfSupply, setPlaceOfSupply] = useState("36-TELENGANA");
+  const [placeOfSupply, setPlaceOfSupply] = useState("36-TELANGANA");
   
   // Format as 11-09-2026 or DD-MM-YYYY
   const getFormattedDate = () => {

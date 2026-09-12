@@ -259,7 +259,11 @@ export function AddCustomerModal({
                   type="text"
                   placeholder="Phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    if (val && !/^[6-9]/.test(val)) return;
+                    setPhone(val);
+                  }}
                   className="w-full rounded-full border border-slate-300 px-4 py-2 text-xs text-slate-800 outline-none focus:border-brand shadow-2xs"
                 />
               </div>

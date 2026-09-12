@@ -394,7 +394,11 @@ export function CustomerDetailsModal({
                       <input
                         type="text"
                         value={form.phone || form.mobile || ""}
-                        onChange={(e) => setForm({ ...form, phone: e.target.value, mobile: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          if (val && !/^[6-9]/.test(val)) return;
+                          setForm({ ...form, phone: val, mobile: val });
+                        }}
                         className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 outline-none focus:border-brand"
                       />
                     ) : (
