@@ -36,6 +36,8 @@ jobs:
           config-file: ./.github/codeql-config.yml
           ram: 6000
       - uses: github/codeql-action/analyze@v3
+        with:
+          upload: false
 
   dependency-audit:
     runs-on: ubuntu-latest
