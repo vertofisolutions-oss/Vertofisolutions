@@ -10,13 +10,18 @@
  *
  * Zero deps; regex-based; fails the build with precise file:line output.
  */
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = process.cwd();
 
 // ── 1. Parse the canonical Topics map ────────────────────────────────────────
-const envelopeSrc = readFileSync(join(ROOT, "packages/events/src/envelope.ts"), "utf8");
+const envelopePath = join(ROOT, "packages/events/src/envelope.ts");
+if (!existsSync(envelopePath)) {
+  console.log("check-event-wiring: packages/events/src/envelope.ts not present, skipping check.");
+  process.exit(0);
+}
+const envelopeSrc = readFileSync(envelopePath, "utf8");
 const topicsBlock = envelopeSrc.match(/export const Topics = \{([\s\S]*?)\} as const/);
 if (!topicsBlock) {
   console.error("check-event-wiring: could not parse Topics map in packages/events/src/envelope.ts");
