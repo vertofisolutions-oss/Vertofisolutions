@@ -26,6 +26,16 @@ function isGowthamAccount(...identifiers: (string | undefined | null)[]): boolea
   return false;
 }
 
+async function getJsonBody(req: NextRequest): Promise<any> {
+  try {
+    const text = await req.text();
+    if (!text || !text.trim()) return {};
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
 async function handleRequest(req: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const targetPath = path.join("/");
@@ -63,7 +73,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
   // ── 1. Auth: User validation & duplicate prevention ──
   if (targetPath === "auth/check-user") {
     try {
-      const body = await req.json().catch(() => ({}));
+      const body = await getJsonBody(req);
       const { mobile, email } = body;
       const cleanMobile = String(mobile || "").trim();
       const cleanEmail = String(email || "").trim().toLowerCase();
@@ -97,7 +107,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
 
   if (targetPath === "auth/record-user" || targetPath === "auth/register") {
     try {
-      const body = await req.json().catch(() => ({}));
+      const body = await getJsonBody(req);
       const { mobile, email, name, orgId: userOrg, plan } = body;
       const cleanMobile = String(mobile || "").trim();
       const cleanEmail = String(email || "").trim().toLowerCase();
@@ -148,7 +158,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
   // ── 1a. Auth: User Login (Dedicated to User Credentials) ──
   if (targetPath === "auth/login") {
     try {
-      const body = await req.json().catch(() => ({}));
+      const body = await getJsonBody(req);
       const { identifier } = body;
       const cleanId = String(identifier || "").trim().toLowerCase();
       const cleanMobile = String(identifier || "").trim();
@@ -255,7 +265,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
   // ── 1c. Billing & Pricing Plan Access & Updates ──
   if (targetPath.includes("billing/subscribe") || targetPath.includes("billing/plan")) {
     try {
-      const body = await req.json().catch(() => ({}));
+      const body = await getJsonBody(req);
       const chosenPlan = (body.plan || "FREE").toUpperCase();
       const profile = serverDb.getSetting(`profile:${orgId}`, {});
       const isGowtham = isGowthamAccount(orgId, profile.name, profile.email);
@@ -322,7 +332,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     }
     if (method === "POST" || method === "PUT") {
       try {
-        const body = await req.json();
+        const body = await getJsonBody(req);
         const existing = serverDb.getSetting(`profile:${orgId}`, {});
         const updated = { ...existing, ...body, plan: isGowtham ? "ENTERPRISE" : (body.plan || existing.plan || "FREE") };
         serverDb.setSetting(`profile:${orgId}`, updated);
@@ -369,7 +379,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
 
   if (entity === "adjustStock" || targetPath.includes("adjustStock")) {
     try {
-      const body = await req.json();
+      const body = await getJsonBody(req);
       const inv = serverDb.get("inventory", orgId);
       const target = inv.find((it) => it.id === body.productId);
       if (target) {
@@ -401,7 +411,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     }
     if (method === "POST") {
       try {
-        const body = await req.json();
+        const body = await getJsonBody(req);
         const created = serverDb.insert("warranty_claims", orgId, {
           ...body,
           status: "SUBMITTED",
@@ -422,7 +432,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     }
     if (method === "POST") {
       try {
-        const body = await req.json();
+        const body = await getJsonBody(req);
         const created = serverDb.insert("lifeguard_cases", orgId, {
           ...body,
           status: "OPEN",
@@ -588,7 +598,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     // POST: Insert new record into collection
     if (method === "POST") {
       try {
-        const body = await req.json();
+        const body = await getJsonBody(req);
         const created = serverDb.insert(matchedCol, orgId, body);
         return NextResponse.json(
           { success: true, id: created.id, item: created },
@@ -602,7 +612,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     // PUT/PATCH: Update existing record
     if (method === "PUT" || method === "PATCH") {
       try {
-        const body = await req.json();
+        const body = await getJsonBody(req);
         const id = body.id || path[path.length - 1];
         const updated = serverDb.update(matchedCol, orgId, String(id), body);
         return NextResponse.json({ success: Boolean(updated), item: updated }, { status: 200 });
@@ -626,7 +636,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
         idsToDelete = [lastPart];
       } else if (req.headers.get("content-type")?.includes("application/json")) {
         try {
-          const body = await req.json().catch(() => ({}));
+          const body = await getJsonBody(req);
           if (Array.isArray(body?.ids)) idsToDelete = body.ids.map(String);
           else if (body?.id) idsToDelete = [String(body.id)];
         } catch {}

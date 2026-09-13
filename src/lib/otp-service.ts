@@ -116,6 +116,7 @@ export async function sendOtpEmail(email: string, otp: string, expiresAt: number
           time: formattedTime,
         },
       }),
+      signal: AbortSignal.timeout(4000),
     });
 
     if (!res.ok) {

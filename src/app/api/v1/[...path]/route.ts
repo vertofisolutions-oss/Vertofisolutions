@@ -26,6 +26,16 @@ function isGowthamAccount(...identifiers: (string | undefined | null)[]): boolea
   return false;
 }
 
+async function getJsonBody(req: NextRequest): Promise<any> {
+  try {
+    const text = await req.text();
+    if (!text || !text.trim()) return {};
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
 async function handleRequest(req: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const targetPath = path.join("/");
@@ -60,14 +70,162 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     }
   }
 
-  // ── 1. Auth: Token refresh & exchange ──
+  // ── 1. Auth: User validation & duplicate prevention ──
+  if (targetPath === "auth/check-user") {
+    try {
+      const body = await getJsonBody(req);
+      const { mobile, email } = body;
+      const cleanMobile = String(mobile || "").trim();
+      const cleanEmail = String(email || "").trim().toLowerCase();
+
+      const users = serverDb.get("registered_users", "global");
+      const found = users.find(
+        (u: any) =>
+          (cleanMobile && String(u.mobile || "").trim() === cleanMobile) ||
+          (cleanEmail && String(u.email || "").trim().toLowerCase() === cleanEmail)
+      );
+
+      if (found) {
+        const isMobileMatch = cleanMobile && String(found.mobile || "").trim() === cleanMobile;
+        return NextResponse.json(
+          {
+            exists: true,
+            code: isMobileMatch ? "mobile_already_registered" : "email_already_registered",
+            message: isMobileMatch
+              ? "This mobile number is already registered. Please sign in."
+              : "This email address is already registered. Please sign in.",
+          },
+          { status: 200 }
+        );
+      }
+
+      return NextResponse.json({ exists: false }, { status: 200 });
+    } catch {
+      return NextResponse.json({ exists: false }, { status: 200 });
+    }
+  }
+
+  if (targetPath === "auth/record-user" || targetPath === "auth/register") {
+    try {
+      const body = await getJsonBody(req);
+      const { mobile, email, name, orgId: userOrg, plan } = body;
+      const cleanMobile = String(mobile || "").trim();
+      const cleanEmail = String(email || "").trim().toLowerCase();
+      const isGowtham = isGowthamAccount(cleanEmail, name, userOrg, cleanMobile);
+      const cleanName = String(name || (cleanEmail ? cleanEmail.split("@")[0] : "Business Owner")).trim();
+      const assignedOrgId = String(userOrg || (isGowtham ? "org_gouthambadiga01_gmail_com" : (orgId || `org_${Date.now()}`)));
+      const finalPlan = isGowtham ? "ENTERPRISE" : (plan || "FREE");
+
+      if (cleanMobile || cleanEmail) {
+        const users = serverDb.get("registered_users", "global");
+        const existingIdx = users.findIndex(
+          (u: any) =>
+            (cleanMobile && String(u.mobile || "").trim() === cleanMobile) ||
+            (cleanEmail && String(u.email || "").trim().toLowerCase() === cleanEmail)
+        );
+        const userData = {
+          id: existingIdx !== -1 ? users[existingIdx].id : `usr_${Date.now()}`,
+          name: cleanName,
+          mobile: cleanMobile,
+          email: cleanEmail,
+          orgId: assignedOrgId,
+          plan: finalPlan,
+          registered_at: new Date().toISOString(),
+        };
+        if (existingIdx === -1) {
+          serverDb.insert("registered_users", "global", userData);
+        } else {
+          serverDb.update("registered_users", "global", users[existingIdx].id, userData);
+        }
+
+        // Also save profile for that org
+        const existingProfile = serverDb.getSetting(`profile:${assignedOrgId}`, {});
+        serverDb.setSetting(`profile:${assignedOrgId}`, {
+          ...existingProfile,
+          name: cleanName,
+          email: cleanEmail,
+          mobile: cleanMobile,
+          plan: finalPlan,
+          status: "ACTIVE",
+        });
+      }
+      return NextResponse.json({ success: true, orgId: assignedOrgId }, { status: 200 });
+    } catch {
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+  }
+
+  // ── 1a. Auth: User Login (Dedicated to User Credentials) ──
+  if (targetPath === "auth/login") {
+    try {
+      const body = await getJsonBody(req);
+      const { identifier } = body;
+      const cleanId = String(identifier || "").trim().toLowerCase();
+      const cleanMobile = String(identifier || "").trim();
+
+      const users = serverDb.get("registered_users", "global");
+      const matchedUser = users.find(
+        (u: any) =>
+          (cleanMobile && String(u.mobile || "").trim() === cleanMobile) ||
+          (cleanId && String(u.email || "").trim().toLowerCase() === cleanId) ||
+          (cleanId && String(u.name || "").trim().toLowerCase() === cleanId) ||
+          (cleanId && String(u.id || "").trim().toLowerCase() === cleanId) ||
+          (cleanId && String(u.orgId || "").trim().toLowerCase() === cleanId) ||
+          (cleanId && (cleanId.includes("goutham") || cleanId.includes("gowtham") || cleanId.includes("badiga")) && (String(u.name || "").includes("goutham") || String(u.email || "").includes("goutham")))
+      );
+
+      const isGowtham = isGowthamAccount(cleanId, cleanMobile, matchedUser?.email, matchedUser?.name, matchedUser?.orgId);
+      const userOrgId = matchedUser?.orgId || (isGowtham ? "org_gouthambadiga01_gmail_com" : `org_${cleanId.replace(/[^a-zA-Z0-9]/g, "_") || Date.now()}`);
+      const userName = matchedUser?.name || (isGowtham ? "gouthambadiga01" : (cleanId.includes("@") ? cleanId.split("@")[0] : "Business Owner"));
+      const userEmail = matchedUser?.email || (isGowtham ? "gouthambadiga01@gmail.com" : (cleanId.includes("@") ? cleanId : ""));
+      const userMobile = matchedUser?.mobile || (!cleanId.includes("@") ? cleanMobile : "");
+      const userPlan = isGowtham ? "ENTERPRISE" : (matchedUser?.plan || "FREE");
+
+      const profile = serverDb.getSetting(`profile:${userOrgId}`, {});
+      const finalPlan = isGowtham ? "ENTERPRISE" : (profile.plan || userPlan);
+      serverDb.setSetting(`profile:${userOrgId}`, {
+        ...profile,
+        name: userName,
+        email: userEmail,
+        mobile: userMobile,
+        plan: finalPlan,
+        status: "ACTIVE",
+      });
+
+      const payload = Buffer.from(
+        JSON.stringify({
+          sub: userEmail || userMobile || cleanId,
+          orgId: userOrgId,
+          role: "BUSINESS_OWNER",
+          plan: finalPlan,
+          exp: Math.floor(Date.now() / 1000) + 86400 * 30,
+        })
+      ).toString("base64");
+      const accessToken = `header.${payload}.signature`;
+
+      return NextResponse.json({
+        mfaRequired: false,
+        tokens: { accessToken, refreshToken: `rf_${Date.now()}` },
+        userId: matchedUser?.id || (isGowtham ? "usr_gouthambadiga01" : `usr_${Date.now()}`),
+        orgId: userOrgId,
+        name: userName,
+        email: userEmail,
+        mobile: userMobile,
+        plan: finalPlan,
+      }, { status: 200 });
+    } catch {
+      return NextResponse.json({ error: "Login failed" }, { status: 400 });
+    }
+  }
+
+  // ── 1a. Auth: Token refresh & exchange ──
   if (targetPath === "auth/token/refresh" || targetPath === "auth/firebase/exchange") {
     const isGowtham = isGowthamAccount(orgId);
     const payload = Buffer.from(
       JSON.stringify({
-        orgId: orgId || "demo-business-org",
+        orgId: orgId || `org_${Date.now()}`,
         role: "OWNER",
-        plan: isGowtham ? "ENTERPRISE" : "POWER",
+        plan: isGowtham ? "ENTERPRISE" : "FREE",
         exp: Math.floor(Date.now() / 1000) + 86400 * 30, // 30 days valid
       })
     ).toString("base64");
@@ -76,7 +234,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
       {
         accessToken: token,
         refreshToken: "vertofi_live_persistent_refresh_token",
-        user: { id: isGowtham ? "usr_gouthambadiga01" : "usr-live", name: isGowtham ? "gouthambadiga01" : "Vertofi Financial Admin", email: isGowtham ? "gouthambadiga01@gmail.com" : "admin@vertofi.com" },
+        user: { id: isGowtham ? "usr_gouthambadiga01" : "usr-live", name: isGowtham ? "gouthambadiga01" : "Business Owner", email: isGowtham ? "gouthambadiga01@gmail.com" : "user@vertofi.com" },
       },
       { status: 200 }
     );
@@ -94,8 +252,8 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
       {
         id: isGowtham ? "usr_gouthambadiga01" : "usr-live",
         name: profile.name || profile.ownerName || (isGowtham ? "gouthambadiga01" : "Business Owner"),
-        email: profile.email || (isGowtham ? "gouthambadiga01@gmail.com" : "owner@vertofi.com"),
-        mobile: profile.mobile || "9666417876",
+        email: profile.email || (isGowtham ? "gouthambadiga01@gmail.com" : "user@vertofi.com"),
+        mobile: profile.mobile || "",
         plan,
         turnover,
         status: profile.status || "ACTIVE",
@@ -107,7 +265,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
   // ── 1c. Billing & Pricing Plan Access & Updates ──
   if (targetPath.includes("billing/subscribe") || targetPath.includes("billing/plan")) {
     try {
-      const body = await req.json().catch(() => ({}));
+      const body = await getJsonBody(req);
       const chosenPlan = (body.plan || "FREE").toUpperCase();
       const profile = serverDb.getSetting(`profile:${orgId}`, {});
       const isGowtham = isGowthamAccount(orgId, profile.name, profile.email);
@@ -174,7 +332,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     }
     if (method === "POST" || method === "PUT") {
       try {
-        const body = await req.json();
+        const body = await getJsonBody(req);
         const existing = serverDb.getSetting(`profile:${orgId}`, {});
         const updated = { ...existing, ...body, plan: isGowtham ? "ENTERPRISE" : (body.plan || existing.plan || "FREE") };
         serverDb.setSetting(`profile:${orgId}`, updated);
@@ -221,7 +379,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
 
   if (entity === "adjustStock" || targetPath.includes("adjustStock")) {
     try {
-      const body = await req.json();
+      const body = await getJsonBody(req);
       const inv = serverDb.get("inventory", orgId);
       const target = inv.find((it) => it.id === body.productId);
       if (target) {
@@ -253,7 +411,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     }
     if (method === "POST") {
       try {
-        const body = await req.json();
+        const body = await getJsonBody(req);
         const created = serverDb.insert("warranty_claims", orgId, {
           ...body,
           status: "SUBMITTED",
@@ -274,7 +432,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     }
     if (method === "POST") {
       try {
-        const body = await req.json();
+        const body = await getJsonBody(req);
         const created = serverDb.insert("lifeguard_cases", orgId, {
           ...body,
           status: "OPEN",
@@ -440,7 +598,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     // POST: Insert new record into collection
     if (method === "POST") {
       try {
-        const body = await req.json();
+        const body = await getJsonBody(req);
         const created = serverDb.insert(matchedCol, orgId, body);
         return NextResponse.json(
           { success: true, id: created.id, item: created },
@@ -454,7 +612,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     // PUT/PATCH: Update existing record
     if (method === "PUT" || method === "PATCH") {
       try {
-        const body = await req.json();
+        const body = await getJsonBody(req);
         const id = body.id || path[path.length - 1];
         const updated = serverDb.update(matchedCol, orgId, String(id), body);
         return NextResponse.json({ success: Boolean(updated), item: updated }, { status: 200 });
@@ -478,11 +636,58 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
         idsToDelete = [lastPart];
       } else if (req.headers.get("content-type")?.includes("application/json")) {
         try {
-          const body = await req.json().catch(() => ({}));
+          const body = await getJsonBody(req);
           if (Array.isArray(body?.ids)) idsToDelete = body.ids.map(String);
           else if (body?.id) idsToDelete = [String(body.id)];
         } catch {}
       }
+
+      // Cascading deletion for purchases -> remove / decrement matching products and inventory
+      if (matchedCol === "purchases") {
+        const existingPurchases = serverDb.get("purchases", orgId);
+        for (const pid of idsToDelete) {
+          const found = existingPurchases.find((p: any) => String(p.id) === pid || String(p.bill_no) === pid || String(p.purchase_no) === pid);
+          if (found && Array.isArray(found.items)) {
+            for (const it of found.items) {
+              const itName = String(it.name || "").trim().toLowerCase();
+              if (itName) {
+                // Clean from products
+                const prods = serverDb.get("products", orgId);
+                const prodMatch = prods.find((prod: any) => String(prod.name || "").trim().toLowerCase() === itName);
+                if (prodMatch) {
+                  const currStock = Number(prodMatch.qty ?? prodMatch.stock ?? 0);
+                  const purQty = Number(it.qty || 1);
+                  if (currStock <= purQty) {
+                    serverDb.delete("products", orgId, String(prodMatch.id));
+                  } else {
+                    serverDb.update("products", orgId, String(prodMatch.id), {
+                      qty: currStock - purQty,
+                      stock: currStock - purQty,
+                    });
+                  }
+                }
+
+                // Clean from inventory
+                const invs = serverDb.get("inventory", orgId);
+                const invMatch = invs.find((inv: any) => String(inv.name || inv.item_name || "").trim().toLowerCase() === itName);
+                if (invMatch) {
+                  const currInvQty = Number(invMatch.qty ?? invMatch.stock ?? 0);
+                  const purQty = Number(it.qty || 1);
+                  if (currInvQty <= purQty) {
+                    serverDb.delete("inventory", orgId, String(invMatch.id));
+                  } else {
+                    serverDb.update("inventory", orgId, String(invMatch.id), {
+                      qty: currInvQty - purQty,
+                      stock: currInvQty - purQty,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
       if (idsToDelete.length > 1) {
         const deletedCount = serverDb.bulkDelete(matchedCol, orgId, idsToDelete);
         return NextResponse.json({ success: true, deletedCount }, { status: 200 });
