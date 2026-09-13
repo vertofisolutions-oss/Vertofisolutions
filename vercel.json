@@ -1,7 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "pnpm --filter @vertofi/web-landing build",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": ".next",
   "functions": {
     "src/app/api/**/*": {
       "maxDuration": 300
