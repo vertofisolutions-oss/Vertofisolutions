@@ -47,6 +47,25 @@ if (sourceNext) {
     }
   }
   console.log("[post-build] Build artifacts successfully synced.");
+
+  // Normalize relativeAppDir in required-server-files.json for root vs workspace
+  const fixRequiredFiles = (destDir, relAppDir) => {
+    const reqFile = path.join(destDir, "required-server-files.json");
+    if (fs.existsSync(reqFile)) {
+      try {
+        const raw = fs.readFileSync(reqFile, "utf-8");
+        const data = JSON.parse(raw);
+        data.relativeAppDir = relAppDir;
+        fs.writeFileSync(reqFile, JSON.stringify(data, null, 2), "utf-8");
+      } catch (e) {
+        console.warn(`[post-build] Warning normalizing ${reqFile}:`, e.message);
+      }
+    }
+  };
+
+  fixRequiredFiles(rootNext, "");
+  fixRequiredFiles(webLandingNext, "apps/web-landing");
+  fixRequiredFiles(apiNext, "");
 } else {
   console.warn("[post-build] Warning: No Next.js build output (.next) found to sync.");
 }

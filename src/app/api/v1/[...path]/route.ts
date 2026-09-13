@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverDb } from "@/lib/server-db";
 
+export const maxDuration = 60;
+
 /**
  * Ultra-fast (< 5ms) Next.js route handler for the Vertofi AI Financial Intelligence Platform.
  * Directly serves and persists all tenant business data, accounting ledger rows, inventory,
@@ -466,20 +468,20 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
       let idsToDelete: string[] = [];
       const queryId = req.nextUrl.searchParams.get("id");
       const queryIds = req.nextUrl.searchParams.get("ids");
+      const lastPart = path[path.length - 1];
+
       if (queryIds) {
         idsToDelete = queryIds.split(",").map((s) => s.trim()).filter(Boolean);
       } else if (queryId) {
         idsToDelete = [queryId];
-      } else {
+      } else if (lastPart && lastPart !== matchedCol) {
+        idsToDelete = [lastPart];
+      } else if (req.headers.get("content-type")?.includes("application/json")) {
         try {
-          const body = await req.json();
+          const body = await req.json().catch(() => ({}));
           if (Array.isArray(body?.ids)) idsToDelete = body.ids.map(String);
           else if (body?.id) idsToDelete = [String(body.id)];
         } catch {}
-      }
-      if (idsToDelete.length === 0) {
-        const lastPart = path[path.length - 1];
-        if (lastPart && lastPart !== matchedCol) idsToDelete = [lastPart];
       }
       if (idsToDelete.length > 1) {
         const deletedCount = serverDb.bulkDelete(matchedCol, orgId, idsToDelete);
