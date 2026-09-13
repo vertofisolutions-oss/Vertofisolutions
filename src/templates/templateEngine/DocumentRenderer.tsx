@@ -12,12 +12,12 @@ interface DocumentRendererProps {
   zoomLevel?: number; // percentage e.g. 100
 }
 
-export const DocumentRenderer: React.FC<DocumentRendererProps> = ({
+export const DocumentRenderer = ({
   formData,
   templateDef,
   templateNumber,
   zoomLevel = 100,
-}) => {
+}: DocumentRendererProps) => {
   const brandColor = formData.primaryColor || "#0B132B";
   const accentColor = formData.secondaryColor || "#1E60D5";
 
