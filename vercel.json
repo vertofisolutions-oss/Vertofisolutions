@@ -7,9 +7,6 @@
     "src/app/api/**/*": {
       "maxDuration": 300
     },
-    "apps/web-landing/src/app/api/**/*": {
-      "maxDuration": 300
-    },
     "api/**/*": {
       "maxDuration": 300
     }

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
-import { Landmark, UploadCloud, CheckCircle2, ArrowUpDown, Search, FileText, Loader2, X, Check, ArrowRight } from "lucide-react";
+import { Landmark, UploadCloud, CheckCircle2, ArrowUpDown, Search, FileText, Loader2, X, Check, ArrowRight, Trash2 } from "lucide-react";
 import { Card } from "@/ui";
 
 interface StatementLine {
@@ -81,6 +81,10 @@ export function ReconciliationView({ orgId }: { orgId: string }) {
     setLines((prev) =>
       prev.map((l) => (l.id === id ? { ...l, status: "RECONCILED" } : l))
     );
+  }
+
+  function deleteRow(id: string) {
+    setLines((prev) => prev.filter((l) => l.id !== id));
   }
 
   const filteredLines = lines.filter((l) => {
@@ -264,19 +268,29 @@ export function ReconciliationView({ orgId }: { orgId: string }) {
                         </span>
                       </td>
                       <td className="px-3 py-3 text-center">
-                        {l.status === "RECONCILED" ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                            <Check className="h-3.5 w-3.5" /> Reconciled
-                          </span>
-                        ) : (
+                        <div className="flex items-center justify-center gap-2">
+                          {l.status === "RECONCILED" ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                              <Check className="h-3.5 w-3.5" /> Reconciled
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => reconcileRow(l.id)}
+                              className="rounded-lg bg-brand px-3 py-1 text-[11px] font-bold text-white transition hover:bg-brand/90 cursor-pointer shadow-xs"
+                            >
+                              Match &amp; Confirm
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => reconcileRow(l.id)}
-                            className="rounded-lg bg-brand px-3 py-1 text-[11px] font-bold text-white transition hover:bg-brand/90 cursor-pointer shadow-xs"
+                            onClick={() => deleteRow(l.id)}
+                            className="p-1 text-muted hover:text-red-600 transition rounded-md hover:bg-red-50"
+                            title="Delete Line"
                           >
-                            Match &amp; Confirm
+                            <Trash2 className="h-4 w-4" />
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))
