@@ -1,5 +1,7 @@
 console.log("Vertofi API Server initialized");
 
+export const maxDuration = 300;
+
 export default function handler(req: any, res: any) {
   const payload = {
     status: "online",

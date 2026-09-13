@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverDb } from "@/lib/server-db";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Ultra-fast (< 5ms) Next.js route handler for the Vertofi AI Financial Intelligence Platform.
