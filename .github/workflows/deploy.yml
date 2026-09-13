@@ -1,8 +1,6 @@
 name: Build and Push to Artifact Registry
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Repo/Org secrets required:
@@ -18,7 +16,6 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    if: ${{ secrets.GCP_SA_KEY != '' && secrets.GCP_PROJECT_ID != '' }}
     strategy:
       fail-fast: false
       matrix:
