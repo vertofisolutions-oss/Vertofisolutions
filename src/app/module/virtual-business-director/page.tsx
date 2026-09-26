@@ -114,142 +114,136 @@ export default function VBDPage() {
       revenueValue < 0 ||
       trainingValue < 0
     ) {
-      setSimulationError("Please enter valid, non-negative numbers for all financial fields.");
+      setSimulationError("Please enter valid positive financial values.");
       return;
     }
 
-    setIsSimulating(true);
+    // Direct synchronous local calculations
+    const monthlyNetContribution = revenueValue - salaryValue;
+    const annualSalaryCost = salaryValue * 12;
+    const annualRevenueContribution = revenueValue * 12;
+    const firstYearTotalCost = annualSalaryCost + trainingValue;
+    const firstYearNetImpact = annualRevenueContribution - firstYearTotalCost;
+    const firstYearROI = firstYearTotalCost > 0 ? (firstYearNetImpact / firstYearTotalCost) * 100 : 0;
+    const breakEvenMonths = monthlyNetContribution > 0 ? trainingValue / monthlyNetContribution : null;
 
-    try {
-      // Direct financial calculations
-      const monthlyNetContribution = revenueValue - salaryValue;
-      const annualSalaryCost = salaryValue * 12;
-      const annualRevenueContribution = revenueValue * 12;
-      const firstYearCost = annualSalaryCost + trainingValue;
-      const firstYearNetImpact = annualRevenueContribution - firstYearCost;
-      const firstYearROI = firstYearCost > 0 ? (firstYearNetImpact / firstYearCost) * 100 : null;
-      const breakEvenMonths = monthlyNetContribution > 0 ? trainingValue / monthlyNetContribution : null;
+    let decision = "RECOMMENDED FOR CONSIDERATION";
+    let decisionStatus = "positive";
+    let decisionExplanation = "The expected monthly revenue contribution exceeds the proposed monthly salary and first-year total costs.";
 
-      let decision = "RECOMMENDED FOR CONSIDERATION";
-      let decisionStatus = "positive";
-      let decisionExplanation = "The expected monthly revenue contribution exceeds the proposed monthly salary and first-year total costs.";
-
-      if (monthlyNetContribution <= 0) {
-        decision = "NOT FINANCIALLY ATTRACTIVE UNDER CURRENT ASSUMPTIONS";
-        decisionStatus = "negative";
-        decisionExplanation = "The expected monthly revenue contribution does not currently cover the proposed monthly salary.";
-      } else if (monthlyNetContribution > 0 && firstYearNetImpact <= 0) {
-        decision = "CAUTION — REVIEW ASSUMPTIONS";
-        decisionStatus = "caution";
-        decisionExplanation = "The monthly contribution is positive, but the initial training/onboarding cost prevents a positive first-year impact under the current assumptions.";
-      }
-
-      const insights: string[] = [];
-      if (revenueValue > salaryValue) {
-        insights.push("The expected monthly revenue contribution exceeds the proposed monthly salary.");
-      } else if (revenueValue === salaryValue) {
-        insights.push("The expected monthly revenue contribution exactly equals the proposed monthly salary.");
-      } else {
-        insights.push("The expected monthly revenue contribution is lower than the proposed monthly salary.");
-      }
-
-      if (firstYearNetImpact > 0) {
-        insights.push("The modeled first-year financial impact is positive.");
-      } else if (firstYearNetImpact === 0) {
-        insights.push("The modeled first-year financial impact breaks even exactly.");
-      } else {
-        insights.push("The modeled first-year financial impact is negative under these initial costs.");
-      }
-
-      insights.push("The training/onboarding cost is included as a one-time first-year cost.");
-      insights.push("Actual business performance may differ from these assumptions.");
-
-      // Sensitivity What-If scenarios
-      const conservativeRev = revenueValue * 0.8;
-      const conservativeNetMonthly = conservativeRev - salaryValue;
-      const conservativeFirstYearImpact = (conservativeRev * 12) - firstYearCost;
-      const conservativeROI = firstYearCost > 0 ? ((conservativeFirstYearImpact / firstYearCost) * 100) : 0;
-
-      const optimisticRev = revenueValue * 1.2;
-      const optimisticNetMonthly = optimisticRev - salaryValue;
-      const optimisticFirstYearImpact = (optimisticRev * 12) - firstYearCost;
-      const optimisticROI = firstYearCost > 0 ? ((optimisticFirstYearImpact / firstYearCost) * 100) : 0;
-
-      const calculatedResult = {
-        salaryValue,
-        revenueValue,
-        trainingValue,
-        monthlyNetContribution,
-        annualSalaryCost,
-        annualRevenueContribution,
-        firstYearCost,
-        firstYearNetImpact,
-        firstYearROI,
-        breakEvenMonths,
-        decision,
-        decisionStatus,
-        decisionExplanation,
-        insights,
-        scenarios: [
-          {
-            name: "Conservative (80%)",
-            monthlyRev: conservativeRev,
-            netMonthly: conservativeNetMonthly,
-            firstYearImpact: conservativeFirstYearImpact,
-            roi: `${conservativeROI.toFixed(2)}%`
-          },
-          {
-            name: "Current Plan (100%)",
-            monthlyRev: revenueValue,
-            netMonthly: monthlyNetContribution,
-            firstYearImpact: firstYearNetImpact,
-            roi: firstYearROI != null ? `${firstYearROI.toFixed(2)}%` : "—"
-          },
-          {
-            name: "Optimistic (120%)",
-            monthlyRev: optimisticRev,
-            netMonthly: optimisticNetMonthly,
-            firstYearImpact: optimisticFirstYearImpact,
-            roi: `${optimisticROI.toFixed(2)}%`
-          }
-        ]
-      };
-
-      console.log("calculatedResult:", calculatedResult);
-      console.log("HIRING SIMULATION COMPLETED");
-
-      setSimulationResult(calculatedResult);
-      setIsSimulating(false);
-
-      // Save asynchronous background record for history log & CPA dashboard (non-blocking)
-      fetch(`/api/v1/vbd_decisions/${orgId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: `VBD-${Math.floor(1000 + Math.random() * 9000)}`,
-          category: "Hiring",
-          question: `Hire role at ${formatCurrencyINR(salaryValue)}/mo`,
-          inputs: { salary: salaryValue, revenueContribution: revenueValue, trainingCost: trainingValue },
-          analysis: {
-            decision: decisionStatus === "positive" ? "YES" : decisionStatus === "caution" ? "CAUTION" : "NO",
-            decisionLabel: decision,
-            riskScore: decisionStatus === "positive" ? 20 : decisionStatus === "caution" ? 50 : 85,
-            financialImpact: {
-              initialCost: formatCurrencyINR(trainingValue),
-              recurringCost: `${formatCurrencyINR(salaryValue)}/mo`,
-              profitImpact: `${formatCurrencyINR(firstYearNetImpact)}/yr`
-            },
-            cpaStatus: "Pending CPA Review"
-          },
-          createdAt: new Date().toISOString()
-        })
-      }).catch(() => {});
-
-    } catch (error) {
-      console.error(error);
-      setSimulationError("Unable to complete the simulation. Please check the entered values and try again.");
-      setIsSimulating(false);
+    if (monthlyNetContribution <= 0) {
+      decision = "NOT FINANCIALLY ATTRACTIVE UNDER CURRENT ASSUMPTIONS";
+      decisionStatus = "negative";
+      decisionExplanation = "The expected monthly revenue contribution does not currently cover the proposed monthly salary.";
+    } else if (monthlyNetContribution > 0 && firstYearNetImpact <= 0) {
+      decision = "CAUTION — REVIEW ASSUMPTIONS";
+      decisionStatus = "caution";
+      decisionExplanation = "The monthly contribution is positive, but the initial training/onboarding cost prevents a positive first-year impact under the current assumptions.";
     }
+
+    const insights: string[] = [];
+    if (revenueValue > salaryValue) {
+      insights.push("The expected monthly revenue contribution exceeds the proposed monthly salary.");
+    } else if (revenueValue === salaryValue) {
+      insights.push("The expected monthly revenue contribution exactly equals the proposed monthly salary.");
+    } else {
+      insights.push("The expected monthly revenue contribution does not currently cover the proposed monthly salary.");
+    }
+
+    if (firstYearNetImpact > 0) {
+      insights.push("The modeled first-year financial impact is positive.");
+    } else if (firstYearNetImpact === 0) {
+      insights.push("The modeled first-year financial impact breaks even exactly.");
+    } else {
+      insights.push("The modeled first-year financial impact is negative under these initial costs.");
+    }
+
+    insights.push("The training/onboarding cost is included as a one-time first-year cost.");
+    insights.push("Actual business performance may differ from these assumptions.");
+
+    // Sensitivity What-If scenarios
+    const conservativeRev = revenueValue * 0.8;
+    const conservativeNetMonthly = conservativeRev - salaryValue;
+    const conservativeFirstYearImpact = (conservativeRev * 12) - firstYearTotalCost;
+    const conservativeROI = firstYearTotalCost > 0 ? ((conservativeFirstYearImpact / firstYearTotalCost) * 100) : 0;
+
+    const optimisticRev = revenueValue * 1.2;
+    const optimisticNetMonthly = optimisticRev - salaryValue;
+    const optimisticFirstYearImpact = (optimisticRev * 12) - firstYearTotalCost;
+    const optimisticROI = firstYearTotalCost > 0 ? ((optimisticFirstYearImpact / firstYearTotalCost) * 100) : 0;
+
+    const calculatedResult = {
+      salary: salaryValue,
+      revenue: revenueValue,
+      training: trainingValue,
+      salaryValue,
+      revenueValue,
+      trainingValue,
+      monthlyNetContribution,
+      annualSalaryCost,
+      annualRevenueContribution,
+      firstYearTotalCost,
+      firstYearCost: firstYearTotalCost,
+      firstYearNetImpact,
+      firstYearROI,
+      breakEvenMonths,
+      decision,
+      decisionStatus,
+      decisionExplanation,
+      insights,
+      scenarios: [
+        {
+          name: "Conservative (80%)",
+          monthlyRev: conservativeRev,
+          netMonthly: conservativeNetMonthly,
+          firstYearImpact: conservativeFirstYearImpact,
+          roi: `${conservativeROI.toFixed(2)}%`
+        },
+        {
+          name: "Current Plan (100%)",
+          monthlyRev: revenueValue,
+          netMonthly: monthlyNetContribution,
+          firstYearImpact: firstYearNetImpact,
+          roi: `${firstYearROI.toFixed(2)}%`
+        },
+        {
+          name: "Optimistic (120%)",
+          monthlyRev: optimisticRev,
+          netMonthly: optimisticNetMonthly,
+          firstYearImpact: optimisticFirstYearImpact,
+          roi: `${optimisticROI.toFixed(2)}%`
+        }
+      ]
+    };
+
+    console.log("calculatedResult:", calculatedResult);
+    console.log("HIRING SIMULATION COMPLETED");
+
+    setSimulationResult(calculatedResult);
+
+    // Save background record for history log & CPA dashboard (non-blocking)
+    fetch(`/api/v1/vbd_decisions/${orgId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: `VBD-${Math.floor(1000 + Math.random() * 9000)}`,
+        category: "Hiring",
+        question: `Hire role at ${formatCurrencyINR(salaryValue)}/mo`,
+        inputs: { salary: salaryValue, revenueContribution: revenueValue, trainingCost: trainingValue },
+        analysis: {
+          decision: decisionStatus === "positive" ? "YES" : decisionStatus === "caution" ? "CAUTION" : "NO",
+          decisionLabel: decision,
+          riskScore: decisionStatus === "positive" ? 20 : decisionStatus === "caution" ? 50 : 85,
+          financialImpact: {
+            initialCost: formatCurrencyINR(trainingValue),
+            recurringCost: `${formatCurrencyINR(salaryValue)}/mo`,
+            profitImpact: `${formatCurrencyINR(firstYearNetImpact)}/yr`
+          },
+          cpaStatus: "Pending CPA Review"
+        },
+        createdAt: new Date().toISOString()
+      })
+    }).catch(() => {});
   };
 
   const runAnalysis = async () => {
@@ -452,7 +446,7 @@ export default function VBDPage() {
 
             <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
               <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wide block">First-Year Total Cost</span>
-              <p className="text-xl font-bold text-slate-900 mt-1 font-mono">{formatCurrencyINR(r.firstYearCost)}</p>
+              <p className="text-xl font-bold text-slate-900 mt-1 font-mono">{formatCurrencyINR(r.firstYearTotalCost)}</p>
             </div>
 
             <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
@@ -464,8 +458,8 @@ export default function VBDPage() {
 
             <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
               <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wide block">First-Year ROI</span>
-              <p className={`text-xl font-bold mt-1 font-mono ${r.firstYearROI != null && r.firstYearROI >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
-                {r.firstYearROI != null ? `${r.firstYearROI.toFixed(2)}%` : "—"}
+              <p className={`text-xl font-bold mt-1 font-mono ${r.firstYearROI >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                {r.firstYearROI.toFixed(2)}%
               </p>
             </div>
 
@@ -494,7 +488,7 @@ export default function VBDPage() {
               <div className="py-2.5 flex justify-between"><span>Annual Salary Cost</span><span className="font-semibold text-slate-900 font-mono">{formatCurrencyINR(r.annualSalaryCost)}</span></div>
               <div className="py-2.5 flex justify-between"><span>Annual Revenue Contribution</span><span className="font-semibold text-slate-900 font-mono">{formatCurrencyINR(r.annualRevenueContribution)}</span></div>
               <div className="py-2.5 flex justify-between"><span>Training / Onboarding Cost</span><span className="font-semibold text-slate-900 font-mono">{formatCurrencyINR(r.trainingValue)}</span></div>
-              <div className="py-2.5 flex justify-between font-bold text-slate-800 bg-slate-50 px-2 rounded"><span>First-Year Total Cost</span><span className="font-mono">{formatCurrencyINR(r.firstYearCost)}</span></div>
+              <div className="py-2.5 flex justify-between font-bold text-slate-800 bg-slate-50 px-2 rounded"><span>First-Year Total Cost</span><span className="font-mono">{formatCurrencyINR(r.firstYearTotalCost)}</span></div>
               <div className="py-2.5 flex justify-between font-bold text-slate-800 bg-slate-50 px-2 rounded"><span>First-Year Net Impact</span><span className={`font-mono ${r.firstYearNetImpact >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrencyINR(r.firstYearNetImpact)}</span></div>
               <div className="py-2.5 flex justify-between font-bold text-slate-800 bg-slate-50 px-2 rounded"><span>First-Year ROI</span><span className="text-indigo-600 font-mono">{r.firstYearROI != null ? `${r.firstYearROI.toFixed(2)}%` : "—"}</span></div>
               <div className="py-2.5 flex justify-between font-bold text-slate-800 bg-slate-50 px-2 rounded"><span>Break-Even</span><span className="font-mono">{r.breakEvenMonths != null ? `${r.breakEvenMonths.toFixed(2)} months` : "—"}</span></div>
@@ -667,10 +661,9 @@ export default function VBDPage() {
             <div className="mt-8 pt-2">
               <button 
                 type="submit"
-                disabled={isSimulating}
-                className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
-                {isSimulating ? "RUNNING SIMULATION..." : "RUN AI SIMULATION"}
+                RUN AI SIMULATION
               </button>
             </div>
           </form>

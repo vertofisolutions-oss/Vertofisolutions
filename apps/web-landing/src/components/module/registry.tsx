@@ -1316,28 +1316,156 @@ function VendorTrust() {
 }
 
 function Vbd() {
-  const [decision, setDecision] = useState(""); const [impact, setImpact] = useState(""); const [out, setOut] = useState<Record<string, unknown> | null>(null); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
+  const [tab, setTab] = useState<"hiring" | "custom">("hiring");
+  const [salary, setSalary] = useState("");
+  const [revenue, setRevenue] = useState("");
+  const [training, setTraining] = useState("");
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<any | null>(null);
+
+  const [decision, setDecision] = useState("");
+  const [impact, setImpact] = useState("");
+  const [out, setOut] = useState<Record<string, unknown> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const orgId = getOrgId();
+
+  const handleHiringSim = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setError("");
+    setResult(null);
+
+    const s = salary.trim();
+    const r = revenue.trim();
+    const t = training.trim();
+
+    if (!s || !r || !t) {
+      setError("Please enter the required financial values.");
+      return;
+    }
+
+    const sVal = Number(s);
+    const rVal = Number(r);
+    const tVal = Number(t);
+
+    if (!Number.isFinite(sVal) || !Number.isFinite(rVal) || !Number.isFinite(tVal) || sVal < 0 || rVal < 0 || tVal < 0) {
+      setError("Please enter valid positive financial values.");
+      return;
+    }
+
+    const monthlyNet = rVal - sVal;
+    const annSalary = sVal * 12;
+    const annRev = rVal * 12;
+    const firstYearCost = annSalary + tVal;
+    const firstYearNet = annRev - firstYearCost;
+    const firstYearROI = firstYearCost > 0 ? (firstYearNet / firstYearCost) * 100 : 0;
+    const breakEven = monthlyNet > 0 ? (tVal / monthlyNet) : null;
+
+    let dec = "RECOMMENDED FOR CONSIDERATION";
+    if (monthlyNet <= 0) {
+      dec = "NOT FINANCIALLY ATTRACTIVE UNDER CURRENT ASSUMPTIONS";
+    } else if (monthlyNet > 0 && firstYearNet <= 0) {
+      dec = "CAUTION — REVIEW ASSUMPTIONS";
+    }
+
+    setResult({
+      salary: sVal,
+      revenue: rVal,
+      training: tVal,
+      monthlyNetContribution: monthlyNet,
+      annualSalaryCost: annSalary,
+      annualRevenueContribution: annRev,
+      firstYearTotalCost: firstYearCost,
+      firstYearNetImpact: firstYearNet,
+      firstYearROI,
+      breakEvenMonths: breakEven,
+      decision: dec
+    });
+  };
+
   return (
     <div className="space-y-4">
-      <Panel title="Virtual Business Director — scenario simulation">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <div className="sm:col-span-2">
-            <Input placeholder='The decision… e.g. "Hire 2 staff"' value={decision} onChange={(e) => setDecision(e.target.value.slice(0, 280))} />
+      <div className="flex gap-2 border-b border-border pb-2">
+        <button
+          onClick={() => setTab("hiring")}
+          className={`px-3 py-1 text-xs font-bold rounded ${tab === "hiring" ? "bg-brand text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+        >
+          Hiring Decision Engine
+        </button>
+        <button
+          onClick={() => setTab("custom")}
+          className={`px-3 py-1 text-xs font-bold rounded ${tab === "custom" ? "bg-brand text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+        >
+          Custom Scenario Simulation
+        </button>
+      </div>
+
+      {tab === "hiring" ? (
+        <Panel title="Hiring Decision Engine">
+          <form onSubmit={handleHiringSim} className="space-y-3">
+            <div>
+              <label className="text-[11px] font-bold uppercase text-slate-500">Proposed Monthly Salary (₹)</label>
+              <Input placeholder="e.g. 50000" type="number" value={salary} onChange={(e) => setSalary(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold uppercase text-slate-500">Expected Monthly Revenue Contribution (₹)</label>
+              <Input placeholder="e.g. 100000" type="number" value={revenue} onChange={(e) => setRevenue(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold uppercase text-slate-500">Training/Onboarding Cost (₹)</label>
+              <Input placeholder="e.g. 50000" type="number" value={training} onChange={(e) => setTraining(e.target.value)} />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-brand py-2.5 text-xs font-bold text-white transition hover:bg-brand/90 cursor-pointer rounded"
+            >
+              RUN AI SIMULATION
+            </button>
+          </form>
+
+          {error && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 text-xs text-red-700 font-semibold rounded">
+              ⚠ {error}
+            </div>
+          )}
+
+          {result && (
+            <div className="mt-4 pt-4 border-t border-border space-y-4">
+              <div className="flex items-center justify-between bg-slate-50 p-3 rounded border border-border">
+                <span className="text-xs font-bold uppercase text-slate-600">Hiring Decision:</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded ${result.monthlyNetContribution > 0 ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{result.decision}</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                <div className="p-2.5 border border-border rounded bg-white"><span className="text-slate-500 block text-[10px] uppercase">Monthly Net Contribution</span><strong className="text-sm font-mono">{inr(result.monthlyNetContribution)}</strong></div>
+                <div className="p-2.5 border border-border rounded bg-white"><span className="text-slate-500 block text-[10px] uppercase">Annual Salary Cost</span><strong className="text-sm font-mono">{inr(result.annualSalaryCost)}</strong></div>
+                <div className="p-2.5 border border-border rounded bg-white"><span className="text-slate-500 block text-[10px] uppercase">Annual Revenue</span><strong className="text-sm font-mono">{inr(result.annualRevenueContribution)}</strong></div>
+                <div className="p-2.5 border border-border rounded bg-white"><span className="text-slate-500 block text-[10px] uppercase">First-Year Total Cost</span><strong className="text-sm font-mono">{inr(result.firstYearTotalCost)}</strong></div>
+                <div className="p-2.5 border border-border rounded bg-white"><span className="text-slate-500 block text-[10px] uppercase">First-Year Net Impact</span><strong className="text-sm font-mono">{inr(result.firstYearNetImpact)}</strong></div>
+                <div className="p-2.5 border border-border rounded bg-white"><span className="text-slate-500 block text-[10px] uppercase">First-Year ROI</span><strong className="text-sm font-mono text-indigo-600">{result.firstYearROI.toFixed(2)}%</strong></div>
+              </div>
+            </div>
+          )}
+        </Panel>
+      ) : (
+        <Panel title="Virtual Business Director — scenario simulation">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="sm:col-span-2">
+              <Input placeholder='The decision… e.g. "Hire 2 staff"' value={decision} onChange={(e) => setDecision(e.target.value.slice(0, 280))} />
+            </div>
+            <Input placeholder="Monthly cost ₹ (negative = saving)" value={impact} onChange={(e) => setImpact(e.target.value.replace(/[^\d.-]/g, ""))} />
           </div>
-          <Input placeholder="Monthly cost ₹ (negative = saving)" value={impact} onChange={(e) => setImpact(e.target.value.replace(/[^\d.-]/g, ""))} />
-        </div>
-        <div className="mt-2">
-          <Btn busy={busy} disabled={decision.length < 4 || impact === "" || !orgId} onClick={async () => {
-            setBusy(true); setErr(null);
-            try { setOut(await api.mod.vbdSimulate(orgId!, { decision, monthlyImpact: Number(impact) })); }
-            catch (e) { setErr(String((e as Error).message).replaceAll("_", " ")); }
-            finally { setBusy(false); }
-          }}>Simulate</Btn>
-        </div>
-        {err && <div className="mt-3"><Err text={err} /></div>}
-        {out && <div className="mt-3 whitespace-pre-wrap border border-border bg-bg2 p-3 text-[12px] text-ink">{String((out as Record<string, unknown>).analysis ?? (out as Record<string, unknown>).recommendation ?? JSON.stringify(out, null, 2))}</div>}
-      </Panel>
+          <div className="mt-2">
+            <Btn busy={busy} disabled={decision.length < 4 || impact === "" || !orgId} onClick={async () => {
+              setBusy(true); setErr(null);
+              try { setOut(await api.mod.vbdSimulate(orgId!, { decision, monthlyImpact: Number(impact) })); }
+              catch (e) { setErr(String((e as Error).message).replaceAll("_", " ")); }
+              finally { setBusy(false); }
+            }}>Simulate</Btn>
+          </div>
+          {err && <div className="mt-3"><Err text={err} /></div>}
+          {out && <div className="mt-3 whitespace-pre-wrap border border-border bg-bg2 p-3 text-[12px] text-ink">{String((out as Record<string, unknown>).analysis ?? (out as Record<string, unknown>).recommendation ?? JSON.stringify(out, null, 2))}</div>}
+        </Panel>
+      )}
       <Hint text="VBD models the decision against your real cash position and runway — e.g. hiring 2 staff at ₹25,000 each = 50000 monthly cost." />
     </div>
   );
