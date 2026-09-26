@@ -632,7 +632,7 @@ function MonthlyReportTab({ issues, metrics }: { issues: any[], metrics: any }) 
   const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
   return (
-    <div className="bg-white max-w-4xl mx-auto border border-slate-200 shadow-xl print:shadow-none print:border-none p-10 print:p-0">
+    <div id="profit-leakage-report" className="bg-white max-w-4xl mx-auto border border-slate-200 shadow-xl print:shadow-none print:border-none p-10 print:p-0">
       
       {/* Report Header */}
       <div className="border-b-4 border-indigo-900 pb-6 mb-8 flex justify-between items-end">
@@ -647,7 +647,7 @@ function MonthlyReportTab({ issues, metrics }: { issues: any[], metrics: any }) 
       </div>
 
       {/* Exec Summary */}
-      <div className="mb-10">
+      <div className="mb-10 break-inside-avoid">
         <h2 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">Executive Summary</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -670,7 +670,7 @@ function MonthlyReportTab({ issues, metrics }: { issues: any[], metrics: any }) 
       </div>
 
       {/* Detailed Breakdown */}
-      <div className="mb-10">
+      <div className="mb-10 break-inside-avoid">
         <h2 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">Leakage Breakdown by Category</h2>
         <table className="w-full text-left">
           <thead>
@@ -683,7 +683,7 @@ function MonthlyReportTab({ issues, metrics }: { issues: any[], metrics: any }) 
           </thead>
           <tbody className="divide-y divide-slate-100">
             {issues.filter(i => i.status !== "Ignored").map(issue => (
-              <tr key={issue.id} className="text-sm">
+              <tr key={issue.id} className="text-sm break-inside-avoid">
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-bold ${issue.riskLevel === 'High' ? 'bg-rose-100 text-rose-700' : issue.riskLevel === 'Medium' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
                     {issue.riskLevel}
@@ -708,7 +708,7 @@ function MonthlyReportTab({ issues, metrics }: { issues: any[], metrics: any }) 
       </div>
 
       {/* Recommended Actions */}
-      <div className="mb-10">
+      <div className="mb-10 break-inside-avoid">
         <h2 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">Recommended Actions</h2>
         <ul className="list-disc pl-5 space-y-3 text-sm text-slate-700">
           {issues.filter(i => i.riskLevel === "High" && i.status !== "Resolved").length > 0 && (
@@ -726,7 +726,7 @@ function MonthlyReportTab({ issues, metrics }: { issues: any[], metrics: any }) 
         </ul>
       </div>
 
-      <div className="text-center pt-8 border-t border-slate-200 print:hidden">
+      <div className="text-center pt-8 border-t border-slate-200 print:hidden no-print">
         <button onClick={() => window.print()} className="bg-indigo-900 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-indigo-800 transition">
           Print / Save PDF Report
         </button>
