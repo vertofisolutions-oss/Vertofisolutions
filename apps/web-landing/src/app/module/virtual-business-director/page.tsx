@@ -220,6 +220,14 @@ export default function VBDPage() {
     console.log("HIRING SIMULATION COMPLETED");
 
     setSimulationResult(calculatedResult);
+    if (typeof window !== "undefined") {
+      setTimeout(() => {
+        const el = document.getElementById("hiring-simulation-result");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 50);
+    }
 
     // Save background record for history log & CPA dashboard (non-blocking)
     fetch(`/api/v1/vbd_decisions/${orgId}`, {
@@ -661,9 +669,10 @@ export default function VBDPage() {
             <div className="mt-8 pt-2">
               <button 
                 type="submit"
-                className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                onClick={handleRunSimulation}
+                className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] text-base"
               >
-                RUN AI SIMULATION
+                Run AI Simulation
               </button>
             </div>
           </form>
