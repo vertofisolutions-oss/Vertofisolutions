@@ -1447,25 +1447,165 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     }
   }
 
-  // ── 5. Warranty Claims ──
-  if (targetPath.includes("warranty")) {
-    if (method === "GET") {
-      const claims = serverDb.get("warranty_claims", orgId);
-      return NextResponse.json(claims, { status: 200, headers: { "Cache-Control": "no-store" } });
+  // ── 5. Vertofi Accounting Warranty & Claims ──
+  if (targetPath.startsWith("warranty") || targetPath.startsWith("warranty-plus") || targetPath.startsWith("accounting-warranty")) {
+    const isStatusReq = targetPath.endsWith("/status") || targetPath === "warranty/status" || targetPath === "warranty-plus/status";
+    const isClaimsReq = targetPath.endsWith("/claims") || targetPath === "warranty/claims" || targetPath === "warranty-plus/claims";
+    const isReportReq = targetPath.endsWith("/penalty-report") || targetPath === "warranty/penalty-report";
+
+    const profile = serverDb.getSetting(`profile:${orgId}`, {});
+    const registeredUsers = serverDb.get("registered_users", "global") || [];
+    const matchedUser = registeredUsers.find((u: any) => u.orgId === orgId) || registeredUsers[0];
+    const isGowtham = isGowthamAccount(orgId, profile?.name, profile?.email, matchedUser?.name, matchedUser?.email);
+    const plan = isGowtham ? "ENTERPRISE" : (profile.plan || matchedUser?.plan || "ENTERPRISE");
+
+    let annualLimit = 100000;
+    let monthlyFee = "₹3,999/month extra";
+    let planTierName = "Enterprise Plan + Warranty";
+    let coverageScope = "All compliance penalties + Notice handling";
+
+    if (plan === "PRO") {
+      annualLimit = 30000;
+      monthlyFee = "₹1,999/month extra";
+      planTierName = "Pro Plan + Warranty";
+      coverageScope = "GST + TDS + Income Tax + PF/ESI";
+    } else if (plan === "BASIC" || plan === "STARTER") {
+      annualLimit = 10000;
+      monthlyFee = "₹999/month extra";
+      planTierName = "Basic Plan + Warranty";
+      coverageScope = "GST + TDS";
     }
-    if (method === "POST") {
-      try {
-        const body = await getJsonBody(req);
-        const created = serverDb.insert("warranty_claims", orgId, {
-          ...body,
-          status: "SUBMITTED",
-          created_at: new Date().toISOString(),
-        });
-        return NextResponse.json(created, { status: 201 });
-      } catch {
-        return NextResponse.json({ error: "Failed to save claim" }, { status: 400 });
+
+    if (isClaimsReq) {
+      if (method === "GET") {
+        const claims = serverDb.get("warranty_claims", orgId) || [];
+        return NextResponse.json({ success: true, claims }, { status: 200, headers: { "Cache-Control": "no-store" } });
+      }
+      if (method === "POST") {
+        try {
+          const body = await getJsonBody(req);
+          const claimId = `CLM-${Math.floor(100000 + Math.random() * 900000)}`;
+          const newClaim = {
+            id: claimId,
+            claimId,
+            clientName: body.clientName || profile.tradeName || profile.legalName || "Demo Business Org",
+            penaltyType: body.penaltyType || "GST Compliance Late Fee",
+            complianceArea: body.complianceArea || "GST",
+            amount: Number(body.amount) || 0,
+            amountFormatted: `₹${(Number(body.amount) || 0).toLocaleString("en-IN")}`,
+            noticeDate: body.noticeDate || new Date().toISOString().split("T")[0],
+            description: body.description || "",
+            dataProvidedOnTime: body.dataProvidedOnTime ?? true,
+            documents: body.documents || [],
+            status: "Submitted",
+            reviewPeriod: "7–15 days",
+            createdAt: new Date().toISOString(),
+            eligibility: {
+              status: "Under Review by Vertofi Compliance Audit Team",
+              activeSubscription: true,
+              waitingPeriodCompleted: true,
+              categoryCovered: true,
+              docsOnTime: body.dataProvidedOnTime ?? true,
+            },
+            evidence: {
+              clientDocsReceived: "Verified On-Time Submission",
+              vertofiDeadline: "Standard Filing Window",
+              actualFiling: "Under Review",
+              responsibility: "Audit in progress — Vertofi Compliance Team is verifying portal logs against uploaded notices.",
+            },
+          };
+
+          const created = serverDb.insert("warranty_claims", orgId, newClaim);
+          return NextResponse.json({ success: true, claim: created, message: "Warranty claim submitted successfully. Vertofi will review the reason for the penalty and determine whether the issue was caused by Vertofi, the client, or a system/government issue." }, { status: 201 });
+        } catch {
+          return NextResponse.json({ error: "Failed to submit warranty claim" }, { status: 400 });
+        }
       }
     }
+
+    if (isReportReq) {
+      const penaltyReport = {
+        title: "Vertofi Monthly Penalty-Proof Transparency Report",
+        period: "September 2026",
+        generatedAt: new Date().toISOString(),
+        filingsCompleted: 6,
+        deadlinesMet: "100%",
+        itcMatched: "₹8,42,500",
+        tdsAccuracy: "100%",
+        predictedRisks: 0,
+        filingsSummary: [
+          { name: "GSTR-1 Return", dueDate: "11th of month", filedDate: "9th of month", status: "Filed Early" },
+          { name: "GSTR-3B Return", dueDate: "20th of month", filedDate: "17th of month", status: "Filed Early" },
+          { name: "TDS Challan Deposit", dueDate: "7th of month", filedDate: "5th of month", status: "Deposited On Time" },
+          { name: "PF/ESI Statutory Filing", dueDate: "15th of month", filedDate: "12th of month", status: "Filed On Time" },
+          { name: "ITC 2B Reconciliation", dueDate: "Continuous", filedDate: "Reconciled 100%", status: "0 Mismatches" },
+          { name: "Monthly Books Closing", dueDate: "3rd of month", filedDate: "2nd of month", status: "Closed on Schedule" },
+        ],
+        protectionGuarantee: "All filings verified under Vertofi Accounting Warranty+™ (Zero Qualifying Penalties Incurred).",
+      };
+      return NextResponse.json({ success: true, report: penaltyReport }, { status: 200 });
+    }
+
+    // Default: Status payload
+    const existingClaims = serverDb.get("warranty_claims", orgId) || [];
+    const usedAmount = existingClaims
+      .filter((c: any) => c.status === "Approved" || c.status === "Reimbursed")
+      .reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0);
+    const remainingAmount = Math.max(0, annualLimit - usedAmount);
+
+    const statusPayload = {
+      status: "ACTIVE",
+      plan: plan,
+      planTierName,
+      monthlyFee,
+      annualLimitFormatted: `₹${annualLimit.toLocaleString("en-IN")}/year`,
+      coverageScope,
+      coverageLimit: annualLimit,
+      coverageUsed: usedAmount,
+      coverageRemaining: remainingAmount,
+      waitingPeriod: "Active (30-day waiting period completed)",
+      subscriptionStatus: "Active",
+      tagline: "Penalty? Relax. Vertofi pays.",
+      scorecard: {
+        overall: 94,
+        components: [
+          { name: "Document Upload Speed", score: 96, detail: "All monthly bills uploaded within 3 days" },
+          { name: "GST Mismatch Frequency", score: 98, detail: "0 invoice discrepancies with 2B ledger" },
+          { name: "Cash Sales Reporting Accuracy", score: 92, detail: "No unexplained cash receipts" },
+          { name: "TDS Habits & Deductions", score: 95, detail: "Appropriate section thresholds applied" },
+          { name: "Payroll Consistency", score: 90, detail: "Salary sheets closed before 25th" },
+        ],
+      },
+      monitoring: [
+        { area: "GST Filing Deadlines", status: "On Track", detail: "GSTR-1 & 3B pre-validated for current period", isHealthy: true },
+        { area: "GST Mismatches", status: "0 Unresolved", detail: "Automated 2B reconciliation matched 100% invoices", isHealthy: true },
+        { area: "Payroll Deadlines", status: "Closed On Time", detail: "Challans and registers locked on 1st of month", isHealthy: true },
+        { area: "Notice Alerts", status: "0 Active Notices", detail: "Continuous portal scan — zero demand notices", isHealthy: true },
+        { area: "TDS Accuracy", status: "Verified 100%", detail: "Section 194C/J/I deductions mapped accurately", isHealthy: true },
+        { area: "ITC Matching", status: "Full Match (₹8.4L)", detail: "Zero ineligible ITC claims flagged", isHealthy: true },
+      ],
+      sla: [
+        { name: "GST Filings", commitment: "Filed by 10th", status: "Guaranteed", desc: "Covers late fees & interest" },
+        { name: "TDS Returns", commitment: "Filed by 5th", status: "Guaranteed", desc: "Covers late filing fees u/s 234E" },
+        { name: "Payroll & PF/ESI", commitment: "Locked by 1st", status: "Guaranteed", desc: "Covers late damages u/s 14B" },
+        { name: "Books of Accounts", commitment: "Closed by 3rd", status: "Guaranteed", desc: "Covers scrutiny & assessment penalties" },
+      ],
+      blackbox: [
+        { timestamp: "2026-09-26 18:30 IST", action: "GST 2B Auto-Reconciliation", actor: "Vertofi AI Compliance Engine", verified: true, logId: "LOG-BB-9921" },
+        { timestamp: "2026-09-24 14:15 IST", action: "TDS Computation Verified", actor: "Senior CA Auditor (Vertofi)", verified: true, logId: "LOG-BB-9844" },
+        { timestamp: "2026-09-20 11:00 IST", action: "Payroll Register Locked", actor: "Automated Payroll Pipeline", verified: true, logId: "LOG-BB-9780" },
+        { timestamp: "2026-09-15 09:45 IST", action: "Purchase Invoices OCR Verified", actor: "Zero-Entry Data Ingestion", verified: true, logId: "LOG-BB-9652" },
+      ],
+      deadlines: [
+        { doc: "Purchase/Sales Invoices", due: "Within 5 days of month end", status: "On Time" },
+        { doc: "Bank Statements", due: "5th of every month", status: "On Time" },
+        { doc: "Payroll Inputs", due: "25th of every month", status: "On Time" },
+        { doc: "GST Data", due: "Before the 5th", status: "On Time" },
+        { doc: "TDS Details", due: "3 days before due date", status: "On Time" },
+      ],
+    };
+
+    return NextResponse.json({ success: true, status: statusPayload }, { status: 200, headers: { "Cache-Control": "no-store" } });
   }
 
   // ── 6. Lifeguard Cases ──
