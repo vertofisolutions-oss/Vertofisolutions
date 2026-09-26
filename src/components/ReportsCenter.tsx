@@ -488,6 +488,11 @@ function getTemplateThemeConfig(tmplId: number) {
 
 export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string; reportId: string; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState(reportId);
+
+  useEffect(() => {
+    setActiveTab(reportId);
+  }, [reportId]);
+
   const [loading, setLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [search, setSearch] = useState("");
@@ -1360,7 +1365,9 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-[17px] font-bold text-ink">Financial Statements &amp; Reports Center</h2>
+                <h2 className="text-[17px] font-bold text-ink">
+                  {ALL_REPORTS_TABS.find((t) => t.id === activeTab)?.title || "Financial Statements"} Statement
+                </h2>
                 <span className="rounded-full bg-slate-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
                   Live Ledger
                 </span>
