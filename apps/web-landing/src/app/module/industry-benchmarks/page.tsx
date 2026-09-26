@@ -5,13 +5,16 @@ import { SidebarShell } from "../../../components/SidebarShell";
 import { 
   BarChart4, Activity, ShieldCheck, Download, AlertTriangle, 
   Lightbulb, TrendingUp, TrendingDown, EyeOff, Settings, 
-  ChevronDown, Layers, MapPin, Database, Share2, RefreshCw, Loader2
+  ChevronDown, Layers, MapPin, Database, Share2, RefreshCw, Loader2, Check
 } from "lucide-react";
 import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
+import { exportReportPdfInTemplateFormat, getActiveTemplateNumber, type ReportSection } from "@/lib/exportTemplatePdf";
 
 export default function IndustryBenchmarksPage() {
   const [view, setView] = useState<"dashboard" | "privacy">("dashboard");
   const [loading, setLoading] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [sharedToast, setSharedToast] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const [benchmarkData, setBenchmarkData] = useState<any>(null);
@@ -199,6 +202,95 @@ export default function IndustryBenchmarksPage() {
     return { label: "Near Median", color: "text-blue-500", bg: "bg-blue-100" };
   };
 
+  const handleDownloadPdf = async () => {
+    if (!benchmarkData) return;
+    setPdfBusy(true);
+    try {
+      const metricRows = (benchmarkData.metrics || []).map((m: any) => {
+        const pos = getPercentilePosition(m);
+        return [
+          m.name,
+          `${m.yourBusiness}${m.unit || ""}`,
+          `${m.median}${m.unit || ""}`,
+          `${m.p25}${m.unit || ""}`,
+          `${m.p75}${m.unit || ""}`,
+          pos.label,
+          m.action || "—",
+        ];
+      });
+
+      const recommendationRows = (benchmarkData.recommendations || []).map((r: any) => [
+        r.title,
+        r.description,
+        r.estimatedImpact || "—",
+      ]);
+
+      const sections: ReportSection[] = [
+        {
+          kind: "kv",
+          heading: "Executive Benchmark Summary",
+          rows: [
+            { label: "Target Cohort Industry", value: industry, bold: true },
+            { label: "Revenue Band", value: revenueBand },
+            { label: "Cohort Region / Scope", value: detectedLocationName || "Nearby Location" },
+            { label: "Business Health Score", value: `${benchmarkData.healthScore ?? "—"} / 100`, bold: true },
+            { label: "Cohort Peer Sample Size", value: `${benchmarkData.sampleSize ?? "—"} Businesses` },
+          ],
+        },
+        {
+          kind: "table",
+          heading: "Percentile Peer Comparison Metrics",
+          columns: [
+            { label: "Metric", align: "left" },
+            { label: "Your Business", align: "right" },
+            { label: "Peer Median", align: "right" },
+            { label: "P25", align: "right" },
+            { label: "P75", align: "right" },
+            { label: "Position", align: "left" },
+            { label: "Action Focus", align: "left" },
+          ],
+          data: metricRows,
+        },
+        {
+          kind: "table",
+          heading: "AI Benchmark Insights & Recommendations",
+          columns: [
+            { label: "Recommendation", align: "left" },
+            { label: "Analysis & Action", align: "left" },
+            { label: "Estimated Impact", align: "right" },
+          ],
+          data: recommendationRows,
+        },
+      ];
+
+      exportReportPdfInTemplateFormat({
+        title: "Industry Benchmarks Deep Dive Report",
+        docType: "BENCHMARK_ANALYSIS",
+        subtitle: `Cohort: ${industry} • ${revenueBand} • ${detectedLocationName || "Nearby Location"}`,
+        period: new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+        sections,
+        templateNum: getActiveTemplateNumber(),
+      });
+    } catch (err) {
+      console.error("PDF export error:", err);
+      window.print();
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const handleShareSnapshot = async () => {
+    try {
+      if (typeof window !== "undefined") {
+        await navigator.clipboard.writeText(window.location.href);
+        setSharedToast(true);
+        setTimeout(() => setSharedToast(false), 2500);
+      }
+    } catch (err) {
+      console.error("Failed to copy URL:", err);
+    }
+  };
+
   const renderDashboard = () => (
     <div className="space-y-6 animate-in fade-in max-w-7xl mx-auto">
       
@@ -211,11 +303,22 @@ export default function IndustryBenchmarksPage() {
           <p className="text-slate-500 mt-1">See how your business really performs — not just intuition.</p>
         </div>
         <div className="flex gap-2">
-          <button className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 border border-slate-200 transition-colors">
-            <Share2 className="h-4 w-4" /> Share Snapshot
+          <button 
+            type="button"
+            onClick={handleShareSnapshot}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 border border-slate-200 transition-colors cursor-pointer"
+          >
+            {sharedToast ? <Check className="h-4 w-4 text-emerald-600" /> : <Share2 className="h-4 w-4" />}
+            {sharedToast ? "Copied Link!" : "Share Snapshot"}
           </button>
-          <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2 transition-colors">
-            <Download className="h-4 w-4" /> Deep Dive PDF
+          <button 
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={pdfBusy || !benchmarkData}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2 transition-colors cursor-pointer"
+          >
+            {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {pdfBusy ? "Generating PDF..." : "Deep Dive PDF"}
           </button>
         </div>
       </div>
