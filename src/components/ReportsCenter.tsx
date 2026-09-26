@@ -35,13 +35,20 @@ import { Card, Badge } from "@/ui";
 import { api } from "@/lib/api";
 import { DocumentRenderer } from "@/templates/templateEngine/DocumentRenderer";
 import { TEMPLATES_REGISTRY } from "@/templates/templatesData";
-import { DocumentFormData } from "@/templates/types";
+import { DocumentFormData, TemplateItem } from "@/templates/types";
 import {
   exportReportPdfInTemplateFormat,
   printElementAsPdf,
   getActiveTemplateNumber,
   ReportSection,
 } from "@/lib/exportTemplatePdf";
+
+const INVOICE_TEMPLATES_LIST = [
+  { id: 1, name: "Classic Corporate", primaryColor: "#1e3a8a", description: "Blue professional header with traditional corporate layout" },
+  { id: 2, name: "Modern Minimalist", primaryColor: "#0f172a", description: "Dark sleek typography with minimalist clean structure" },
+  { id: 3, name: "Emerald Professional", primaryColor: "#065f46", description: "Vibrant emerald green accents with compact tables" },
+  { id: 4, name: "Royal Amethyst", primaryColor: "#581c87", description: "Deep purple elegance with modern geometric styling" },
+];
 
 const inr = (n: unknown) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const inrInt = (n: unknown) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -217,83 +224,71 @@ export function InvoiceTemplatePreviewModal({
     const tax = Number(sale.tax || sale.gst_amount || (total * 0.18) / 1.18);
     const subtotal = Number(sale.subtotal || sale.taxable_amount || Math.max(0, total - tax));
     const itemsRaw = Array.isArray(sale.items) ? sale.items : [];
-    
-    let items = itemsRaw.map((it: any, idx: number) => ({
-      id: String(it.id || idx + 1),
-      description: String(it.description || it.item_name || it.name || "Services / Goods Supplied"),
-      hsnSac: String(it.hsn || it.hsnSac || it.sac || "998311"),
-      quantity: Number(it.quantity || it.qty || 1),
-      unitPrice: Number(it.unitPrice || it.rate || it.price || subtotal),
-      taxRate: Number(it.taxRate || it.gstRate || 18),
-      taxAmount: Number(it.taxAmount || it.tax || (subtotal * 0.18)),
-      total: Number(it.total || it.amount || total),
-    }));
 
-    if (items.length === 0) {
-      items = [
-        {
-          id: "1",
-          description: String(sale.description || "Professional & Business Services as per Engagement"),
-          hsnSac: "998311",
-          quantity: 1,
-          unitPrice: subtotal || total,
-          taxRate: 18,
-          taxAmount: tax,
-          total: total,
-        },
-      ];
-    }
+    const items: TemplateItem[] = itemsRaw.length > 0
+      ? itemsRaw.map((it: any, idx: number) => ({
+          id: String(it.id || idx + 1),
+          name: String(it.name || it.item_name || it.description || "Services / Goods Supplied"),
+          description: String(it.description || ""),
+          hsnSac: String(it.hsn || it.hsnSac || it.sac || "998311"),
+          quantity: Number(it.quantity || it.qty || 1),
+          rate: Number(it.unitPrice || it.rate || it.price || subtotal),
+          discountPct: Number(it.discountPct || 0),
+          taxPct: Number(it.taxRate || it.gstRate || 18),
+          total: Number(it.total || it.amount || total),
+        }))
+      : [
+          {
+            id: "1",
+            name: String(sale.description || "Professional & Business Services"),
+            description: "Engagement as per commercial terms",
+            hsnSac: "998311",
+            quantity: 1,
+            rate: subtotal || total,
+            discountPct: 0,
+            taxPct: 18,
+            total: total,
+          },
+        ];
+
+    const currentTheme = getTemplateThemeConfig(selectedTemplate);
 
     return {
-      documentType: "tax_invoice",
-      documentNumber: String(sale.invoice_no || sale.invoiceNo || sale.id || "INV-001"),
-      issueDate: String(sale.date || sale.created_at || new Date().toISOString().split("T")[0]),
+      primaryColor: currentTheme.primary,
+      secondaryColor: currentTheme.secondary,
+      themePreset: "Vertofi Corporate",
+      companyName: "VERTOFI ENTERPRISE PRIVATE LIMITED",
+      companyTagline: "Accounting that Thinks. Predicts. Protects.",
+      companyAddress: "HITEC City, Phase 2, Madhapur",
+      companyCityState: "Hyderabad, Telangana 500081",
+      companyEmail: "accounts@vertofi.com",
+      companyPhone: "+91 98765 43210",
+      companyGstin: "36AAACV1234F1Z5",
+      companyPan: "AAACV1234F",
+      customerName: String(sale.customer_name || sale.customerName || sale.client_name || "Enterprise Customer"),
+      customerCompany: String(sale.customer_company || sale.customer_name || "Customer Org"),
+      customerAddress: String(sale.customer_address || "Commercial Tower, CBD"),
+      customerCityState: String(sale.customer_city || "Hyderabad, Telangana 500034"),
+      customerEmail: String(sale.customer_email || "billing@client.com"),
+      customerPhone: String(sale.customer_phone || "+91 91234 56789"),
+      customerGstin: String(sale.customer_gstin || sale.gstin || "36AABCU9603R1ZM"),
+      docNumber: String(sale.invoice_no || sale.invoiceNo || sale.id || "INV-001"),
+      docDate: String(sale.date || sale.created_at || new Date().toISOString().split("T")[0]),
       dueDate: String(sale.due_date || new Date(Date.now() + 15 * 86400000).toISOString().split("T")[0]),
-      company: {
-        name: "VERTOFI ENTERPRISE PRIVATE LIMITED",
-        legalName: "Vertofi Enterprise Solutions Private Limited",
-        gstin: "36AAACV1234F1Z5",
-        pan: "AAACV1234F",
-        address: "HITEC City, Phase 2, Madhapur",
-        city: "Hyderabad",
-        state: "Telangana",
-        pincode: "500081",
-        email: "accounts@vertofi.com",
-        phone: "+91 98765 43210",
-        bankName: "HDFC Bank Ltd",
-        bankAccountNumber: "50200012345678",
-        bankIfsc: "HDFC0001234",
-        bankBranch: "Madhapur Branch, Hyderabad",
-        upiId: "vertofi@hdfcbank",
-      },
-      client: {
-        name: String(sale.customer_name || sale.customerName || sale.client_name || "Enterprise Customer"),
-        gstin: String(sale.customer_gstin || sale.gstin || "36AABCU9603R1ZM"),
-        pan: String(sale.customer_pan || "AABCU9603R"),
-        address: String(sale.customer_address || "Commercial Tower, Central Business District"),
-        city: String(sale.customer_city || "Hyderabad"),
-        state: String(sale.customer_state || "Telangana"),
-        pincode: String(sale.customer_pincode || "500034"),
-        email: String(sale.customer_email || "billing@client.com"),
-        phone: String(sale.customer_phone || "+91 91234 56789"),
-      },
       items,
-      subtotal,
-      cgst: tax / 2,
-      sgst: tax / 2,
-      igst: 0,
-      totalTax: tax,
-      grandTotal: total,
-      totalAmount: total,
-      amountInWords: "Indian Rupees Only",
+      docType: "Tax Invoice",
       notes: "Payment is due within 15 days of invoice date. Interest @ 18% p.a. charged on overdue bills.",
-      terms: "1. Goods once sold will not be taken back.\n2. Subject to Hyderabad jurisdiction only.",
-      qrCodeData: `upi://pay?pa=vertofi@hdfcbank&pn=Vertofi&am=${total}&cu=INR`,
+      termsAndConditions: "1. Goods once sold will not be taken back.\n2. Subject to Hyderabad jurisdiction only.",
       irn: String(sale.irn || "8d7f2a4b9c1e3f5a7b9c2d4e6f8a0b2c4d6e8f0a2b4c6d8e0f2a4b6c8d0e2f4a"),
       ackNo: "122345678901234",
       ackDate: new Date().toISOString(),
+      bankName: "HDFC Bank Ltd",
+      bankAccountNumber: "50200012345678",
+      bankIfsc: "HDFC0001234",
+      bankBranch: "Madhapur Branch, Hyderabad",
+      upiId: "vertofi@hdfcbank",
     };
-  }, [sale]);
+  }, [sale, selectedTemplate]);
 
   const handleApplyAsDefault = (id: number) => {
     setSelectedTemplate(id);
@@ -316,7 +311,7 @@ export function InvoiceTemplatePreviewModal({
     try {
       const el = document.getElementById("invoice-renderer-container");
       if (el) {
-        printElementAsPdf(el, `Invoice_${documentData.documentNumber}_Template_${tmplToUse}.pdf`);
+        printElementAsPdf(el, `Invoice_${documentData.docNumber}_Template_${tmplToUse}.pdf`);
       } else {
         window.print();
       }
@@ -339,7 +334,7 @@ export function InvoiceTemplatePreviewModal({
               <div className="flex items-center gap-2">
                 <h3 className="text-[16px] font-bold text-ink">Invoice Preview &amp; Template Selector</h3>
                 <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
-                  {documentData.documentNumber}
+                  {documentData.docNumber}
                 </span>
               </div>
               <p className="text-[12px] text-muted">
@@ -378,7 +373,7 @@ export function InvoiceTemplatePreviewModal({
             <span className="text-[11px] text-muted">Click a template to switch style dynamically</span>
           </div>
           <div className="mt-2 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            {TEMPLATES_REGISTRY.map((t) => {
+            {INVOICE_TEMPLATES_LIST.map((t) => {
               const isSelected = selectedTemplate === t.id;
               return (
                 <button
@@ -420,7 +415,7 @@ export function InvoiceTemplatePreviewModal({
             id="invoice-renderer-container"
             className="w-full max-w-[850px] rounded-xl bg-white p-8 shadow-xl border border-slate-300"
           >
-            <DocumentRenderer templateId={selectedTemplate} data={documentData} />
+            <DocumentRenderer formData={documentData} templateNumber={selectedTemplate} />
           </div>
         </div>
 
@@ -428,7 +423,7 @@ export function InvoiceTemplatePreviewModal({
           <div className="flex items-center gap-2 text-[12px] text-muted">
             <Sparkles className="h-4 w-4 text-brand" />
             <span>
-              Live template preview using real invoice data for <strong>{documentData.client.name}</strong>
+              Live template preview using real invoice data for <strong>{documentData.customerName}</strong>
             </span>
           </div>
           <div className="flex items-center gap-2">
