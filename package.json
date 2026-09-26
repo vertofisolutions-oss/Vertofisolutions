@@ -8,6 +8,7 @@
     "dev": "pnpm --filter @vertofi/web-landing dev",
     "build": "next build && node scripts/post-build.mjs",
     "start": "pnpm --filter @vertofi/web-landing start",
+    "postinstall": "prisma generate",
     "typecheck": "pnpm --filter @vertofi/web-landing typecheck",
     "lint": "echo \"Lint passed\"",
     "test": "echo \"All tests passed\""

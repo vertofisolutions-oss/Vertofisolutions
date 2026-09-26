@@ -28,6 +28,8 @@ jobs:
           node-version: 22
       - run: npm install -g pnpm
       - run: pnpm install --frozen-lockfile=false
+      - name: Generate Prisma Client
+        run: pnpm prisma generate
       - name: Event wiring guard (consumer topics + producer domains)
         run: node scripts/check-event-wiring.mjs
       - name: Build shared packages
