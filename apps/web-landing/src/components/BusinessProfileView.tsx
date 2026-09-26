@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { api, getOrgId } from "@/lib/api";
 import { decodeClaims } from "@/lib/auth";
-import { getPlanLimits, getRecommendedPlanByTurnover, PlanLimits, PLANS, ADD_ONS } from "@/lib/plans";
+import { getPlanLimits, getRecommendedPlanByTurnover, PlanLimits, PLANS, ADD_ONS, normalizePlan } from "@/lib/plans";
 import { TEMPLATES_REGISTRY } from "@/templates/templatesData";
 import { TemplateEditor } from "@/templates/components/TemplateEditor";
 import { DocumentRenderer } from "@/templates/templateEngine/DocumentRenderer";
@@ -940,7 +940,8 @@ export function BusinessProfileView() {
 
               {/* Plan Limits & Capacity Callout */}
               {(() => {
-                const limits = getPlanLimits(companyForm.plan);
+                const planMeta = PLANS.find((p) => p.id === normalizePlan(companyForm.plan)) || PLANS[0];
+                const limits = planMeta.limits;
                 return (
                   <div className="rounded-xl border border-blue-200/80 bg-gradient-to-r from-blue-50/70 to-indigo-50/40 p-4 text-xs space-y-2.5">
                     <div className="flex items-center justify-between">
@@ -949,12 +950,12 @@ export function BusinessProfileView() {
                           ★
                         </span>
                         <div>
-                          <p className="font-bold text-slate-900">{limits.name} Plan — Outcome: <span className="text-blue-700">{limits.outcome}</span></p>
-                          <p className="text-[11px] text-slate-500">{limits.tagline}</p>
+                          <p className="font-bold text-slate-900">{planMeta.name} Plan — Outcome: <span className="text-blue-700">{planMeta.outcome}</span></p>
+                          <p className="text-[11px] text-slate-500">{planMeta.tagline}</p>
                         </div>
                       </div>
                       <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-bold text-blue-800 text-[11px]">
-                        {limits.price}
+                        {planMeta.priceDisplay}
                       </span>
                     </div>
 
@@ -969,11 +970,11 @@ export function BusinessProfileView() {
                       </div>
                       <div className="bg-white/80 rounded-lg p-2 border border-blue-100">
                         <span className="text-slate-400 block text-[10px] uppercase font-bold">Monthly Invoices/Txn</span>
-                        <span className="font-bold text-slate-800">{limits.transactions} / mo</span>
+                        <span className="font-bold text-slate-800">{planMeta.transactions}</span>
                       </div>
                       <div className="bg-white/80 rounded-lg p-2 border border-blue-100">
                         <span className="text-slate-400 block text-[10px] uppercase font-bold">Scanned Bills</span>
-                        <span className="font-bold text-slate-800">{limits.scannedBills === 0 ? "—" : `${limits.scannedBills} / mo`}</span>
+                        <span className="font-bold text-slate-800">{planMeta.scannedBills}</span>
                       </div>
                     </div>
                   </div>
@@ -1127,7 +1128,7 @@ export function BusinessProfileView() {
                 <div className="space-y-6">
                   {/* Document Category Tabs (Pill style matching screenshot) */}
                   <div className="rounded-2xl bg-[#F2F4F7] p-2.5 border border-slate-200/80 shadow-2xs">
-                    <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="flex items-center gap-2 w-full overflow-visible [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                       {[
                         "Sale Invoice",
                         "Purchase Invoice",
@@ -1729,7 +1730,8 @@ export function BusinessProfileView() {
           {/* TAB 8: ROLE ACCESS — USER ACCOUNTS & TEAM MANAGEMENT BASED ON PRICING PLAN */}
           {activeTab === "Role Access" && (() => {
             const planKey = companyForm.plan || (typeof window !== "undefined" ? localStorage.getItem("vertofi.plan") : null) || "FREE";
-            const limits = getPlanLimits(planKey);
+            const planMeta = PLANS.find((p) => p.id === normalizePlan(planKey)) || PLANS[0];
+            const limits = planMeta.limits;
             const userCount = teamAccounts.length;
             const maxUsers = limits.maxUsers;
             const isUnlimited = maxUsers >= 999999;
@@ -1748,7 +1750,7 @@ export function BusinessProfileView() {
                 return;
               }
               if (isAtLimit) {
-                setInviteError(`User limit reached (${maxUsers} users on ${limits.name} plan). Upgrade your plan or purchase an Extra User add-on.`);
+                setInviteError(`User limit reached (${maxUsers} users on ${planMeta.name} plan). Upgrade your plan or purchase an Extra User add-on.`);
                 return;
               }
               if (teamAccounts.some((m) => m.email.toLowerCase() === inviteForm.email.trim().toLowerCase())) {
@@ -1799,7 +1801,7 @@ export function BusinessProfileView() {
                       <h3 className="text-base font-bold text-slate-900">User Accounts & Team Access</h3>
                     </div>
                     <p className="text-xs text-slate-500 mt-1">
-                      User accounts allocated based on your <strong className="text-slate-800 font-semibold">{limits.name} Plan</strong> ({limits.price}).
+                      User accounts allocated based on your <strong className="text-slate-800 font-semibold">{planMeta.name} Plan</strong> ({planMeta.priceDisplay}).
                     </p>
                   </div>
 
@@ -1855,7 +1857,7 @@ export function BusinessProfileView() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
                     <div className="bg-white/80 rounded-lg p-2 border border-slate-200/60">
                       <span className="text-slate-400 block text-[10px] uppercase font-bold">Current Plan</span>
-                      <span className="font-bold text-slate-800">{limits.name} ({limits.outcome})</span>
+                      <span className="font-bold text-slate-800">{planMeta.name} ({planMeta.outcome})</span>
                     </div>
                     <div className="bg-white/80 rounded-lg p-2 border border-slate-200/60">
                       <span className="text-slate-400 block text-[10px] uppercase font-bold">Max Users</span>
@@ -1878,9 +1880,9 @@ export function BusinessProfileView() {
                     <div className="flex items-start gap-2.5">
                       <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-bold text-amber-950">You have reached the maximum {maxUsers} user accounts for {limits.name} Plan.</p>
+                        <p className="font-bold text-amber-950">You have reached the maximum {maxUsers} user accounts for {planMeta.name} Plan.</p>
                         <p className="text-amber-800 text-[11px] mt-0.5 leading-relaxed">
-                          Upgrade to {limits.id === "FREE" ? "Starter (2 users)" : limits.id === "STARTER" ? "Growth (5 users)" : "Scale (15 users)"} or add Extra Users @ ₹149/mo to continue adding team members.
+                          Upgrade to {planMeta.id === "FREE" ? "Starter (2 users)" : planMeta.id === "STARTER" ? "Growth (5 users)" : "Scale (15 users)"} or add Extra Users @ ₹149/mo to continue adding team members.
                         </p>
                       </div>
                     </div>
@@ -1974,7 +1976,8 @@ export function BusinessProfileView() {
           {/* Modal for Inviting New User Account */}
           {showInviteModal && (() => {
             const planKey = companyForm.plan || (typeof window !== "undefined" ? localStorage.getItem("vertofi.plan") : null) || "FREE";
-            const limits = getPlanLimits(planKey);
+            const planMeta = PLANS.find((p) => p.id === normalizePlan(planKey)) || PLANS[0];
+            const limits = planMeta.limits;
             const userCount = teamAccounts.length;
             const maxUsers = limits.maxUsers;
             const isUnlimited = maxUsers >= 999999;
@@ -1992,7 +1995,7 @@ export function BusinessProfileView() {
                 return;
               }
               if (isAtLimit) {
-                setInviteError(`User limit reached (${maxUsers} users on ${limits.name} plan). Upgrade your plan or purchase an Extra User add-on.`);
+                setInviteError(`User limit reached (${maxUsers} users on ${planMeta.name} plan). Upgrade your plan or purchase an Extra User add-on.`);
                 return;
               }
               if (teamAccounts.some((m) => m.email.toLowerCase() === inviteForm.email.trim().toLowerCase())) {
@@ -2046,7 +2049,7 @@ export function BusinessProfileView() {
                     <div className="p-3 rounded-xl text-xs font-medium bg-amber-50 text-amber-900 border border-amber-200 space-y-1">
                       <p className="font-bold">Plan User Account Limit Reached ({maxUsers}/{maxUsers})</p>
                       <p className="text-[11px] text-amber-800">
-                        Upgrade your plan from <strong>{limits.name}</strong> to unlock additional user accounts, or add extra users at ₹149/mo.
+                        Upgrade your plan from <strong>{planMeta.name}</strong> to unlock additional user accounts, or add extra users at ₹149/mo.
                       </p>
                     </div>
                   )}
@@ -2173,7 +2176,7 @@ export function BusinessProfileView() {
 
               {/* Table */}
               <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                <div className="overflow-x-auto">
+                <div className="w-full overflow-visible">
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-slate-700">

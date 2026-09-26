@@ -14,15 +14,16 @@
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
+    "@swc/helpers": "^0.5.15",
     "clsx": "^2.1.1",
     "firebase": "^11.1.0",
     "framer-motion": "^11.15.0",
+    "html2pdf.js": "^0.14.0",
     "jose": "^5.9.6",
     "lucide-react": "^0.469.0",
     "next": "^15.1.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@swc/helpers": "^0.5.15",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {

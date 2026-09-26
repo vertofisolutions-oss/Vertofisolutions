@@ -36,7 +36,25 @@ export function CreateProformaInvoice({ orgId, onClose, onCreated, inline = fals
   const [customer, setCustomer] = useState({ name: "", gstin: "", state: "Telangana", phone: "" });
   const [customerSearch, setCustomerSearch] = useState("");
   const [prefix, setPrefix] = useState("INV/");
-  const [invoiceNo, setInvoiceNo] = useState("0001");
+  const [invoiceNo, setInvoiceNo] = useState(() => {
+    if (typeof window === "undefined") return "0001";
+    try {
+      const sales = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+      let max = 0;
+      for (const s of sales) {
+        if (s.invoice_no && String(s.doc_type || s.docType || "").toUpperCase() === "PROFORMA INVOICE") {
+          const numMatch = String(s.invoice_no).match(/(\d+)$/);
+          if (numMatch) {
+            const val = parseInt(numMatch[1], 10);
+            if (val > max) max = val;
+          }
+        }
+      }
+      return String(max + 1).padStart(4, "0");
+    } catch {
+      return "0001";
+    }
+  });
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [placeOfSupply, setPlaceOfSupply] = useState("Telangana");
   const [reference, setReference] = useState("");
@@ -434,16 +452,7 @@ export function CreateProformaInvoice({ orgId, onClose, onCreated, inline = fals
         </button>
       </div>
 
-      {/* Mode Switcher Tabs */}
-      <div className="flex items-center gap-4 border-b border-slate-100 pb-3">
-        <button
-          type="button"
-          onClick={() => setActiveTab("ai")}
-          className="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition cursor-pointer shadow-xs bg-[#0B132B] text-white"
-        >
-          <Sparkles className="h-4 w-4 text-amber-300" /> Create with AI
-        </button>
-      </div>
+
 
       {/* Create with AI Card */}
       <div className="rounded-xl border border-blue-200 bg-[#F4F8FF] p-5 space-y-3.5">
@@ -617,7 +626,7 @@ export function CreateProformaInvoice({ orgId, onClose, onCreated, inline = fals
 
           {/* Items Table Section */}
           <div className="space-y-3">
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <div className="w-full overflow-visible rounded-lg border border-gray-200">
               <table className="w-full text-left text-xs">
                 <thead className="bg-[#F9FAFB] text-[12px] font-semibold text-[#6B7280] border-b border-gray-100">
                   <tr>

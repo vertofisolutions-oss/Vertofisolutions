@@ -25,11 +25,9 @@ function DashboardInner() {
   const [, setAccess] = useState<{ active: boolean; plan: string | null; status: string | null } | null>(null);
   const [, setUserProfile] = useState<{ plan?: string; status?: string; email?: string | null } | null>(null);
 
-  const [currentPlan, setCurrentPlan] = useState<PlanTier>(() =>
-    typeof window !== "undefined"
-      ? normalizePlan(localStorage.getItem("vertofi.plan") || localStorage.getItem("vertofi_user_plan") || "ENTERPRISE")
-      : "ENTERPRISE"
-  );
+  // Start with FREE on both server and client to prevent hydration mismatches.
+  // The useEffect will immediately update it to the correct plan from localStorage.
+  const [currentPlan, setCurrentPlan] = useState<PlanTier>("FREE");
   const [showPlanMenu, setShowPlanMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +40,15 @@ function DashboardInner() {
       localStorage.setItem("vertofi_user_plan", p);
       setCurrentPlan(p);
       window.dispatchEvent(new CustomEvent("vertofi:plan-changed", { detail: { plan: p } }));
+      return;
+    }
+
+    // Check if account is Goutham Badiga (Enterprise Plan)
+    const userEmail = typeof window !== "undefined" ? (localStorage.getItem("vertofi_user_email") || "") : "";
+    if (userEmail.toLowerCase().includes("gouthambadiga")) {
+      localStorage.setItem("vertofi.plan", "ENTERPRISE");
+      localStorage.setItem("vertofi_user_plan", "ENTERPRISE");
+      setCurrentPlan("ENTERPRISE");
       return;
     }
 
@@ -65,7 +72,7 @@ function DashboardInner() {
       }
     } catch {}
 
-    setCurrentPlan("ENTERPRISE");
+    setCurrentPlan("FREE");
   }, [searchParams]);
 
   useEffect(() => {
@@ -251,7 +258,7 @@ function DashboardInner() {
                 suppressHydrationWarning
               >
                 <Layers className="h-3.5 w-3.5 text-blue-600" />
-                <span suppressHydrationWarning>{currentPlanMeta.name} Plan ({currentPlanMeta.price}{currentPlanMeta.price !== "Custom" ? "/mo" : ""})</span>
+                <span suppressHydrationWarning>{currentPlanMeta.name} Plan ({currentPlanMeta.priceDisplay}{currentPlanMeta.priceDisplay !== "Custom" ? "/mo" : ""})</span>
                 <ChevronDown className={`h-3.5 w-3.5 text-[#2563EB]/70 transition duration-200 ${showPlanMenu ? "rotate-180" : ""}`} />
               </button>
 
@@ -280,7 +287,7 @@ function DashboardInner() {
                         )}
                       </div>
                       <span className="text-sm font-extrabold text-blue-700">
-                        {currentPlanMeta.price}{currentPlanMeta.price !== "Custom" ? "/mo" : ""}
+                        {currentPlanMeta.priceDisplay}{currentPlanMeta.priceDisplay !== "Custom" ? "/mo" : ""}
                       </span>
                     </div>
 
@@ -297,6 +304,35 @@ function DashboardInner() {
                     <div className="pt-1 text-[10.5px] text-emerald-700 font-bold flex items-center gap-1">
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                       <span>Active & Enforced on Dashboard</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Plan Switcher */}
+                  <div className="pt-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Switch Plan Tier</p>
+                    <div className="grid grid-cols-5 gap-1">
+                      {PLANS.map((p) => {
+                        const isSelected = p.id === currentPlan;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              localStorage.setItem("vertofi.plan", p.id);
+                              localStorage.setItem("vertofi_user_plan", p.id);
+                              setCurrentPlan(p.id);
+                              window.dispatchEvent(new CustomEvent("vertofi:plan-changed", { detail: { plan: p.id } }));
+                            }}
+                            className={`rounded-lg py-1.5 text-[9.5px] font-extrabold text-center border transition cursor-pointer ${
+                              isSelected
+                                ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-blue-50 hover:border-blue-300"
+                            }`}
+                          >
+                            {p.id}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -355,23 +391,16 @@ function DashboardInner() {
                 <div className="flex items-center gap-2">
                   <h2 suppressHydrationWarning className="text-sm sm:text-base font-bold text-slate-900">{bizInfo.legalName}</h2>
                   <span suppressHydrationWarning className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[10.5px] font-extrabold uppercase text-blue-800">
-                    {limits.name} Plan ({limits.outcome})
+                    {currentPlanMeta.name} Plan ({currentPlanMeta.outcome})
                   </span>
                 </div>
                 <p suppressHydrationWarning className="text-xs text-slate-500 mt-0.5">
-                  {bizInfo.gstin ? `GSTIN: ${bizInfo.gstin}` : "GSTIN: Unregistered"} · {limits.tagline}
+                  {bizInfo.gstin ? `GSTIN: ${bizInfo.gstin}` : "GSTIN: Unregistered"} · {currentPlanMeta.tagline}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 self-end sm:self-auto">
-              <button
-                suppressHydrationWarning
-                onClick={() => router.push("/workspace?section=settings&tab=role")}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
-              >
-                <Users className="h-3.5 w-3.5 text-blue-600" /> Manage Team ({teamCount})
-              </button>
               <button
                 onClick={() => router.push("/pricing")}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition shadow-xs shadow-blue-500/20 cursor-pointer"
@@ -398,13 +427,13 @@ function DashboardInner() {
             <div className="rounded-xl border border-slate-200/70 bg-white/90 p-2.5 shadow-2xs">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Monthly Txn Quota</span>
               <span className="text-xs font-bold text-slate-800">
-                {limits.transactions} / mo
+                {currentPlanMeta.transactions}
               </span>
             </div>
             <div className="rounded-xl border border-slate-200/70 bg-white/90 p-2.5 shadow-2xs">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Scanned Bills</span>
               <span className="text-xs font-bold text-slate-800">
-                {limits.scannedBills === 0 ? "—" : `${limits.scannedBills} / mo`}
+                {currentPlanMeta.scannedBills}
               </span>
             </div>
           </div>

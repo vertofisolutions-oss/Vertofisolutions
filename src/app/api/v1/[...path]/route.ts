@@ -18,7 +18,9 @@ function isGowthamAccount(...identifiers: (string | undefined | null)[]): boolea
       lower.includes("gowthambadiga") ||
       lower.includes("goutham") ||
       lower.includes("gowtham") ||
-      lower.includes("badiga")
+      lower.includes("badiga") ||
+      lower.includes("geethika") ||
+      lower.includes("parvatham")
     ) {
       return true;
     }
@@ -52,7 +54,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     } else if (["accounting", "billing", "tenant"].includes(parts[0])) {
       orgId = parts[1] || orgId;
       entity = parts[2] || "";
-    } else if (["warranty", "lifeguard", "reconcile", "vendors", "reports", "documents", "audit", "bhs"].includes(parts[0])) {
+    } else if (["whatsapp-accounting", "benchmarks", "warranty", "warranty_plus", "lifeguard", "reconcile", "vendors", "reports", "documents", "audit", "bhs", "vbd", "vendor_trust", "blackbox_events", "blackbox_incidents"].includes(parts[0])) {
       orgId = parts[1] || orgId;
       entity = parts[2] || "";
     }
@@ -75,25 +77,25 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     try {
       const body = await getJsonBody(req);
       const { mobile, email } = body;
-      const cleanMobile = String(mobile || "").trim();
+      const cleanMobile = String(mobile || "").replace(/\D/g, "").slice(-10);
       const cleanEmail = String(email || "").trim().toLowerCase();
 
       const users = serverDb.get("registered_users", "global");
       const found = users.find(
         (u: any) =>
-          (cleanMobile && String(u.mobile || "").trim() === cleanMobile) ||
+          (cleanMobile && cleanMobile.length === 10 && String(u.mobile || "").replace(/\D/g, "").slice(-10) === cleanMobile) ||
           (cleanEmail && String(u.email || "").trim().toLowerCase() === cleanEmail)
       );
 
       if (found) {
-        const isMobileMatch = cleanMobile && String(found.mobile || "").trim() === cleanMobile;
+        const isMobileMatch = cleanMobile && String(found.mobile || "").replace(/\D/g, "").slice(-10) === cleanMobile;
         return NextResponse.json(
           {
             exists: true,
             code: isMobileMatch ? "mobile_already_registered" : "email_already_registered",
             message: isMobileMatch
-              ? "This mobile number is already registered. Please sign in."
-              : "This email address is already registered. Please sign in.",
+              ? "An account already exists with this phone number. Please use a different phone number."
+              : "An account already exists with this email address. Please sign in instead.",
           },
           { status: 200 }
         );
@@ -108,19 +110,18 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
   if (targetPath === "auth/record-user" || targetPath === "auth/register") {
     try {
       const body = await getJsonBody(req);
-      const { mobile, email, name, orgId: userOrg, plan } = body;
-      const cleanMobile = String(mobile || "").trim();
+      const { mobile, email, name, password, orgId: userOrg, plan, billingCycle, businessProfile } = body;
+      const cleanMobile = String(mobile || "").replace(/\D/g, "").slice(-10);
       const cleanEmail = String(email || "").trim().toLowerCase();
-      const isGowtham = isGowthamAccount(cleanEmail, name, userOrg, cleanMobile);
       const cleanName = String(name || (cleanEmail ? cleanEmail.split("@")[0] : "Business Owner")).trim();
-      const assignedOrgId = String(userOrg || (isGowtham ? "org_gouthambadiga01_gmail_com" : (orgId || `org_${Date.now()}`)));
-      const finalPlan = isGowtham ? "ENTERPRISE" : (plan || "FREE");
+      const finalPlan = plan || "FREE";
+      const assignedOrgId = String(userOrg || `org_${Date.now()}`);
 
       if (cleanMobile || cleanEmail) {
         const users = serverDb.get("registered_users", "global");
         const existingIdx = users.findIndex(
           (u: any) =>
-            (cleanMobile && String(u.mobile || "").trim() === cleanMobile) ||
+            (cleanMobile && String(u.mobile || "").replace(/\D/g, "").slice(-10) === cleanMobile) ||
             (cleanEmail && String(u.email || "").trim().toLowerCase() === cleanEmail)
         );
         const userData = {
@@ -128,8 +129,13 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
           name: cleanName,
           mobile: cleanMobile,
           email: cleanEmail,
+          password: password || (existingIdx !== -1 ? users[existingIdx].password : ""),
           orgId: assignedOrgId,
           plan: finalPlan,
+          billingCycle: billingCycle || "MONTHLY",
+          businessProfile: businessProfile || {},
+          role: "BUSINESS_OWNER",
+          status: "ACTIVE",
           registered_at: new Date().toISOString(),
         };
         if (existingIdx === -1) {
@@ -138,7 +144,6 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
           serverDb.update("registered_users", "global", users[existingIdx].id, userData);
         }
 
-        // Also save profile for that org
         const existingProfile = serverDb.getSetting(`profile:${assignedOrgId}`, {});
         serverDb.setSetting(`profile:${assignedOrgId}`, {
           ...existingProfile,
@@ -155,66 +160,118 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     }
   }
 
-  // ── 1a. Auth: User Login (Dedicated to User Credentials) ──
+  // ── 1a. Auth: User Login (Dedicated to Strict User Credentials) ──
   if (targetPath === "auth/login") {
     try {
       const body = await getJsonBody(req);
-      const { identifier } = body;
+      const { identifier, password } = body;
       const cleanId = String(identifier || "").trim().toLowerCase();
-      const cleanMobile = String(identifier || "").trim();
+      const cleanMobile = String(identifier || "").replace(/\D/g, "").slice(-10);
+      const inputPassword = String(password || "");
 
-      const users = serverDb.get("registered_users", "global");
-      const matchedUser = users.find(
+      if (!cleanId) {
+        return NextResponse.json({ success: false, error: "Please enter your email or mobile number." }, { status: 400 });
+      }
+      if (!inputPassword) {
+        return NextResponse.json({ success: false, error: "Please enter your password." }, { status: 400 });
+      }
+
+      // Authoritative seed accounts
+      const SEED_USERS = [
+        {
+          id: "usr_goutham_01",
+          name: "Goutham Badiga",
+          email: "gouthambadiga01@gmail.com",
+          mobile: "9876543210",
+          password: "Vertofi@7755",
+          plan: "GROWTH",
+          orgId: "org_gouthambadiga01_gmail_com",
+          role: "BUSINESS_OWNER",
+          status: "ACTIVE",
+        },
+        {
+          id: "usr_geethika_02",
+          name: "Geethika Parvatham",
+          email: "geethikaparvatham@gmail.com",
+          mobile: "9876543211",
+          password: "Geethu@1720",
+          plan: "GROWTH",
+          orgId: "org_geethikaparvatham_gmail_com",
+          role: "BUSINESS_OWNER",
+          status: "ACTIVE",
+        },
+      ];
+
+      const storedUsers = serverDb.get("registered_users", "global") || [];
+      const allUsers = [...SEED_USERS];
+      for (const u of storedUsers) {
+        const uMail = String(u.email || "").trim().toLowerCase();
+        const uMob = String(u.mobile || "").replace(/\D/g, "").slice(-10);
+        if (!allUsers.some((x) => x.email.toLowerCase() === uMail || (uMob && x.mobile === uMob))) {
+          allUsers.push(u);
+        }
+      }
+
+      const matchedUser = allUsers.find(
         (u: any) =>
-          (cleanMobile && String(u.mobile || "").trim() === cleanMobile) ||
-          (cleanId && String(u.email || "").trim().toLowerCase() === cleanId) ||
-          (cleanId && String(u.name || "").trim().toLowerCase() === cleanId) ||
-          (cleanId && String(u.id || "").trim().toLowerCase() === cleanId) ||
-          (cleanId && String(u.orgId || "").trim().toLowerCase() === cleanId) ||
-          (cleanId && (cleanId.includes("goutham") || cleanId.includes("gowtham") || cleanId.includes("badiga")) && (String(u.name || "").includes("goutham") || String(u.email || "").includes("goutham")))
+          (cleanMobile && cleanMobile.length === 10 && String(u.mobile || "").replace(/\D/g, "").slice(-10) === cleanMobile) ||
+          (cleanId && String(u.email || "").trim().toLowerCase() === cleanId)
       );
 
-      const isGowtham = isGowthamAccount(cleanId, cleanMobile, matchedUser?.email, matchedUser?.name, matchedUser?.orgId);
-      const userOrgId = matchedUser?.orgId || (isGowtham ? "org_gouthambadiga01_gmail_com" : `org_${cleanId.replace(/[^a-zA-Z0-9]/g, "_") || Date.now()}`);
-      const userName = matchedUser?.name || (isGowtham ? "gouthambadiga01" : (cleanId.includes("@") ? cleanId.split("@")[0] : "Business Owner"));
-      const userEmail = matchedUser?.email || (isGowtham ? "gouthambadiga01@gmail.com" : (cleanId.includes("@") ? cleanId : ""));
-      const userMobile = matchedUser?.mobile || (!cleanId.includes("@") ? cleanMobile : "");
-      const userPlan = isGowtham ? "ENTERPRISE" : (matchedUser?.plan || "FREE");
+      if (!matchedUser) {
+        return NextResponse.json(
+          { success: false, error: "No account found with this email or mobile number." },
+          { status: 404 }
+        );
+      }
 
-      const profile = serverDb.getSetting(`profile:${userOrgId}`, {});
-      const finalPlan = isGowtham ? "ENTERPRISE" : (profile.plan || userPlan);
-      serverDb.setSetting(`profile:${userOrgId}`, {
-        ...profile,
-        name: userName,
-        email: userEmail,
-        mobile: userMobile,
-        plan: finalPlan,
-        status: "ACTIVE",
-      });
+      // Exact password verification
+      if (matchedUser.password !== inputPassword) {
+        return NextResponse.json(
+          { success: false, error: "Incorrect password. Please enter the correct password." },
+          { status: 401 }
+        );
+      }
+
+      if (matchedUser.status === "INACTIVE") {
+        return NextResponse.json(
+          { success: false, error: "Your account is deactivated. Please contact Vertofi support." },
+          { status: 403 }
+        );
+      }
+
+      const userOrgId = matchedUser.orgId || `org_${matchedUser.id}`;
+      const userName = matchedUser.name || (matchedUser.email ? matchedUser.email.split("@")[0] : "Business Owner");
+      const userEmail = matchedUser.email;
+      const userMobile = matchedUser.mobile;
+      const userPlan = matchedUser.plan || "FREE";
 
       const payload = Buffer.from(
         JSON.stringify({
-          sub: userEmail || userMobile || cleanId,
+          sub: matchedUser.id,
           orgId: userOrgId,
-          role: "BUSINESS_OWNER",
-          plan: finalPlan,
+          role: matchedUser.role || "BUSINESS_OWNER",
+          plan: userPlan,
+          name: userName,
+          email: userEmail,
+          mobile: userMobile,
           exp: Math.floor(Date.now() / 1000) + 86400 * 30,
         })
       ).toString("base64");
       const accessToken = `header.${payload}.signature`;
 
       return NextResponse.json({
-        mfaRequired: false,
+        success: true,
         tokens: { accessToken, refreshToken: `rf_${Date.now()}` },
-        userId: matchedUser?.id || (isGowtham ? "usr_gouthambadiga01" : `usr_${Date.now()}`),
+        userId: matchedUser.id,
         orgId: userOrgId,
         name: userName,
         email: userEmail,
         mobile: userMobile,
-        plan: finalPlan,
+        plan: userPlan,
       }, { status: 200 });
     } catch {
-      return NextResponse.json({ error: "Login failed" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Authentication failed. Please check your credentials." }, { status: 400 });
     }
   }
 
@@ -247,7 +304,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     const turnover = profile.turnover || profile.revenueRange || "";
     const plan = isGowtham
       ? "ENTERPRISE"
-      : profile.plan || (turnover.includes("5CR") || turnover.includes("1CR_PLUS") ? "ENTERPRISE" : turnover.includes("1_5CR_5CR") || turnover.includes("25L_1CR") ? "POWER" : turnover.includes("5L_25L") ? "GROWTH" : turnover.includes("UNDER") ? "STARTER" : "FREE");
+      : profile.plan || (turnover.includes("5CR") || turnover.includes("1CR_PLUS") ? "ENTERPRISE" : turnover.includes("1_5CR_5CR") || turnover.includes("25L_1CR") ? "SCALE" : turnover.includes("5L_25L") ? "GROWTH" : turnover.includes("UNDER") ? "STARTER" : "FREE");
     return NextResponse.json(
       {
         id: isGowtham ? "usr_gouthambadiga01" : "usr-live",
@@ -290,7 +347,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     const turnover = profile.turnover || profile.revenueRange || "";
     const plan = isGowtham
       ? "ENTERPRISE"
-      : profile.plan || (turnover.includes("5CR") || turnover.includes("1CR_PLUS") ? "ENTERPRISE" : turnover.includes("1_5CR_5CR") || turnover.includes("25L_1CR") ? "POWER" : turnover.includes("5L_25L") ? "GROWTH" : turnover.includes("UNDER") ? "STARTER" : "FREE");
+      : profile.plan || (turnover.includes("5CR") || turnover.includes("1CR_PLUS") ? "ENTERPRISE" : turnover.includes("1_5CR_5CR") || turnover.includes("25L_1CR") ? "SCALE" : turnover.includes("5L_25L") ? "GROWTH" : turnover.includes("UNDER") ? "STARTER" : "FREE");
     return NextResponse.json(
       {
         active: true,
@@ -300,6 +357,47 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
       },
       { status: 200 }
     );
+  }
+
+  // ── 1d. Subscription Gate / Feature Enforcement ──
+  if (!["auth", "users", "billing", "tenant"].includes(parts[0])) {
+    const profile = serverDb.getSetting(`profile:${orgId}`, {});
+    const isGowtham = isGowthamAccount(orgId, profile.name, profile.email);
+    const plan = isGowtham ? "ENTERPRISE" : (profile.plan || "FREE");
+
+    const premiumRoutes: Record<string, string> = {
+      "profit-leaks": "GROWTH",
+      "intelligence": "GROWTH",
+      "benchmarks": "GROWTH",
+      "bhs": "STARTER",
+      "reports": "STARTER",
+      "reconcile": "STARTER",
+      "warranty": "SCALE",
+      "lifeguard": "SCALE",
+      "vendor-trust": "GROWTH",
+    };
+
+    const requiredPlan = premiumRoutes[parts[0]];
+    
+    // Allow saving simulated BHS history regardless of plan
+    if (requiredPlan && !(parts[0] === "bhs" && targetPath.includes("simulated-history"))) {
+      const planLevels: Record<string, number> = { "FREE": 0, "STARTER": 1, "GROWTH": 2, "SCALE": 3, "ENTERPRISE": 4 };
+      const userLevel = planLevels[plan] || 0;
+      const requiredLevel = planLevels[requiredPlan] || 0;
+
+      if (userLevel < requiredLevel) {
+        return NextResponse.json(
+          { 
+            error: "Feature Locked", 
+            code: "UPGRADE_REQUIRED",
+            message: `This feature requires the ${requiredPlan} plan. You are currently on the ${plan} plan.`,
+            upgradeRequired: true,
+            requiredPlan
+          }, 
+          { status: 402 }
+        );
+      }
+    }
   }
 
   // ── 2. Business Profile & Settings ──
@@ -399,8 +497,40 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
 
   // ── 4. AI Financial Intelligence Metrics ──
   if (targetPath.includes("intelligence") || targetPath.includes("ai/") || targetPath.includes("health-score")) {
+    if (targetPath.includes("health-score")) {
+      try {
+        const { calculateBHS } = await import("../../../../lib/bhs/calculator");
+        const result = await calculateBHS(orgId);
+        return NextResponse.json(result, { status: 200 });
+      } catch (e) {
+        // Fallback if calculator throws (e.g., db not pushed)
+        const metrics = serverDb.get("financial_intelligence", orgId);
+        return NextResponse.json(metrics[0] || {}, { status: 200 });
+      }
+    }
     const metrics = serverDb.get("financial_intelligence", orgId);
     return NextResponse.json(metrics[0] || {}, { status: 200 });
+  }
+
+  // ── BHS Simulated History ──
+  if (targetPath.includes("bhs") && targetPath.includes("simulated-history")) {
+    if (method === "GET") {
+      const history = serverDb.get("bhs_simulated_history", orgId) || [];
+      const sorted = [...history].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return NextResponse.json(sorted, { status: 200 });
+    }
+    if (method === "POST") {
+      const body = await getJsonBody(req);
+      serverDb.insert("bhs_simulated_history", orgId, body);
+      return NextResponse.json({ success: true, id: body.id }, { status: 200 });
+    }
+    if (method === "DELETE") {
+      const id = targetPath.split("/").pop();
+      if (id && id !== "simulated-history") {
+        serverDb.delete("bhs_simulated_history", orgId, id);
+        return NextResponse.json({ success: true }, { status: 200 });
+      }
+    }
   }
 
   // ── 5. Warranty Claims ──
@@ -569,6 +699,44 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     return NextResponse.json({ entries: [] }, { status: 200 });
   }
 
+  // ── WhatsApp Conversation Memory ──
+  if (targetPath.includes("whatsapp")) {
+    const messagesKey = "whatsapp_messages";
+    
+    if (method === "GET") {
+      const history = serverDb.get(messagesKey, orgId) || [];
+      return NextResponse.json(history, { status: 200, headers: { "Cache-Control": "no-store" } });
+    }
+    
+    if (method === "POST") {
+      try {
+        const body = await getJsonBody(req);
+        const userText = String(body.text || "").trim();
+        if (!userText) return NextResponse.json({ error: "Empty message" }, { status: 400 });
+        
+        const history = serverDb.get(messagesKey, orgId) || [];
+        
+        const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const userMsg = { id: `msg_${Date.now()}_u`, sender: "user", text: userText, time: timeStr };
+        
+        // Real AI Logic with Context
+        const { processWhatsAppMessage } = await import("../../../../lib/ai/whatsapp-agent");
+        const aiResponse = await processWhatsAppMessage(userText);
+        
+        let replyText = aiResponse.reply;
+        
+        const botMsg = { id: `msg_${Date.now()}_b`, sender: "bot", text: replyText, time: timeStr };
+        
+        serverDb.insert(messagesKey, orgId, userMsg);
+        serverDb.insert(messagesKey, orgId, botMsg);
+        
+        return NextResponse.json({ success: true, reply: botMsg }, { status: 200 });
+      } catch (e) {
+        return NextResponse.json({ error: "Failed to process message" }, { status: 500 });
+      }
+    }
+  }
+
   // ── 11. Standard CRUD for Core Accounting Collections ──
   // Supported collections: sales, purchases, customers, suppliers, products, inventory, expenses, ewaybills, documents
   const validCollections = [
@@ -584,6 +752,19 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     "warranty_claims",
     "lifeguard_cases",
     "stock_ledger",
+    "profit_leakage_issues",
+    "tax_warnings",
+    "tax_simulations",
+    "vbd_decisions",
+    "vendor_trust_reports",
+    "blackbox_events",
+    "blackbox_incidents",
+    "warranty_plus_plans",
+    "warranty_plus_claims",
+    "benchmark_data",
+    "benchmark_consent",
+    "whatsapp_inbox",
+    "whatsapp_docs",
   ];
 
   const matchedCol = validCollections.find((c) => entity === c || targetPath.includes(`/${c}`));

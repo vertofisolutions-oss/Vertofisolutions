@@ -378,7 +378,7 @@ export function GstDashboardView({ orgId }: { orgId?: string }) {
               </span>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <div className="w-full overflow-visible rounded-lg border border-slate-200">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-[11px] font-semibold text-slate-600 border-b border-slate-200">
                   <tr>
@@ -429,7 +429,7 @@ export function GstDashboardView({ orgId }: { orgId?: string }) {
             </p>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <div className="w-full overflow-visible rounded-lg border border-slate-200">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-[11px] font-semibold text-slate-600 border-b border-slate-200">
                 <tr>
@@ -473,7 +473,7 @@ export function GstDashboardView({ orgId }: { orgId?: string }) {
             <span className="text-xs font-medium text-slate-500">{sales.length} records</span>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <div className="w-full overflow-visible rounded-lg border border-slate-200">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-[11px] font-semibold text-slate-600 border-b border-slate-200">
                 <tr>
@@ -535,7 +535,7 @@ export function GstDashboardView({ orgId }: { orgId?: string }) {
             <span className="text-xs font-medium text-slate-500">{purchases.length} records</span>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <div className="w-full overflow-visible rounded-lg border border-slate-200">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-[11px] font-semibold text-slate-600 border-b border-slate-200">
                 <tr>

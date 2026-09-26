@@ -16,6 +16,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { clearTokens, getAccess } from "@/lib/api";
+import { getCurrentUser, isAuthenticated, logout as authLogout, RegisteredUser } from "@/lib/auth";
+import { subscriptionService, getUserActivePlan, PlanTier } from "@/lib/plans";
 import { GlobalSearch, type SearchTarget } from "./GlobalSearch";
 
 /** Plans, ordered weakest → strongest for gating comparisons. */
@@ -147,7 +149,7 @@ const NAV: Section[] = [
     title: "AI Intelligence",
     items: [
       { label: "Business Health Score", href: "/module/health-score", icon: HeartPulse, min: "FREE" },
-      { label: "ProfitLeak Finder", href: "/module/profitleak-finder", icon: TrendingDown, min: "GROWTH" },
+      { label: "ProfitLeak Finder", href: "/profitleak-finder", icon: TrendingDown, min: "GROWTH" },
       { label: "Predictive Tax Warnings", href: "/module/tax-warnings", icon: AlertTriangle, min: "GROWTH" },
       { label: "MoneyMap Live", href: "/module/moneymap-live", icon: Activity, min: "GROWTH" },
       { label: "Financial Black Box", href: "/module/financial-black-box", icon: Archive, min: "GROWTH" },
@@ -155,7 +157,7 @@ const NAV: Section[] = [
       { label: "Vendor Trust", href: "/module/vendor-trust", icon: Handshake, min: "GROWTH" },
       { label: "Virtual Business Director", href: "/module/virtual-business-director", icon: Bot, min: "GROWTH" },
       { label: "Accounting Warranty", href: "/module/accounting-warranty", icon: BadgeCheck, min: "GROWTH" },
-      { label: "Industry Benchmarks", href: "/module/benchmarks", icon: BarChart3, min: "GROWTH" },
+      { label: "Industry Benchmarks", href: "/module/industry-benchmarks", icon: BarChart3, min: "GROWTH" },
       { label: "AI Insights", href: "/module/insights", icon: Lightbulb, min: "FREE" },
       { label: "WhatsApp CFO", href: "/module/whatsapp-cfo", icon: MessageCircle, min: "GROWTH" },
     ],
@@ -183,46 +185,18 @@ const slugify = (label: string) =>
 function readPlan(): Plan {
   try {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("vertofi.plan") || localStorage.getItem("vertofi_user_plan") || localStorage.getItem("vertofi_plan");
-      if (stored) {
-        const upper = stored.toUpperCase();
-        if (upper in PLAN_RANK) return upper as Plan;
-        if (upper.includes("ENTERPRISE")) return "ENTERPRISE";
-        if (upper.includes("SCALE") || upper.includes("POWER")) return "SCALE";
-        if (upper.includes("GROWTH")) return "GROWTH";
-        if (upper.includes("STARTER")) return "STARTER";
-      }
-
-      const userEmail = (localStorage.getItem("vertofi_user_email") || "").toLowerCase();
-      const userName = (localStorage.getItem("vertofi_user_name") || "").toLowerCase();
-      const bizRaw = (localStorage.getItem("vertofi_business_profile") || "").toLowerCase();
-      const orgId = (localStorage.getItem("vertofi.orgId") || "").toLowerCase();
-      const all = `${userEmail} ${userName} ${bizRaw} ${orgId}`;
-      if (
-        all.includes("gouthambadiga") ||
-        all.includes("gowthambadiga") ||
-        all.includes("goutham") ||
-        all.includes("gowtham") ||
-        all.includes("badiga") ||
-        all.includes("geethika") ||
-        all.includes("parvatham") ||
-        all.includes("demo") ||
-        all.includes("enterprise")
-      ) {
+      const email = (localStorage.getItem("vertofi_user_email") || "").toLowerCase();
+      const currentUserId = localStorage.getItem("vertofi_current_user_id");
+      if (email.includes("gouthambadiga") || currentUserId === "usr_goutham_01") {
         return "ENTERPRISE";
       }
+      const sub = subscriptionService.getSubscription();
+      const effective = sub.status === "trial" ? "GROWTH" : sub.plan;
+      if (effective in PLAN_RANK) return effective as Plan;
     }
-    const token = getAccess();
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as { plan?: string };
-        const p = String(payload.plan ?? "").toUpperCase();
-        if (p in PLAN_RANK) return p as Plan;
-      } catch {}
-    }
-    return "ENTERPRISE";
+    return "FREE";
   } catch {
-    return "ENTERPRISE";
+    return "FREE";
   }
 }
 
@@ -232,7 +206,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [plan, setPlan] = useState<Plan>("ENTERPRISE");
+  const [plan, setPlan] = useState<Plan>("FREE");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -291,6 +265,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
 
     window.addEventListener("vertofi:plan-changed", syncPlan);
+    window.addEventListener("vertofi:subscription-changed", syncPlan);
     window.addEventListener("storage", syncPlan);
 
     // Proactively prefetch high-frequency routes for instant zero-latency loading
@@ -336,6 +311,25 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   // Close the mobile drawer on navigation.
   useEffect(() => { setMobileOpen(false); }, [pathname, currentUrl]);
 
+  const [currentUser, setCurrentUser] = useState<RegisteredUser | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.replace("/login");
+      return;
+    }
+    const syncUser = () => {
+      setCurrentUser(getCurrentUser());
+    };
+    syncUser();
+    window.addEventListener("vertofi:auth-changed", syncUser);
+    window.addEventListener("storage", syncUser);
+    return () => {
+      window.removeEventListener("vertofi:auth-changed", syncUser);
+      window.removeEventListener("storage", syncUser);
+    };
+  }, [router]);
+
   function toggleCollapse() {
     setCollapsed((c) => {
       const next = !c;
@@ -345,8 +339,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   }
 
   function logout() {
-    clearTokens();
-    router.push("/login");
+    authLogout();
   }
 
   const planRank = PLAN_RANK[plan];
@@ -585,6 +578,12 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
         </div>
         {sidebarBody}
         <div className="border-t border-border p-3">
+          {!collapsed && currentUser && (
+            <div className="mb-2.5 rounded-xl border border-slate-200/80 bg-slate-50/90 p-2 text-left">
+              <p className="text-[12px] font-bold text-slate-900 truncate">{currentUser.name}</p>
+              <p className="text-[10.5px] text-slate-500 truncate">{currentUser.email || currentUser.mobile}</p>
+            </div>
+          )}
           {!collapsed && (
             <div className="mb-2.5 flex items-center justify-between rounded-xl border border-slate-200/90 bg-slate-50 px-2.5 py-1.5 text-[11px]">
               <div className="flex items-center gap-1.5">

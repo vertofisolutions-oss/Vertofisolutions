@@ -9,6 +9,7 @@ import {
   Activity as ActivityIcon,
 } from "lucide-react";
 import { Container } from "../../components/primitives";
+import { getAccess } from "../../lib/api";
 
 // ─── Apps Script code for Google Sheets integration ─────────────────────────
 const APPS_SCRIPT_CODE = `function doGet(e) { return handleRequest(e); }
@@ -107,10 +108,12 @@ export default function BHSCalculator() {
   const [copiedScript, setCopiedScript] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("vertofi_bhs_script_url");
     if (saved) setScriptUrl(saved);
+    setIsLoggedIn(!!getAccess());
   }, []);
 
   const update = (k: keyof FormState, v: string | number) =>
@@ -468,14 +471,16 @@ export default function BHSCalculator() {
           {step === 9 && (
             <div className="p-8 space-y-8">
               {/* Free Preview Banner */}
-              <div className="flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-2.5">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wide">
-                  <Sparkles className="h-3.5 w-3.5" /> Free Baseline Summary · 50% of Report Shown
-                </span>
-                <span className="text-xs font-medium text-slate-500">
-                  Full Report available with Vertofi
-                </span>
-              </div>
+              {!isLoggedIn && (
+                <div className="flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-2.5">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wide">
+                    <Sparkles className="h-3.5 w-3.5" /> Free Baseline Summary · 50% of Report Shown
+                  </span>
+                  <span className="text-xs font-medium text-slate-500">
+                    Full Report available with Vertofi
+                  </span>
+                </div>
+              )}
 
               {/* Score hero */}
               <div className="text-center space-y-4">
@@ -516,7 +521,7 @@ export default function BHSCalculator() {
               {/* Locked Second Half - Full Forensic Diagnostics & Action Plan */}
               <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/40 p-6">
                 {/* Blurred teaser content */}
-                <div className="select-none filter blur-sm pointer-events-none opacity-40 space-y-6">
+                <div className={!isLoggedIn ? "select-none filter blur-sm pointer-events-none opacity-40 space-y-6" : "space-y-6"}>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {[
                       { label: "GST Accuracy", score: gstScore(), weight: "10%" },
@@ -543,31 +548,33 @@ export default function BHSCalculator() {
                 </div>
 
                 {/* Lock Overlay Callout */}
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 p-6 text-center backdrop-blur-[2px]">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-8 ring-blue-50/50 mb-3 shadow-sm">
-                    <Lock className="h-6 w-6" />
+                {!isLoggedIn && (
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 p-6 text-center backdrop-blur-[2px]">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-8 ring-blue-50/50 mb-3 shadow-sm">
+                      <Lock className="h-6 w-6" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Unlock Full Diagnostic Report & Action Plan
+                    </h3>
+                    <p className="mt-1.5 max-w-md text-xs sm:text-sm text-slate-600 leading-relaxed">
+                      You are viewing the free baseline summary. Sign in or create a free account to unlock all 7 forensic pillars, full root-cause diagnostics, and automated remediation workflows.
+                    </p>
+                    <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                      <a
+                        href="/register"
+                        className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-700 transition-all"
+                      >
+                        Unlock Full Report Free <ArrowRight className="h-4 w-4" />
+                      </a>
+                      <a
+                        href="/login"
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        Sign In
+                      </a>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900">
-                    Unlock Full Diagnostic Report & Action Plan
-                  </h3>
-                  <p className="mt-1.5 max-w-md text-xs sm:text-sm text-slate-600 leading-relaxed">
-                    You are viewing the free baseline summary. Sign in or create a free account to unlock all 7 forensic pillars, full root-cause diagnostics, and automated remediation workflows.
-                  </p>
-                  <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-                    <a
-                      href="http://localhost:3001/register"
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-700 transition-all"
-                    >
-                      Unlock Full Report Free <ArrowRight className="h-4 w-4" />
-                    </a>
-                    <a
-                      href="http://localhost:3001/login"
-                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      Sign In
-                    </a>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Bottom options */}

@@ -81,14 +81,11 @@ function dedupeWorkspaceRows(items: Record<string, unknown>[]): Record<string, u
 
     const custName = String(item.customer_name || item.customerName || item.name || item.vendor_name || "").toLowerCase().trim();
     const invNo = invNoRaw.toUpperCase();
-    const total = String(Math.round(Number(item.total || item.amount || 0)));
+    const idStr = String(item.id || Math.random());
+    const key = invNo ? `inv:${invNo}` : `id:${idStr}`;
 
-    const key = invNo ? `inv:${invNo}` : `cust:${custName}:${total}`;
-    const custKey = custName ? `cust:${custName}:${total}` : null;
-
-    if (!seen.has(key) && (!custKey || !seen.has(custKey))) {
+    if (!seen.has(key)) {
       seen.add(key);
-      if (custKey) seen.add(custKey);
       out.push({
         ...item,
         customer_name: item.customer_name || item.customerName || "—",
@@ -259,6 +256,11 @@ function WorkspaceInner() {
 
   // Sync client-side state after hydration
   useEffect(() => {
+    if (!getAccess()) {
+      router.replace("/login");
+      return;
+    }
+
     const oid = getOrgId() || "demo-business-org";
     setOrgId(oid);
 

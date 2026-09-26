@@ -1,54 +1,44 @@
 [
   {
-    "id": "usr_1789056242270",
-    "created_at": "2026-09-10T16:03:41.313Z",
-    "updated_at": "2026-09-10T16:04:02.270Z",
-    "name": "Geethika",
-    "mobile": "9603556970",
-    "email": "geethikaparvatham@gmail.com",
-    "orgId": "org_1789056235127",
-    "plan": "FREE",
-    "registered_at": "2026-09-10T16:04:02.270Z"
+    "id": "usr_1790411694323",
+    "created_at": "2026-09-26T08:34:54.323Z",
+    "updated_at": "2026-09-26T08:34:54.323Z",
+    "name": "New Test User",
+    "mobile": "9979726011",
+    "email": "user_1790411694286@example.com",
+    "password": "NewUser@123",
+    "orgId": "org_1790411694322",
+    "plan": "GROWTH",
+    "billingCycle": "MONTHLY",
+    "businessProfile": {},
+    "role": "BUSINESS_OWNER",
+    "status": "ACTIVE",
+    "registered_at": "2026-09-26T08:34:54.323Z"
   },
   {
-    "id": "usr_1789017916678",
-    "created_at": "2026-09-10T05:25:16.679Z",
-    "updated_at": "2026-09-10T05:25:16.679Z",
-    "name": "Rahul Sharma",
-    "mobile": "9876500001",
-    "email": "rahul@techstartup.com",
-    "orgId": "org_rahul_real",
-    "plan": "FREE",
-    "registered_at": "2026-09-10T05:25:16.678Z"
-  },
-  {
-    "id": "usr_1789017916221",
-    "created_at": "2026-09-10T05:18:50.073Z",
-    "updated_at": "2026-09-10T05:25:16.221Z",
-    "name": "Parvatham Geethika",
-    "mobile": "9123456780",
-    "email": "geethika@mycompany.com",
-    "orgId": "org_geethika_real",
-    "plan": "FREE",
-    "registered_at": "2026-09-10T05:25:16.221Z"
-  },
-  {
-    "id": "usr_gouthambadiga01",
-    "created_at": "2026-09-10T18:09:19.672Z",
-    "updated_at": "2026-09-10T18:09:19.672Z",
-    "name": "gouthambadiga01",
+    "id": "usr_goutham_01",
+    "name": "Goutham Badiga",
     "mobile": "9876543210",
     "email": "gouthambadiga01@gmail.com",
+    "password": "Vertofi@7755",
     "orgId": "org_gouthambadiga01_gmail_com",
     "plan": "ENTERPRISE",
-    "registered_at": "2026-09-10T18:09:19.672Z"
+    "role": "BUSINESS_OWNER",
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "registered_at": "2026-01-01T00:00:00.000Z"
   },
   {
-    "id": "reg-1789016938170-263",
-    "created_at": "2026-09-10T05:08:58.170Z",
-    "updated_at": "2026-09-10T05:08:58.170Z",
-    "mobile": "9876543210",
-    "email": "testduplicate@example.com",
-    "registered_at": "2026-09-10T05:08:58.170Z"
+    "id": "usr_geethika_02",
+    "name": "Geethika Parvatham",
+    "mobile": "9876543211",
+    "email": "geethikaparvatham@gmail.com",
+    "password": "Geethu@1720",
+    "orgId": "org_geethikaparvatham_gmail_com",
+    "plan": "GROWTH",
+    "role": "BUSINESS_OWNER",
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "registered_at": "2026-01-01T00:00:00.000Z"
   }
 ]

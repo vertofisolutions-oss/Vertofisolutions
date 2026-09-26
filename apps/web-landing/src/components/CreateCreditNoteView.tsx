@@ -386,7 +386,7 @@ export function CreateCreditNoteView({
 
       {/* Items Table */}
       <div className="space-y-3 pt-2">
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <div className="w-full overflow-visible rounded-xl border border-slate-200">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="border-b border-slate-200 bg-[#f8fafc] text-[11px] font-semibold text-slate-600">
               <tr>

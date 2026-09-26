@@ -1,0 +1,74 @@
+[
+  {
+    "id": "pro-1790237799704-661",
+    "created_at": "2026-09-24T08:16:39.529Z",
+    "updated_at": "2026-09-24T08:16:39.704Z",
+    "category": "MissedDeduction",
+    "title": "Missed Depreciation",
+    "description": "₹48,000 deduction missed under depreciation of laptops.",
+    "amount": 48000,
+    "riskLevel": "High",
+    "status": "New",
+    "metadata": "demo_deduction"
+  },
+  {
+    "id": "pro-1790237799666-926",
+    "created_at": "2026-09-24T08:16:39.529Z",
+    "updated_at": "2026-09-24T08:16:39.666Z",
+    "category": "UnclaimedITC",
+    "title": "Unclaimed Input Tax Credit",
+    "description": "₹12,480 available ITC not claimed due to mismatched vendor filing.",
+    "amount": 12480,
+    "riskLevel": "High",
+    "status": "New",
+    "metadata": "demo_itc"
+  },
+  {
+    "id": "pro-1790237799627-502",
+    "created_at": "2026-09-24T08:16:39.529Z",
+    "updated_at": "2026-09-24T08:16:39.628Z",
+    "category": "UnnecessarySubscription",
+    "title": "Multiple CRM Tools",
+    "description": "You are paying for 3 CRM tools. Estimated savings: ₹3,200/month.",
+    "amount": 3200,
+    "riskLevel": "Low",
+    "status": "New",
+    "metadata": "demo_sub"
+  },
+  {
+    "id": "pro-1790237799592-924",
+    "created_at": "2026-09-24T08:16:39.529Z",
+    "updated_at": "2026-09-24T08:16:39.592Z",
+    "category": "HiddenFee",
+    "title": "Avoidable Bank Charges",
+    "description": "Bank deducted ₹1,650 in avoidable fees this month.",
+    "amount": 1650,
+    "riskLevel": "Low",
+    "status": "New",
+    "metadata": "demo_bank"
+  },
+  {
+    "id": "pro-1790237799560-705",
+    "created_at": "2026-09-24T08:16:39.529Z",
+    "updated_at": "2026-09-24T08:16:39.560Z",
+    "category": "DuplicateInvoice",
+    "title": "Duplicate Vendor Invoice",
+    "description": "Invoice #1287 from XYZ Vendor appears twice. Potential overpayment: ₹14,500.",
+    "amount": 14500,
+    "riskLevel": "High",
+    "status": "New",
+    "metadata": "demo_dup"
+  },
+  {
+    "id": "pro-1790237799534-805",
+    "created_at": "2026-09-24T08:16:39.529Z",
+    "updated_at": "2026-09-24T08:16:39.534Z",
+    "category": "Overspending",
+    "title": "High Software Expenditure",
+    "description": "Your software expenses increased by 41% this month. ₹8,000 may be unnecessary spend.",
+    "amount": 8000,
+    "riskLevel": "Medium",
+    "status": "New",
+    "metadata": "demo_overspend"
+  }
+]

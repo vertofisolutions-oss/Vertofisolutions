@@ -6,7 +6,7 @@
  * Design: sharp (2-3px) surfaces, dense 12-14px type, industry-standard.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Upload, CheckCircle2, Loader2 } from "lucide-react";
+import { Upload, CheckCircle2, Loader2, ArrowLeft, ArrowRight, Sparkles, AlertTriangle, Trash2, TrendingDown, TrendingUp, Info, Activity, X } from "lucide-react";
 import { api, getAccess, getOrgId } from "@/lib/api";
 import { EWayBillsView } from "../EWayBillsView";
 import { EInvoicingView } from "../EInvoicingView";
@@ -333,10 +333,252 @@ function ComplianceCalendar() {
   );
 }
 
+function Field({ label, note, error, ...props }: { label: string; note?: string; error?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-sm font-semibold text-slate-700">{label}</label>
+      {note && <p className="text-[11px] text-slate-400">{note}</p>}
+      <input
+        {...props}
+        className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:ring-2 ${error ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'}`}
+      />
+      {error && <p className="text-[11px] font-medium text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+// ─── Score ring ───────────────────────────────────────────────────────────────
+function ScoreRing({ score }: { score: number }) {
+  const r = 54; const c = 2 * Math.PI * r;
+  const pct = score / 100;
+  const color = score >= 80 ? "#22c55e" : score >= 60 ? "#f59e0b" : "#ef4444";
+  return (
+    <svg width="140" height="140" viewBox="0 0 140 140" className="drop-shadow-xl mx-auto">
+      <circle cx="70" cy="70" r={r} fill="none" stroke="#e2e8f0" strokeWidth="12" />
+      <circle cx="70" cy="70" r={r} fill="none" stroke={color} strokeWidth="12"
+        strokeDasharray={`${c * pct} ${c * (1 - pct)}`}
+        strokeLinecap="round" strokeDashoffset={c * 0.25}
+        style={{ transition: "stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1)" }} />
+      <text x="70" y="66" textAnchor="middle" fontSize="30" fontWeight="800" fill={color}>{score}</text>
+      <text x="70" y="84" textAnchor="middle" fontSize="11" fill="#64748b" fontWeight="600">/ 100</text>
+    </svg>
+  );
+}
+
+// ─── Status badge ─────────────────────────────────────────────────────────────
+function Status({ s }: { s: "healthy" | "warning" | "critical" }) {
+  const map = {
+    healthy: { bg: "bg-green-50 text-green-700 border-green-200", label: "Healthy" },
+    warning: { bg: "bg-amber-50 text-amber-700 border-amber-200", label: "Warning" },
+    critical: { bg: "bg-red-50 text-red-700 border-red-200", label: "Critical" },
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${map[s].bg}`}>
+      {s === "healthy" ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+      {map[s].label}
+    </span>
+  );
+}
+
 function HealthScore() {
   const s = useLoad((o) => api.bhs(o));
   const h = useLoad((o) => api.mod.bhsHistory(o));
   const [currentPlan, setCurrentPlan] = useState<string>("FREE");
+
+  // Multi-step Simulator State
+  const [wizardStep, setWizardStep] = useState(0); // 0 = Closed/Initial, 1 = Identity, 2 = Expense, ..., 8 = Leakage
+  const [form, setForm] = useState<Record<string, any>>({});
+  const [simulatedScore, setSimulatedScore] = useState<number | null>(null);
+  const [simulatedRating, setSimulatedRating] = useState<string | null>(null);
+
+  const [simulatedHistory, setSimulatedHistory] = useState<any[]>([]);
+  useEffect(() => {
+    const orgId = getOrgId();
+    if (orgId) {
+      api.mod.getBhsSimulatedHistory(orgId).then((data) => {
+        if (Array.isArray(data)) setSimulatedHistory(data);
+      }).catch(() => {});
+    }
+  }, []);
+
+  const addSimulatedHistory = async (score: number, rating: string) => {
+    const entry = { id: Date.now().toString(), score, rating, form, date: new Date().toISOString() };
+    const next = [entry, ...simulatedHistory];
+    setSimulatedHistory(next);
+    const orgId = getOrgId();
+    if (orgId) {
+      await api.mod.saveBhsSimulatedHistory(orgId, entry).catch(() => {});
+    }
+  };
+
+  const removeSimulatedHistory = async (id: string | number) => {
+    const next = simulatedHistory.filter(h => h.id !== id);
+    setSimulatedHistory(next);
+    const orgId = getOrgId();
+    if (orgId) {
+      await api.mod.deleteBhsSimulatedHistory(orgId, id).catch(() => {});
+    }
+  };
+
+  const loadSimulatedHistory = (h: any) => {
+    if (h.form) setForm(h.form);
+    setSimulatedScore(h.score);
+    setSimulatedRating(h.rating);
+    setWizardStep(9);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const update = (k: string, v: string | number) => setForm((p) => ({ ...p, [k]: v }));
+  const num = (k: string) => { const v = form[k]; return v === "" || v === undefined || isNaN(Number(v)) ? 0 : Number(v); };
+
+  const phoneError = form.phone && !/^[6-9]\d{9}$/.test(String(form.phone)) ? "Phone number must be exactly 10 digits and start with 6, 7, 8, or 9." : "";
+
+  const isStepComplete = (step: number) => {
+    const check = (...keys: string[]) => keys.every(k => form[k] !== undefined && form[k] !== "");
+    switch (step) {
+      case 1: return check("fullName", "companyName", "email", "phone") && !phoneError;
+      case 2: return check("budgetedExpenses", "actualExpenses");
+      case 3: return check("gstDelayDays", "tdsDelayDays", "penaltiesPaid", "noticesReceived");
+      case 4: return check("cashReserve", "monthlyExpense", "actualReceivableDays", "industryReceivableDays");
+      case 5: return check("correctInvoices", "totalInvoices");
+      case 6: return check("salaryDelayDays", "payrollErrors");
+      case 7: return check("netOperatingIncome", "monthlyEMI");
+      case 8: return check("monthlyRevenue", "leakageAmount");
+      default: return false;
+    }
+  };
+
+  const numInput = (key: string, label: string, placeholder: string, note?: string) => (
+    <Field
+      label={label} note={note} type="number" min={0}
+      placeholder={placeholder}
+      value={form[key] === undefined ? "" : String(form[key])}
+      onChange={(e) => update(key, e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))}
+    />
+  );
+
+  const expenseScore = () => { const b = num("budgetedExpenses"), a = num("actualExpenses"); if (b <= 0) return 100; return Math.max(0, Math.min(100, Math.round(100 - ((a - b) / b) * 100 * 4))); };
+  const taxScore = () => Math.max(0, Math.min(100, Math.round(100 - num("gstDelayDays") * 2 - num("tdsDelayDays") * 2 - num("penaltiesPaid") * 10 - num("noticesReceived") * 15)));
+  const cashflowScore = () => { const aR = num("actualReceivableDays"), iR = num("industryReceivableDays"), mE = num("monthlyExpense"), cr = num("cashReserve"); const recS = aR > 0 ? Math.min(100, Math.round((iR / aR) * 100)) : 100; const bufS = mE > 0 ? Math.min(100, Math.round((cr / mE) * 100)) : 100; return Math.max(0, Math.min(100, Math.round(recS * 0.6 + bufS * 0.4))); };
+  const gstScore = () => { const t = num("totalInvoices"), c = num("correctInvoices"); return t <= 0 ? 100 : Math.max(0, Math.min(100, Math.round((c / t) * 100))); };
+  const payrollScore = () => Math.max(0, Math.min(100, Math.round(100 - num("salaryDelayDays") * 5 - num("payrollErrors") * 2)));
+  const debtScore = () => { const emi = num("monthlyEMI"), noi = num("netOperatingIncome"); if (emi <= 0) return 100; const d = noi / emi; return d >= 3 ? 95 : d >= 2 ? 80 : d >= 1 ? 60 : 30; };
+  const leakageScore = () => { const r = num("monthlyRevenue"), l = num("leakageAmount"); if (r <= 0) return 100; const p = (l / r) * 100; return p < 1 ? 95 : p < 2 ? 80 : p < 4 ? 60 : 30; };
+  const finalScore = () => Math.max(0, Math.min(100, Math.round(expenseScore() * 0.20 + taxScore() * 0.15 + cashflowScore() * 0.20 + gstScore() * 0.10 + payrollScore() * 0.10 + debtScore() * 0.15 + leakageScore() * 0.10)));
+
+  const getDiagnostics = () => {
+    const d: { status: "healthy" | "warning" | "critical"; msg: string }[] = [];
+    
+    // Expense
+    const b = num("budgetedExpenses"), a = num("actualExpenses");
+    const es = expenseScore(); const vp = b > 0 ? ((a - b) / b) * 100 : 0;
+    if (b <= 0) d.push({ status: "healthy", msg: `Expense Discipline (20%): No budget data — Score: ${es}/100` });
+    else if (vp <= 0) d.push({ status: "healthy", msg: `Expense Discipline (20%): Spending ₹${a.toLocaleString()} below budget ₹${b.toLocaleString()} — Score: ${es}/100` });
+    else if (vp <= 5) d.push({ status: "healthy", msg: `Expense Discipline (20%): Minor overrun ${vp.toFixed(1)}% — Score: ${es}/100` });
+    else if (vp <= 10) d.push({ status: "warning", msg: `Expense Discipline (20%): Budget overrun ${vp.toFixed(1)}% — Score: ${es}/100` });
+    else d.push({ status: "critical", msg: `Expense Discipline (20%): Critical budget bleed ${vp.toFixed(1)}%! (₹${a.toLocaleString()} vs ₹${b.toLocaleString()}) — Score: ${es}/100` });
+
+    // Tax
+    const ts = taxScore();
+    const gD = num("gstDelayDays"), tD = num("tdsDelayDays"), pen = num("penaltiesPaid"), not = num("noticesReceived");
+    if (gD === 0 && tD === 0 && pen === 0 && not === 0)
+      d.push({ status: "healthy", msg: `Tax Compliance (15%): Perfect statutory discipline — Score: ${ts}/100` });
+    else {
+      const issues = [];
+      if (gD > 0) issues.push(`${gD}d GST delay`);
+      if (tD > 0) issues.push(`${tD}d TDS delay`);
+      if (pen > 0) issues.push(`${pen} penalties`);
+      if (not > 0) issues.push(`${not} notices`);
+      d.push({ status: (not > 0 || pen > 0) ? "critical" : "warning", msg: `Tax Compliance (15%): Issues — ${issues.join(", ")} — Score: ${ts}/100` });
+    }
+
+    // Cashflow receivables
+    const aR = num("actualReceivableDays"), iR = num("industryReceivableDays");
+    const recS = aR > 0 ? Math.min(100, Math.round((iR / aR) * 100)) : 100;
+    d.push(aR <= iR
+      ? { status: "healthy", msg: `Cashflow Receivables (20%): ${aR}d ≤ industry ${iR}d — Score: ${recS}/100` }
+      : { status: "critical", msg: `Cashflow Receivables (20%): Slow ${aR}d vs industry ${iR}d — Score: ${recS}/100` }
+    );
+
+    // Cashflow reserves
+    const mE = num("monthlyExpense"), cr = num("cashReserve");
+    const bufS = mE > 0 ? Math.min(100, Math.round((cr / mE) * 100)) : 100;
+    const months = mE > 0 ? (cr / mE).toFixed(1) : "∞";
+    d.push(bufS >= 100
+      ? { status: "healthy", msg: `Cashflow Reserves (20%): ${months} months runway — Score: ${bufS}/100` }
+      : { status: "warning", msg: `Cashflow Reserves (20%): Only ${months} months runway — Score: ${bufS}/100` }
+    );
+
+    // GST accuracy
+    const gs = gstScore();
+    const tot = num("totalInvoices"), cor = num("correctInvoices");
+    const acc = tot > 0 ? (cor / tot) * 100 : 100;
+    if (tot <= 0) d.push({ status: "healthy", msg: `GST Accuracy (10%): No invoice data — Score: ${gs}/100` });
+    else if (acc === 100) d.push({ status: "healthy", msg: `GST Accuracy (10%): 100% invoice accuracy (${cor}/${tot}) — Score: ${gs}/100` });
+    else d.push({ status: acc >= 90 ? "warning" : "critical", msg: `GST Accuracy (10%): ${acc.toFixed(1)}% accuracy (${cor}/${tot}) — Score: ${gs}/100` });
+
+    // Payroll
+    const ps = payrollScore();
+    const sD = num("salaryDelayDays"), pE = num("payrollErrors");
+    d.push(sD === 0 && pE === 0
+      ? { status: "healthy", msg: `Payroll (10%): Flawless disbursals — Score: ${ps}/100` }
+      : { status: "warning", msg: `Payroll (10%): ${sD} delay days, ${pE} errors — Score: ${ps}/100` }
+    );
+
+    // Debt
+    const ds = debtScore();
+    const emi = num("monthlyEMI"), noi = num("netOperatingIncome");
+    if (emi <= 0) d.push({ status: "healthy", msg: `Debt-Risk (15%): Debt-free — Score: ${ds}/100` });
+    else {
+      const dscr = (noi / emi).toFixed(2);
+      const st = Number(dscr) >= 2 ? "healthy" : Number(dscr) >= 1 ? "warning" : "critical";
+      d.push({ status: st, msg: `Debt-Risk (15%): DSCR ${dscr}x (NOI ₹${noi.toLocaleString()} / EMI ₹${emi.toLocaleString()}) — Score: ${ds}/100` });
+    }
+
+    // Leakage
+    const ls = leakageScore();
+    const rev = num("monthlyRevenue"), lk = num("leakageAmount");
+    const lp = rev > 0 ? (lk / rev) * 100 : 0;
+    if (rev <= 0) d.push({ status: "healthy", msg: `Profit Leakage (10%): No data — Score: ${ls}/100` });
+    else if (lp < 2) d.push({ status: "healthy", msg: `Profit Leakage (10%): ${lp.toFixed(2)}% leakage — Score: ${ls}/100` });
+    else if (lp < 4) d.push({ status: "warning", msg: `Profit Leakage (10%): ${lp.toFixed(2)}% leakage (₹${lk.toLocaleString()}) — Score: ${ls}/100` });
+    else d.push({ status: "critical", msg: `Profit Leakage (10%): Severe ${lp.toFixed(2)}% leakage (₹${lk.toLocaleString()}) — Score: ${ls}/100` });
+
+    return d;
+  };
+
+  const calculateSimulated = () => {
+    const sc = finalScore();
+    let band = "Moderate";
+    if (sc >= 85) band = "Excellent";
+    else if (sc >= 70) band = "Healthy";
+    else if (sc >= 50) band = "Moderate";
+    else if (sc >= 35) band = "Weak";
+    else band = "Critical";
+
+    setSimulatedScore(sc);
+    setSimulatedRating(band);
+    setWizardStep(9);
+    addSimulatedHistory(sc, band);
+  };
+
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById("report-container");
+    if (!element) return;
+    
+    // Dynamically import html2pdf to avoid SSR window issues
+    const html2pdf = (await import("html2pdf.js")).default;
+    
+    const opt: any = {
+      margin:       0.5,
+      filename:     'BHS_Report.pdf',
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+  };
 
   useEffect(() => {
     const update = () => {
@@ -353,8 +595,10 @@ function HealthScore() {
   }, []);
 
   if (s.loading) return <Hint text="Computing health score…" />;
-  const score = s.data?.score ?? (currentPlan === "FREE" ? 64 : null);
+  
   const isFree = currentPlan === "FREE";
+  const score = simulatedScore ?? s.data?.score ?? (isFree ? 64 : null);
+  const rating = simulatedRating ?? s.data?.rating ?? (isFree ? "Fair (Teaser)" : "Awaiting data");
 
   return (
     <div className="space-y-4">
@@ -385,8 +629,301 @@ function HealthScore() {
 
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Business Health Score" value={score != null ? `${score}/100` : "—"} tone={score != null && score < 40 ? "danger" : score != null && score >= 70 ? "ok" : undefined} />
-        <Stat label="Rating" value={s.data?.rating ?? (isFree ? "Fair (Teaser)" : "Awaiting data")} />
+        <Stat label="Rating" value={rating} />
       </div>
+
+      <div className="my-6">
+        {wizardStep === 0 && (
+          <Panel title="Diagnostic Assessment">
+            <div className="text-center py-6">
+              <Sparkles className="mx-auto h-8 w-8 text-blue-500 mb-3" />
+              <h3 className="text-sm font-bold text-slate-900 mb-1">Check Your BHS Score</h3>
+              <p className="text-[12px] text-slate-500 max-w-md mx-auto mb-4">Calculate a highly accurate Business Health Score step by step based on 7 core financial pillars.</p>
+              <button onClick={() => { setForm({}); setWizardStep(1); }} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700">
+                Check your BHS score
+              </button>
+              {simulatedScore !== null && (
+                <div className="mt-4 flex justify-center">
+                  <button onClick={() => { setSimulatedScore(null); setSimulatedRating(null); setForm({}); }} className="text-[11px] text-slate-400 hover:text-slate-600 underline">Clear Simulated Results</button>
+                </div>
+              )}
+            </div>
+          </Panel>
+        )}
+
+        {wizardStep > 0 && wizardStep < 9 && (
+          <div className="mx-auto mb-8 max-w-3xl">
+            <div className="mb-2 flex justify-between text-xs font-semibold text-slate-500">
+              <span>Step {wizardStep} of 8</span>
+              <span className="text-blue-600">{Math.round((wizardStep / 8) * 100)}% Complete</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-blue-600 transition-all duration-500"
+                style={{ width: `${(wizardStep / 8) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {wizardStep > 0 && (
+          <div className="relative mx-auto max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+            {/* ─────────────── STEP 1: Identity ─────────────── */}
+            {wizardStep === 1 && (
+              <div className="p-8 space-y-6">
+                <div>
+                  <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 uppercase">Identity</span>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900">Who are we analyzing?</h2>
+                  <p className="text-sm text-slate-500 mt-1">Provide your details to personalize the diagnostic report.</p>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  <Field label="Full Name" type="text" placeholder="Your name" value={form.fullName || ""} onChange={(e) => update("fullName", e.target.value)} />
+                  <Field label="Company Name" type="text" placeholder="Registered business name" value={form.companyName || ""} onChange={(e) => update("companyName", e.target.value)} />
+                  <Field label="Work Email" type="email" placeholder="you@company.com" value={form.email || ""} onChange={(e) => update("email", e.target.value)} />
+                  <Field label="Phone Number" type="tel" placeholder="Mobile number" value={form.phone || ""} error={phoneError} onChange={(e) => update("phone", e.target.value.replace(/\D/g, ''))} />
+                </div>
+              </div>
+            )}
+
+            {/* ─────────────── STEP 2: Expense Discipline ─────────────── */}
+            {wizardStep === 2 && (
+              <div className="p-8 space-y-6">
+                <div>
+                  <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 uppercase">Expense Discipline · 20% Weight</span>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900">Operational Budget & Spending</h2>
+                  <p className="text-sm text-slate-500 mt-1">Measures variance between planned and actual monthly spend.</p>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {numInput("budgetedExpenses", "Budgeted Expenses (₹/month)", "e.g. 100000")}
+                  {numInput("actualExpenses", "Actual Expenses (₹/month)", "e.g. 120000")}
+                </div>
+              </div>
+            )}
+
+            {/* ─────────────── STEP 3: Tax Compliance ─────────────── */}
+            {wizardStep === 3 && (
+              <div className="p-8 space-y-6">
+                <div>
+                  <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 uppercase">Tax Compliance · 15% Weight</span>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900">GST & TDS Compliance</h2>
+                  <p className="text-sm text-slate-500 mt-1">Filing delay history and regulatory exposure.</p>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {numInput("gstDelayDays", "GST Filing Delay (Days)", "e.g. 2")}
+                  {numInput("tdsDelayDays", "TDS Remittance Delay (Days)", "e.g. 1")}
+                  {numInput("penaltiesPaid", "GST Penalties Occurrences", "e.g. 0")}
+                  {numInput("noticesReceived", "Tax Notices Received", "e.g. 0")}
+                </div>
+              </div>
+            )}
+
+            {/* ─────────────── STEP 4: Cashflow Stability ─────────────── */}
+            {wizardStep === 4 && (
+              <div className="p-8 space-y-6">
+                <div>
+                  <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-700 uppercase">Cashflow Stability · 20% Weight</span>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900">Liquidity & Receivable Cycle</h2>
+                  <p className="text-sm text-slate-500 mt-1">Cash runway and receivable delays vs industry averages.</p>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {numInput("cashReserve", "Liquid Cash Reserve (₹)", "e.g. 150000")}
+                  {numInput("monthlyExpense", "Monthly Operational Cost (₹)", "e.g. 100000")}
+                  {numInput("actualReceivableDays", "Your Actual Receivable (Days)", "e.g. 35")}
+                  {numInput("industryReceivableDays", "Industry Standard (Days)", "e.g. 30")}
+                </div>
+              </div>
+            )}
+
+            {/* ─────────────── STEP 5: GST Accuracy ─────────────── */}
+            {wizardStep === 5 && (
+              <div className="p-8 space-y-6">
+                <div>
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 uppercase">GST Invoicing Accuracy · 10% Weight</span>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900">GSTR-1 Invoice Precision</h2>
+                  <p className="text-sm text-slate-500 mt-1">Ratio of correctly filed invoices to total invoices raised.</p>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {numInput("correctInvoices", "Correctly Processed Invoices", "e.g. 95")}
+                  {numInput("totalInvoices", "Total Invoices Raised (Monthly)", "e.g. 100")}
+                </div>
+              </div>
+            )}
+
+            {/* ─────────────── STEP 6: Payroll ─────────────── */}
+            {wizardStep === 6 && (
+              <div className="p-8 space-y-6">
+                <div>
+                  <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700 uppercase">Payroll Consistency · 10% Weight</span>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900">Employee Disbursals</h2>
+                  <p className="text-sm text-slate-500 mt-1">Integrity of salary cycles and tax deduction processing.</p>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {numInput("salaryDelayDays", "Delayed Salary Cycles (Days)", "e.g. 1")}
+                  {numInput("payrollErrors", "Payroll / Compliance Errors", "e.g. 0")}
+                </div>
+              </div>
+            )}
+
+            {/* ─────────────── STEP 7: Debt Risk ─────────────── */}
+            {wizardStep === 7 && (
+              <div className="p-8 space-y-6">
+                <div>
+                  <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700 uppercase">Debt-Risk Management · 15% Weight</span>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900">DSCR — Debt Service Coverage</h2>
+                  <p className="text-sm text-slate-500 mt-1">Your EMI-paying capability from operating cash flows.</p>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {numInput("netOperatingIncome", "Net Operating Income (₹/month)", "e.g. 250000", "Revenue minus operating expenses")}
+                  {numInput("monthlyEMI", "Total Monthly EMI (₹)", "e.g. 50000", "Leave 0 if no loans")}
+                </div>
+              </div>
+            )}
+
+            {/* ─────────────── STEP 8: Profit Leakage ─────────────── */}
+            {wizardStep === 8 && (
+              <div className="p-8 space-y-6">
+                <div>
+                  <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 uppercase">Profit Leakage Control · 10% Weight</span>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900">Silent Profit Leakage</h2>
+                  <p className="text-sm text-slate-500 mt-1">Duplicate payments, unused subscriptions, and over-billing.</p>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {numInput("monthlyRevenue", "Monthly Gross Revenue (₹)", "e.g. 500000")}
+                  {numInput("leakageAmount", "Estimated Monthly Leakage (₹)", "e.g. 5000")}
+                </div>
+              </div>
+            )}
+
+            {/* ─────────────── RESULT (STEP 9) ─────────────── */}
+            {wizardStep === 9 && simulatedScore !== null && (
+              <>
+                <div id="report-container" className="p-8 space-y-8 bg-white">
+                  {/* Score hero */}
+                  <div className="text-center space-y-4">
+                    <div className="flex justify-center">
+                      <ScoreRing score={simulatedScore} />
+                    </div>
+                    <div>
+                      <p className={`text-2xl font-extrabold ${simulatedScore >= 80 ? 'text-green-600' : simulatedScore >= 60 ? 'text-amber-500' : 'text-red-500'}`}>{simulatedRating}</p>
+                      <p className="text-sm text-slate-500 mt-1 max-w-lg mx-auto">
+                        {simulatedScore >= 80 ? "Your business demonstrates strong financial discipline across baseline dimensions."
+                          : simulatedScore >= 60 ? "Moderate financial health detected — several key operational areas require targeted improvement."
+                          : simulatedScore >= 40 ? "Elevated financial risks detected — immediate remediation recommended."
+                          : "Critical health status — urgent financial risk intervention required."}
+                      </p>
+                    </div>
+
+                    {/* Score breakdown */}
+                    <div className="space-y-2 text-left pt-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-700">Detailed Report</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {[
+                          { label: "Expense Discipline", score: expenseScore(), weight: "20%" },
+                          { label: "Cashflow Stability", score: cashflowScore(), weight: "20%" },
+                          { label: "Tax Compliance", score: taxScore(), weight: "15%" },
+                          { label: "GST Accuracy", score: gstScore(), weight: "10%" },
+                          { label: "Payroll Consistency", score: payrollScore(), weight: "10%" },
+                          { label: "Debt & EMI Risk", score: debtScore(), weight: "15%" },
+                          { label: "Profit Leakage Control", score: leakageScore(), weight: "10%" },
+                        ].map((m) => (
+                          <div key={m.label} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{m.label}</p>
+                            <p className={`text-xl font-bold mt-0.5 ${m.score >= 80 ? "text-green-600" : m.score >= 60 ? "text-amber-500" : "text-red-500"}`}>{m.score}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-4 border-t border-slate-100">
+                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Detailed Root Cause Diagnostics</h3>
+                    {getDiagnostics().map((d, i) => (
+                      <div key={i} className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3.5 text-sm shadow-sm">
+                        <span className="mt-0.5 shrink-0"><Status s={d.status} /></span>
+                        <p className="text-slate-700 leading-relaxed">{d.msg}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bottom options (Outside the report-container so it isn't rendered in PDF) */}
+                <div className="flex justify-center gap-3 pt-6 pb-8 bg-white print:hidden">
+                  <button
+                    onClick={() => { setWizardStep(1); setForm({}); setSimulatedScore(null); setSimulatedRating(null); }}
+                    className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    Start Over
+                  </button>
+                  <button
+                    onClick={handleDownloadPDF}
+                    className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                  >
+                    Download PDF
+                  </button>
+                  <button
+                    onClick={() => setWizardStep(0)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
+                  >
+                    Close Report
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Wizard Nav */}
+            {wizardStep < 9 && (
+              <div className="flex items-center justify-between border-t border-slate-100 px-8 py-4">
+                <button onClick={() => wizardStep === 1 ? setWizardStep(0) : setWizardStep(wizardStep - 1)}
+                  className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                  <ArrowLeft className="h-4 w-4" /> {wizardStep === 1 ? "Cancel" : "Back"}
+                </button>
+                {isStepComplete(wizardStep) && (
+                  <button onClick={() => wizardStep === 8 ? calculateSimulated() : setWizardStep(wizardStep + 1)}
+                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm">
+                    {wizardStep === 8 ? "Finish & Calculate" : "Next"} {wizardStep !== 8 && <ArrowRight className="h-4 w-4" />}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {simulatedHistory.length > 0 && (
+        <Panel title="Checked Reports">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600">
+              <thead className="border-b border-slate-100 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <tr>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Score</th>
+                  <th className="px-4 py-3">Rating</th>
+                  <th className="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {simulatedHistory.map((h) => (
+                  <tr key={h.id} className="transition-colors hover:bg-slate-50/50 cursor-pointer group" onClick={() => loadSimulatedHistory(h)}>
+                    <td className="px-4 py-3 group-hover:text-blue-600 font-medium transition-colors">{new Date(h.date).toLocaleDateString()} {new Date(h.date).toLocaleTimeString()}</td>
+                    <td className="px-4 py-3 font-bold text-slate-800">{h.score}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${h.score >= 80 ? 'bg-green-50 text-green-700 ring-green-600/20' : h.score >= 60 ? 'bg-amber-50 text-amber-700 ring-amber-600/20' : 'bg-red-50 text-red-700 ring-red-600/10'}`}>{h.rating}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={(e) => { e.stopPropagation(); removeSimulatedHistory(h.id); }} className="text-slate-400 hover:text-red-500 transition-colors" title="Delete Report">
+                        <Trash2 className="h-4 w-4 inline" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+
       <Panel title="Score History">
         {h.error ? <Err text={h.error} /> : <Table cols={["Computed", "Score", "Rating"]} rows={(Array.isArray(h.data) ? h.data : []).map((r) => [dt(r.computed_at), String(r.score), String(r.rating ?? "—")])} />}
       </Panel>
@@ -396,35 +933,215 @@ function HealthScore() {
 }
 
 function MoneyMap() {
-  const { data, error, loading } = useLoad((o) => api.moneyMap(o));
-  if (loading) return <Hint text="Loading MoneyMap…" />;
-  if (error) return <Err text={error} />;
-  if (!data?.hasData) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const orgId = typeof window !== "undefined" ? (getOrgId() || "demo-business-org") : "demo-business-org";
+
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+  const [scenarioType, setScenarioType] = useState("receivables");
+  const [scenarioValue, setScenarioValue] = useState(15);
+  const [scenarioResult, setScenarioResult] = useState<any>(null);
+
+  useEffect(() => {
+    fetch(`/api/v1/money-map/data?orgId=${orgId}`)
+      .then(res => res.json())
+      .then(json => setData(json.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [orgId]);
+
+  const runScenario = () => {
+    if (!data) return;
+    let newRunway = data.runwayDays;
+    let newBalance = data.currentBalance;
+    
+    if (scenarioType === "receivables") {
+      newBalance += (data.inflows.Revenue * (scenarioValue / 100));
+    } else if (scenarioType === "subscriptions") {
+      const savings = (data.outflows.OpEx * (scenarioValue / 100));
+      newRunway = Math.floor(data.currentBalance / (((data.outflows.COGS + data.outflows.OpEx) - savings) / 30));
+    } else if (scenarioType === "financing") {
+      newBalance += scenarioValue;
+    }
+    
+    if (scenarioType !== "subscriptions") {
+      newRunway = Math.floor(newBalance / ((data.outflows.COGS + data.outflows.OpEx) / 30));
+    }
+    setScenarioResult({ newRunway, newBalance, difference: newRunway - data.runwayDays });
+  };
+
+  if (loading || !data) {
     return (
       <Panel title="MONEYMAP LIVE">
-        <Hint text="MoneyMap activates once invoices and bank data flow in." />
+        <div className="flex h-48 items-center justify-center">
+          <div className="text-center">
+            <Activity className="mx-auto h-6 w-6 animate-pulse text-emerald-500" />
+            <p className="mt-2 text-xs font-medium text-slate-500">Connecting to Bank Feeds...</p>
+          </div>
+        </div>
       </Panel>
     );
   }
-  const max = Math.max(...data.spendByCategory.map((x) => x.amount), 1);
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="INFLOW" value={inr(data.inflow)} tone="ok" />
-        <Stat label="OUTFLOW" value={inr(data.outflow)} />
-        <Stat label="NET" value={inr(data.net)} tone={data.net < 0 ? "danger" : "ok"} />
+      {/* TOP BAR */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-slate-900 p-6 shadow-lg text-white">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Current Bank Balance</p>
+          <h1 className="text-3xl font-bold mt-1">₹{data.currentBalance.toLocaleString("en-IN")}</h1>
+          <div className="mt-2 flex items-center gap-3 text-sm">
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${data.netCashFlow >= 0 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}>
+              {data.netCashFlow >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              Net: ₹{Math.abs(data.netCashFlow).toLocaleString("en-IN")}
+            </span>
+            <span className="text-slate-400">|</span>
+            <span className="font-medium text-slate-200">Runway: <span className="font-bold text-emerald-400">{data.runwayDays} Days</span></span>
+          </div>
+        </div>
+        
+        <div className="flex gap-3">
+          <button onClick={() => { setScenarioOpen(true); setScenarioResult(null); }} className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-700 transition-colors">
+            Run Scenario
+          </button>
+          <button className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500 transition-colors">
+            Export PDF
+          </button>
+        </div>
       </div>
-      <Panel title="SPEND BY CATEGORY">
-        <div className="space-y-2">
-          {data.spendByCategory.map((s) => (
-            <div key={s.category} className="flex items-center gap-3">
-              <span className="w-36 shrink-0 text-[11px] text-muted">{s.category}</span>
-              <span className="h-2 flex-1 bg-bg2"><span className="block h-full bg-brand" style={{ width: `${(s.amount / max) * 100}%` }} /></span>
-              <span className="w-24 text-right text-[11px] font-medium text-ink">{inr(s.amount)}</span>
+
+      {/* MONEY MAP CANVAS */}
+      <Panel title="MONEY MAP (LAST 30 DAYS)">
+        <div className="relative p-6 bg-white overflow-hidden">
+          <div className="flex items-center justify-between mb-8">
+            <p className="text-xs text-slate-500">Interactive cash flow visualisation. Hover over flows for details.</p>
+            <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"><div className="h-2 w-2 rounded-full bg-emerald-500"></div> Live Connection</span>
+          </div>
+
+          <div className="relative h-[400px] w-full flex items-center justify-between px-4 sm:px-12">
+            
+            {/* Left Nodes */}
+            <div className="flex flex-col gap-8 w-1/4 z-10">
+              {Object.entries(data.inflows).map(([key, val]: any) => (
+                <div key={key} className="group relative rounded-lg border border-slate-200 bg-white p-3 shadow-sm hover:border-emerald-400 transition-all cursor-pointer">
+                  <p className="text-xs font-bold text-slate-500 uppercase">{key}</p>
+                  <p className="text-lg font-bold text-slate-800">₹{val.toLocaleString("en-IN")}</p>
+                </div>
+              ))}
             </div>
-          ))}
+
+            {/* SVG Sankey */}
+            <svg className="absolute inset-0 h-full w-full pointer-events-none z-0">
+              <path d="M 25% 30% C 40% 30%, 40% 50%, 50% 50%" fill="none" stroke="rgba(16, 185, 129, 0.2)" strokeWidth="40" className="animate-pulse" />
+              <path d="M 25% 70% C 40% 70%, 40% 50%, 50% 50%" fill="none" stroke="rgba(16, 185, 129, 0.1)" strokeWidth="15" />
+              <path d="M 50% 50% C 60% 50%, 60% 20%, 75% 20%" fill="none" stroke="rgba(148, 163, 184, 0.2)" strokeWidth="30" />
+              <path d="M 50% 50% C 60% 50%, 60% 50%, 75% 50%" fill="none" stroke="rgba(148, 163, 184, 0.2)" strokeWidth="25" />
+              <path d="M 50% 50% C 60% 50%, 60% 80%, 75% 80%" fill="none" stroke="rgba(239, 68, 68, 0.15)" strokeWidth="15" />
+              <circle cx="65%" cy="73%" r="6" fill="#ef4444" className="animate-ping" />
+              <circle cx="65%" cy="73%" r="6" fill="#ef4444" />
+            </svg>
+
+            {/* Central Node */}
+            <div className="z-10 rounded-full border-4 border-indigo-100 bg-white p-6 shadow-xl text-center w-48 h-48 flex flex-col justify-center items-center">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Business Treasury</p>
+              <h3 className="text-xl font-bold text-slate-800 mt-1">₹{data.currentBalance.toLocaleString("en-IN")}</h3>
+              <p className="text-[10px] text-indigo-600 font-semibold mt-2 bg-indigo-50 px-2 py-1 rounded-full">Net: {data.netCashFlow > 0 ? '+' : ''}₹{(data.netCashFlow/1000).toFixed(1)}k</p>
+            </div>
+
+            {/* Right Nodes */}
+            <div className="flex flex-col gap-8 w-1/4 z-10">
+              {Object.entries(data.outflows).map(([key, val]: any) => (
+                <div key={key} className="group relative rounded-lg border border-slate-200 bg-white p-3 shadow-sm hover:border-slate-400 transition-all cursor-pointer">
+                  <p className="text-xs font-bold text-slate-500 uppercase">{key}</p>
+                  <p className="text-lg font-bold text-slate-800">₹{val.toLocaleString("en-IN")}</p>
+                </div>
+              ))}
+            </div>
+            
+          </div>
         </div>
       </Panel>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Panel title="PROFIT ZONES">
+          <div className="p-4 flex flex-col gap-2">
+            {data.profitZones.map((pz: any, i: number) => (
+              <div key={i} className="flex items-center justify-between p-3 rounded border border-slate-100 bg-slate-50">
+                <div>
+                  <p className="text-[13px] font-semibold text-slate-800">{pz.name}</p>
+                  <p className="text-[10px] text-slate-500 uppercase font-bold">Margin: {pz.margin}% | Vel: {pz.velocity}</p>
+                </div>
+                <p className="text-sm font-bold text-emerald-600">₹{(pz.contribution/1000).toFixed(0)}k</p>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="TOP CASH DRAINS">
+          <div className="p-4">
+            <table className="w-full text-left text-[12px]">
+              <thead>
+                <tr className="border-b border-slate-100 text-[10px] font-semibold text-slate-500 uppercase">
+                  <th className="pb-2">Vendor</th>
+                  <th className="pb-2">Category</th>
+                  <th className="pb-2">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {data.topDrains.slice(0, 3).map((drain: any, i: number) => (
+                  <tr key={i}>
+                    <td className="py-2 font-medium text-slate-800">{drain.name}</td>
+                    <td className="py-2 text-slate-500"><span className="bg-slate-100 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold">{drain.category}</span></td>
+                    <td className="py-2 font-bold text-slate-800">₹{drain.amount.toLocaleString("en-IN")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </div>
+
+      {/* MODAL */}
+      {scenarioOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl relative">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-800">What-If Scenario Builder</h3>
+              <button onClick={() => setScenarioOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="h-4 w-4" /></button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Scenario Type</label>
+                <select value={scenarioType} onChange={(e) => setScenarioType(e.target.value)} className="w-full rounded border border-slate-300 p-2 text-sm outline-none">
+                  <option value="receivables">Accelerate Receivables (%)</option>
+                  <option value="subscriptions">Reduce Subscriptions/OpEx (%)</option>
+                  <option value="financing">Add Financing (₹)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Value</label>
+                <input type="number" value={scenarioValue} onChange={(e) => setScenarioValue(Number(e.target.value))} className="w-full rounded border border-slate-300 p-2 text-sm outline-none" />
+              </div>
+              <button onClick={runScenario} className="w-full rounded bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-700">Calculate Impact</button>
+
+              {scenarioResult && (
+                <div className="mt-4 rounded bg-slate-50 border border-slate-100 p-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] uppercase font-bold text-slate-500">New Runway</p>
+                    <p className="text-xl font-bold text-emerald-600">{scenarioResult.newRunway} Days</p>
+                    <p className="text-[10px] text-emerald-600 font-medium">+{scenarioResult.difference} days</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase font-bold text-slate-500">New Balance</p>
+                    <p className="text-xl font-bold text-slate-800">₹{(scenarioResult.newBalance/1000).toFixed(0)}k</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1265,8 +1982,8 @@ export const MODULES: Record<string, { title: string; component: () => ReactNode
       </LockedFeatureGate>
     ),
   },
-  "business-profile": { title: "Account Settings", component: BusinessProfile },
-  "user-profile": { title: "User Details & Profile", component: BusinessProfile },
-  "user-details": { title: "User Details & Profile", component: BusinessProfile },
+  "business-profile": { title: "Account Settings", component: BusinessProfileView },
+  "user-profile": { title: "User Details & Profile", component: BusinessProfileView },
+  "user-details": { title: "User Details & Profile", component: BusinessProfileView },
   billing: { title: "Billing", component: BillingContent },
 };

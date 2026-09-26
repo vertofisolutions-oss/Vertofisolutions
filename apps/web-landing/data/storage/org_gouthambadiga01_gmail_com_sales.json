@@ -1,5 +1,29 @@
 [
   {
+    "id": "sal-1789572531335-245",
+    "created_at": "2026-09-16T15:28:51.335Z",
+    "updated_at": "2026-09-16T15:28:51.335Z",
+    "customerName": "Geethika",
+    "invoiceNo": "INV/0001",
+    "date": "2026-09-16",
+    "placeOfSupply": "Telangana",
+    "items": [
+      {
+        "name": "Mobile",
+        "description": "Auto-drafted by AI",
+        "qty": 1,
+        "rate": 200000,
+        "hsn": "998311",
+        "taxRate": 18,
+        "cessRate": 0,
+        "discount": 0
+      }
+    ],
+    "total": 236000,
+    "doc_type": "Tax Invoice",
+    "source": "AI"
+  },
+  {
     "id": "sal-1789248595216-65",
     "created_at": "2026-09-12T21:29:55.216Z",
     "updated_at": "2026-09-12T21:29:55.216Z",

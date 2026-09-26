@@ -1,7 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Download, Search, ArrowUpDown, Calendar, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Receipt, ShieldCheck, AlertTriangle, TrendingUp, Download, Search, ArrowUpDown, Calendar, Loader2, MoreHorizontal, Eye, RefreshCw, Mail, XCircle } from "lucide-react";
+import { Card } from "@/ui";
+
+const inr = (n: number) => `₹ ${Number(n || 0).toLocaleString("en-IN")}`;
+
+
+function Kpi({ label, value, icon: Icon, tone }: { label: string; value: string; icon: any; tone?: "gold" | "brand" }) {
+  return (
+    <Card className="py-3 px-4 mb-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{label}</p>
+        <Icon className={"h-4 w-4 " + (tone === "gold" ? "text-gold" : "text-brand")} />
+      </div>
+      <p className="mt-1 text-xl font-bold tracking-tight text-ink">{value}</p>
+    </Card>
+  );
+}
 
 export function DeliveryChallansView({
   orgId,
@@ -11,6 +27,16 @@ export function DeliveryChallansView({
   onNewChallan?: () => void;
 }) {
   const [dateRange, setDateRange] = useState("01-09-2026 - 04-09-2026");
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  const kpis = { monthCount: 0, totalAmt: 0, transitCount: 0, deliveredCount: 0 };
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdownId(null);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
+
   const [search, setSearch] = useState("");
   const [pageSize, setPageSize] = useState(10);
   const [exporting, setExporting] = useState(false);
@@ -25,6 +51,15 @@ export function DeliveryChallansView({
 
   return (
     <div className="w-full space-y-4">
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi label="CHALLANS THIS MONTH" value={String(kpis.monthCount)} icon={TrendingUp} tone="brand" />
+        <Kpi label="TOTAL VALUE" value={inr(kpis.totalAmt)} icon={Receipt} tone="brand" />
+        <Kpi label="IN TRANSIT" value={String(kpis.transitCount)} icon={AlertTriangle} tone="gold" />
+        <Kpi label="DELIVERED" value={String(kpis.deliveredCount)} icon={ShieldCheck} tone="brand" />
+      </div>
+
       {/* Main Container Card */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col gap-4">
         
@@ -112,7 +147,7 @@ export function DeliveryChallansView({
         </div>
 
         {/* Data Table */}
-        <div className="overflow-x-auto rounded-lg border border-slate-200/80 mt-2">
+        <div className="w-full overflow-visible rounded-lg border border-slate-200/80 mt-2">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-slate-200 bg-[#f4f6f8] text-[12px] font-semibold text-slate-700">
               <tr>

@@ -37,6 +37,8 @@ const REFRESH_KEY = "vertofi.refresh";
 export function setTokens(access: string, refresh: string): void {
   localStorage.setItem(ACCESS_KEY, access);
   localStorage.setItem(REFRESH_KEY, refresh);
+  localStorage.setItem("vertofi.panels.access", access);
+  localStorage.setItem("vertofi.panels.refresh", refresh);
 }
 export function clearTokens(): void {
   if (typeof window === "undefined") return;
@@ -56,7 +58,8 @@ export function clearTokens(): void {
   localStorage.removeItem("vertofi_assigned_professionals");
 }
 export function getAccess(): string | null {
-  return typeof window === "undefined" ? null : localStorage.getItem(ACCESS_KEY);
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ACCESS_KEY) || localStorage.getItem("vertofi.panels.access");
 }
 
 const ORG_KEY = "vertofi.orgId";
@@ -113,14 +116,15 @@ function tryRefresh(): Promise<boolean> {
           body: JSON.stringify({ refreshToken: rt }),
         });
         if (!res.ok) {
-          clearTokens();
           return false;
         }
-        const t = (await res.json()) as { accessToken: string; refreshToken: string };
-        setTokens(t.accessToken, t.refreshToken);
-        return true;
+        const t = (await res.json()) as { accessToken?: string; refreshToken?: string };
+        if (t?.accessToken) {
+          setTokens(t.accessToken, t.refreshToken || rt);
+          return true;
+        }
+        return false;
       } catch {
-        clearTokens();
         return false;
       }
     })().finally(() => {
@@ -190,9 +194,7 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true, ret
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
-  // Expired access token → refresh once and retry. If the refresh token is
-  // also dead, the session is truly over → clean sign-out instead of a page
-  // full of silent 401s.
+  // Expired access token → refresh once and retry.
   if (res.status === 401 && auth && !retried) {
     if (await tryRefresh()) return request<T>(path, init, auth, true);
     throw new ApiError(401, "session_expired");
@@ -208,17 +210,14 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true, ret
     } catch {
       /* non-json error */
     }
-    // Subscription gate: the gateway returns 402 when the org is PAST_DUE / trial
-    // expired. Route the user to the reactivation (payment) screen.
-    if (res.status === 402 && typeof window !== "undefined" && !window.location.pathname.startsWith("/reactivate")) {
-      window.location.href = "/reactivate";
-    }
     throw new ApiError(res.status, code);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
 export const api = {
+  get: <T>(path: string, init?: RequestInit) => request<T>(path, { ...init, method: "GET" }),
+  post: <T>(path: string, body?: unknown, init?: RequestInit) => request<T>(path, { ...init, method: "POST", body: body ? JSON.stringify(body) : undefined }),
   // ── auth ──
   checkUser: (mobile: string, email: string) =>
     request<{ exists: boolean; code?: string; message?: string }>(
@@ -452,6 +451,16 @@ export const api = {
     taxWarning: (orgId: string) => request<Record<string, unknown>>(`/predict/${orgId}/tax-warning`),
     profitLeaks: (orgId: string) => request<Record<string, unknown>>(`/predict/${orgId}/profit-leaks`),
     bhsHistory: (orgId: string) => request<Record<string, unknown>[]>(`/bhs/${orgId}/history`),
+    getBhsSimulatedHistory: (orgId: string) => request<any[]>(`/bhs/${orgId}/simulated-history`),
+    saveBhsSimulatedHistory: (orgId: string, item: any) =>
+      request<any>(`/bhs/${orgId}/simulated-history`, {
+        method: "POST",
+        body: JSON.stringify(item),
+      }),
+    deleteBhsSimulatedHistory: (orgId: string, id: string | number) =>
+      request<any>(`/bhs/${orgId}/simulated-history/${id}`, {
+        method: "DELETE",
+      }),
     askAi: (orgId: string, prompt: string) =>
       request<Record<string, unknown>>(`/predict/${orgId}/ask`, {
         method: "POST",

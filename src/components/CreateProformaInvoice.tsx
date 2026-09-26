@@ -434,16 +434,7 @@ export function CreateProformaInvoice({ orgId, onClose, onCreated, inline = fals
         </button>
       </div>
 
-      {/* Mode Switcher Tabs */}
-      <div className="flex items-center gap-4 border-b border-slate-100 pb-3">
-        <button
-          type="button"
-          onClick={() => setActiveTab("ai")}
-          className="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition cursor-pointer shadow-xs bg-[#0B132B] text-white"
-        >
-          <Sparkles className="h-4 w-4 text-amber-300" /> Create with AI
-        </button>
-      </div>
+
 
       {/* Create with AI Card */}
       <div className="rounded-xl border border-blue-200 bg-[#F4F8FF] p-5 space-y-3.5">

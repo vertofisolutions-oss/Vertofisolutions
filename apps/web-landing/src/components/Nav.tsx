@@ -33,6 +33,7 @@ const APP_ROUTES = [
   "/reset",
   "/reactivate",
   "/subscribe",
+  "/profitleak-finder",
 ];
 
 export function Nav() {

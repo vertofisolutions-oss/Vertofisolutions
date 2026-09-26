@@ -728,46 +728,22 @@ function AssignProfessional() {
 
 function WhatsAppCfo() {
   const wa = process.env.NEXT_PUBLIC_WA_NUMBER ?? "918712357876";
-  const [messages, setMessages] = useState<Array<{ sender: "user" | "bot"; text: string; time: string }>>([
-    {
-      sender: "bot",
-      text: "👋 Hello! I am Vertofi AI CFO (+91 87123 57876).\nAsk me any doubt about Vertofi, GST filing, e-invoicing, or send commands like 'menu', 'dashboard', 'gst', or 'sale 5 chairs to Sharma Traders at 1200'.",
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    },
-  ]);
+  const defaultWelcome = {
+    sender: "bot" as const,
+    text: "👋 Hello! I am Vertofi AI CFO (+91 87123 57876).\nAsk me any doubt about Vertofi, GST filing, e-invoicing, or send commands like 'menu', 'dashboard', 'gst', or 'sale 5 chairs to Sharma Traders at 1200'.",
+    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  };
+  const [messages, setMessages] = useState<Array<{ sender: "user" | "bot"; text: string; time: string }>>([defaultWelcome]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
-  function getReply(msg: string): string {
-    const lower = msg.toLowerCase().trim();
-
-    if (lower === "menu") {
-      return `📋 Vertofi AI CFO Command Menu (+91 87123 57876):\n\n1. sale <qty> <item> to <client> at <price> — Create GST invoice\n2. purchase <amount> for <reason> — Record expense\n3. dashboard — Cash position & Business Health Score\n4. gst — GST liability & filing due dates\n5. ai <question> — Ask financial, tax, or Vertofi doubts`;
-    }
-
-    if (lower.startsWith("sale ") || lower.includes("sale ")) {
-      return `✅ GST Sales Invoice Created!\n\n• Invoice No: VRT-INV-2026-089\n• Customer: Sharma Traders\n• Particulars: 5 x Chairs @ ₹1,200 = ₹6,000\n• GST (18%): ₹1,080\n• Total Receivable: ₹7,080\n• E-Invoice IRN: Generated & Synced.`;
-    }
-
-    if (lower.startsWith("purchase") || lower.includes("expense")) {
-      return `💸 Purchase Recorded!\n\n• Voucher No: VRT-EXP-402\n• Amount Recorded: ₹2,500\n• Category: Office Supplies\n• Input Tax Credit (ITC): Eligible ₹450`;
-    }
-
-    if (lower === "dashboard" || lower.includes("cash") || lower.includes("health")) {
-      return `📊 Vertofi Business Snapshot (+91 87123 57876):\n\n• Business Health Score: 88/100 (EXCELLENT)\n• Monthly Inflow: ₹4,50,000\n• Monthly Outflow: ₹1,80,000\n• Net Profit: +₹2,70,000\n• Runway: 142 Days\n• Active Risks: 0 Pending`;
-    }
-
-    if (lower === "gst" || lower.includes("tax")) {
-      return `🛡️ GST Liability & Due Dates Summary:\n\n• Output GST Collected: ₹42,500\n• Input Tax Credit (ITC): ₹28,000\n• Net Payable: ₹14,500\n• GSTR-1 Due: 11th of next month\n• GSTR-3B Due: 20th of next month\n• Status: On Track!`;
-    }
-
-    if (lower.includes("vertofi") || lower.includes("what is") || lower.includes("about")) {
-      return `🚀 Vertofi is India's leading AI-powered Financial & Accounting OS for businesses, CAs, and professionals!\n\nKey Features:\n• Automated Invoicing & E-Way Bills\n• Business Lifeguard (GST Notice SOS)\n• Financial Black Box & Immutable Audit\n• AI BHS (Business Health Score)\n• 24/7 WhatsApp CFO Bot (+91 87123 57876)`;
-    }
-
-    return `💡 Vertofi AI CFO (+91 87123 57876):\n\nI have analyzed your query: "${msg}".\n\nYour books are fully reconciled on Vertofi. All transactions, GST filings, and cashflows are updated in real-time. Type 'menu' or 'dashboard' for instant reports!`;
-  }
-
+  useEffect(() => {
+    api.get<Array<any>>("/whatsapp/messages").then((data: any) => {
+      if (data && data.length > 0) {
+        setMessages(data);
+      }
+    }).catch(console.error);
+  }, []);
   function handleSend(customText?: string) {
     const textToSend = customText || input;
     if (!textToSend.trim()) return;
@@ -779,12 +755,16 @@ function WhatsAppCfo() {
     if (!customText) setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const replyText = getReply(textToSend);
-      const botMsg = { sender: "bot" as const, text: replyText, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
-      setMessages((prev) => [...prev, botMsg]);
-      setIsTyping(false);
-    }, 600);
+    api.post<{ reply: { sender: "bot"; text: string; time: string } }>("/whatsapp/message", { text: textToSend })
+      .then((res: any) => {
+        if (res?.reply) {
+          setMessages((prev) => [...prev, res.reply]);
+        }
+      })
+      .catch((err: any) => {
+        setMessages((prev) => [...prev, { sender: "bot", text: "Error communicating with server.", time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
+      })
+      .finally(() => setIsTyping(false));
   }
 
   return (

@@ -1,0 +1,206 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Organization {
+  id             String   @id @default(cuid())
+  name           String
+  legalName      String?
+  tradeName      String?
+  email          String?
+  mobile         String?
+  gstin          String?
+  pan            String?
+  businessType   String   @default("PROPRIETORSHIP")
+  industry       String   @default("General Commerce")
+  turnover       String?
+  plan           String   @default("FREE")
+  billingCycle   String   @default("MONTHLY")
+  status         String   @default("ACTIVE")
+  
+  users          User[]
+  sales          Sale[]
+  purchases      Purchase[]
+  expenses       Expense[]
+  inventory      Inventory[]
+  customers      Customer[]
+  vendors        Vendor[]
+  auditLogs      AuditLog[]
+  bhsScorecards  BhsScorecard[]
+  leakageIssues  LeakageIssue[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model User {
+  id             String       @id @default(cuid())
+  name           String
+  email          String       @unique
+  mobile         String?
+  role           String       @default("BUSINESS_OWNER")
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+  
+  createdAt      DateTime     @default(now())
+}
+
+model Sale {
+  id             String       @id @default(cuid())
+  invoiceNo      String       @unique
+  date           DateTime     @default(now())
+  customerId     String?
+  customer       Customer?    @relation(fields: [customerId], references: [id])
+  customerName   String?
+  customerGstin  String?
+  subtotal       Float        @default(0)
+  tax            Float        @default(0)
+  cgst           Float        @default(0)
+  sgst           Float        @default(0)
+  igst           Float        @default(0)
+  totalAmount    Float        @default(0)
+  status         String       @default("GENERATED") // GENERATED, PAID, OVERDUE, CANCELLED
+  irn            String?
+  ewayBillNo     String?
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Purchase {
+  id             String       @id @default(cuid())
+  billNo         String
+  date           DateTime     @default(now())
+  vendorId       String?
+  vendor         Vendor?      @relation(fields: [vendorId], references: [id])
+  vendorName     String?
+  vendorGstin    String?
+  subtotal       Float        @default(0)
+  tax            Float        @default(0)
+  cgst           Float        @default(0)
+  sgst           Float        @default(0)
+  igst           Float        @default(0)
+  total          Float        @default(0)
+  status         String       @default("RECORDED")
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Expense {
+  id             String       @id @default(cuid())
+  voucherNo      String
+  date           DateTime     @default(now())
+  category       String
+  amount         Float
+  description    String?
+  status         String       @default("RECORDED")
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Inventory {
+  id             String       @id @default(cuid())
+  name           String
+  sku            String?
+  qty            Float        @default(0)
+  minStock       Float        @default(10)
+  sellingPrice   Float        @default(0)
+  purchasePrice  Float        @default(0)
+  value          Float        @default(0)
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Customer {
+  id             String       @id @default(cuid())
+  name           String
+  email          String?
+  phone          String?
+  gstin          String?
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+  sales          Sale[]
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Vendor {
+  id             String       @id @default(cuid())
+  name           String
+  email          String?
+  phone          String?
+  gstin          String?
+  trustScore     Float?
+  fraudRisk      String?
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+  purchases      Purchase[]
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  action         String
+  entity         String
+  entityId       String
+  oldValue       String?
+  newValue       String?
+  userId         String?
+  ipAddress      String?
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+
+  createdAt      DateTime     @default(now())
+}
+
+model BhsScorecard {
+  id             String       @id @default(cuid())
+  score          Float
+  band           String       // Excellent, Healthy, Moderate, Weak, Poor, Critical
+  expenseScore   Float
+  taxScore       Float
+  cashflowScore  Float
+  gstScore       Float
+  payrollScore   Float
+  debtScore      Float
+  leakageScore   Float
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+
+  createdAt      DateTime     @default(now())
+}
+
+model LeakageIssue {
+  id             String       @id @default(cuid())
+  category       String
+  title          String
+  description    String
+  amount         Float
+  riskLevel      String       @default("Low") // Low, Medium, High
+  status         String       @default("New") // New, Under Review, Investigating, Resolved, Ignored
+  metadata       String?      // JSON string for linked expense/purchase IDs
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id])
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}

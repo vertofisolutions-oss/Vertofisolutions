@@ -21,26 +21,7 @@ export function ReconciliationView({ orgId }: { orgId: string }) {
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const [lines, setLines] = useState<StatementLine[]>([
-    {
-      id: "rec-1",
-      date: "2026-09-12",
-      description: "UPI/5900.00/GEETHA/PAYMENT-INV0001",
-      debit: 0,
-      credit: 5900,
-      match: "Sales Invoice INV/0001 (geetha)",
-      status: "PENDING",
-    },
-    {
-      id: "rec-2",
-      date: "2026-09-12",
-      description: "NEFT/295000.00/VENDOR-GEETHA/PUR-3774",
-      debit: 295000,
-      credit: 0,
-      match: "Purchase Bill PUR-3774 (geetha)",
-      status: "PENDING",
-    },
-  ]);
+  const [lines, setLines] = useState<StatementLine[]>([]);
 
   function handleFileUpload(file: File | undefined | null) {
     if (!file) return;
@@ -230,7 +211,7 @@ export function ReconciliationView({ orgId }: { orgId: string }) {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="w-full overflow-visible rounded-lg border border-border">
             <table className="w-full text-left text-xs">
               <thead className="border-b border-border bg-bg2 text-[11px] font-semibold text-muted">
                 <tr>

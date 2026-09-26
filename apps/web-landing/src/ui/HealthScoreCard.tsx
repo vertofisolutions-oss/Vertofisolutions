@@ -11,11 +11,15 @@ export interface HealthScoreCardProps {
  * The iconic Business Health Score (docs/12): huge number, small label,
  * gold rating badge. Renders an empty state when no score yet.
  */
-function rating(score: number): { text: string; tone: "gold" | "brand" | "danger" } {
-  if (score >= 80) return { text: "Excellent", tone: "gold" };
-  if (score >= 60) return { text: "Healthy", tone: "brand" };
-  if (score >= 40) return { text: "Needs Attention", tone: "brand" };
-  return { text: "At Risk", tone: "danger" };
+type Tone = "neutral" | "brand" | "gold" | "danger" | "deep-green" | "green" | "yellow" | "amber" | "orange" | "red";
+
+function rating(score: number): { text: string; tone: Tone } {
+  if (score >= 85) return { text: "Excellent", tone: "deep-green" };
+  if (score >= 71) return { text: "Healthy", tone: "green" };
+  if (score >= 55) return { text: "Moderate", tone: "yellow" };
+  if (score >= 40) return { text: "Weak", tone: "amber" };
+  if (score >= 20) return { text: "Poor", tone: "orange" };
+  return { text: "Critical", tone: "red" };
 }
 
 export function HealthScoreCard({ score, label = "Business Health Score" }: HealthScoreCardProps) {

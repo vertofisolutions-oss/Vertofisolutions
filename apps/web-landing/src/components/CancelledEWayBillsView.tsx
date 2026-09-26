@@ -377,7 +377,7 @@ export function CancelledEWayBillsView({
         </div>
 
         {/* Data Table */}
-        <div className="mt-5 overflow-x-auto rounded-lg border border-slate-200/80">
+        <div className="mt-5 w-full overflow-visible rounded-lg border border-slate-200/80">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-slate-200 bg-[#f4f6f8] text-[12px] font-semibold text-slate-700">
               <tr>

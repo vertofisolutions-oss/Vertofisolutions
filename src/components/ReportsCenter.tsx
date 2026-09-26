@@ -471,7 +471,7 @@ export function InvoiceTemplatePreviewModal({
             <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">
               Template &amp; Export PDF
             </p>
-            <div className="flex items-start gap-2.5 overflow-x-auto pb-1">
+            <div className="flex items-start gap-2.5 w-full overflow-visible pb-1">
               {TEMPLATE_META.map(({ num, name, primary, accent, dotClass }) => {
                 const isActive = selectedTemplateNum === num;
                 const isExp = exportingNum === num;
@@ -1219,7 +1219,7 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-border bg-white px-4 py-2 text-[12px]">
+        <div className="flex items-center gap-1.5 w-full overflow-visible border-b border-border bg-white px-4 py-2 text-[12px]">
           {MORE_REPORTS.map((rep) => {
             const Icon = rep.icon;
             const isActive = activeTab === rep.id;
@@ -1278,7 +1278,7 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
                       <span className="text-[12px] font-semibold uppercase text-ink">Ledger Account Balances</span>
                       <span className="text-[11px] text-muted">Double-entry verified</span>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="w-full overflow-visible">
                       <table className="w-full text-left text-[12px]">
                         <thead>
                           <tr className="border-b border-border bg-slate-50/40 text-[11px] font-semibold uppercase text-muted">
@@ -1320,7 +1320,7 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
                       <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted" />
                       <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ref #, party, notes…" className="w-full rounded-lg border border-border bg-bg2 py-1.5 pl-8 pr-3 text-[12px] text-ink outline-none focus:border-brand" />
                     </div>
-                    <div className="flex items-center gap-1.5 self-start sm:self-auto overflow-x-auto w-full sm:w-auto">
+                    <div className="flex items-center gap-1.5 self-start sm:self-auto w-full overflow-visible w-full sm:w-auto">
                       <span className="text-[11px] font-semibold text-muted flex items-center gap-1"><Filter className="h-3 w-3" /> Type:</span>
                       {["ALL", "Sales", "Purchase", "Expense"].map((t) => (
                         <button key={t} onClick={() => setFilterType(t)} className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition ${filterType === t ? "bg-slate-900 text-white" : "border border-border bg-white text-muted hover:text-ink"}`}>{t}</button>
@@ -1348,7 +1348,7 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
                   </div>
 
                   <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
+                    <div className="w-full overflow-visible">
                       <table className="w-full text-left text-[12px]">
                         <thead>
                           <tr className="border-b border-border bg-slate-50 text-[11px] font-semibold uppercase text-muted">
@@ -1412,7 +1412,7 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
                   </div>
 
                   <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
+                    <div className="w-full overflow-visible">
                       <table className="w-full text-left text-[12px]">
                         <thead>
                           <tr className="border-b border-border bg-slate-50 text-[11px] font-semibold uppercase text-muted">
@@ -1470,7 +1470,7 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
                       <span className="text-[12px] font-semibold uppercase text-ink">Purchase Register vs GSTR-2B</span>
                       <span className="text-[11px] text-muted">Section 16(2)(aa) Verification</span>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="w-full overflow-visible">
                       <table className="w-full text-left text-[12px]">
                         <thead>
                           <tr className="border-b border-border bg-slate-50 text-[11px] font-semibold uppercase text-muted">
@@ -1526,7 +1526,7 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
                   </div>
 
                   <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
+                    <div className="w-full overflow-visible">
                       <table className="w-full text-left text-[12px]">
                         <thead>
                           <tr className="border-b border-border bg-slate-50 text-[11px] font-semibold uppercase text-muted">
@@ -1580,7 +1580,7 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
                   </div>
 
                   <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
+                    <div className="w-full overflow-visible">
                       <table className="w-full text-left text-[12px]">
                         <thead>
                           <tr className="border-b border-border bg-slate-50 text-[11px] font-semibold uppercase text-muted">

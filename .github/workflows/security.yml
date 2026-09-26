@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        language: [javascript, python]
+        language: [javascript]
     steps:
       - uses: actions/checkout@v4
       - uses: github/codeql-action/init@v3

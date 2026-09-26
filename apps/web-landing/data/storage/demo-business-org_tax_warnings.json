@@ -1,0 +1,36 @@
+[
+  {
+    "id": "warn_1790245493132_cash",
+    "created_at": "2026-09-24T10:24:53.132Z",
+    "updated_at": "2026-09-24T10:24:53.187Z",
+    "type": "CASHFLOW_LOW",
+    "title": "Cashflow Headroom Low",
+    "priority": "Medium",
+    "message": "Your forecasted cashflow headroom is 12 days (below the 15-day safe threshold).",
+    "impact": 150000,
+    "confidence": 92,
+    "recommendedAction": "Defer large capital expenditures and follow up on overdue receivables.",
+    "explainability": [
+      "High operating expenses this month",
+      "Delayed collections from Client X"
+    ],
+    "status": "ACTIVE"
+  },
+  {
+    "id": "warn_1790245493132_gst",
+    "created_at": "2026-09-24T10:24:53.132Z",
+    "updated_at": "2026-09-24T10:24:53.132Z",
+    "type": "GST_CREDIT_LOW",
+    "title": "GST Credit Low",
+    "priority": "Critical",
+    "message": "Your projected GST input credit for this month is ₹45,000, below the internal safety threshold of ₹75,000.",
+    "impact": 30000,
+    "confidence": 86,
+    "recommendedAction": "Delay non-essential purchases or accelerate vendor invoice receipts.",
+    "explainability": [
+      "Recent drop in vendor filings",
+      "Seasonal drop in inbound credit"
+    ],
+    "status": "ACTIVE"
+  }
+]

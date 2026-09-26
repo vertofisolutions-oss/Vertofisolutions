@@ -1,11 +1,24 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Download, Search, ArrowUpDown, Calendar, Settings } from "lucide-react";
+import { Plus, Receipt, ShieldCheck, AlertTriangle, TrendingUp, Download, Search, ArrowUpDown, Calendar, Settings, MoreHorizontal, Eye, RefreshCw, Mail, XCircle } from "lucide-react";
 import { Card } from "@/ui";
 import { api } from "@/lib/api";
 import { RecordSettingsModal } from "./RecordSettingsModal";
 
 const inr = (n: number) => `₹ ${Number(n || 0).toLocaleString("en-IN")}`;
+
+
+function Kpi({ label, value, icon: Icon, tone }: { label: string; value: string; icon: any; tone?: "gold" | "brand" }) {
+  return (
+    <Card className="py-3 px-4 mb-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{label}</p>
+        <Icon className={"h-4 w-4 " + (tone === "gold" ? "text-gold" : "text-brand")} />
+      </div>
+      <p className="mt-1 text-xl font-bold tracking-tight text-ink">{value}</p>
+    </Card>
+  );
+}
 
 export function DebitNotesView({
   orgId,
@@ -20,6 +33,39 @@ export function DebitNotesView({
   const [pageSize, setPageSize] = useState(10);
   const [dateRange, setDateRange] = useState({ start: "2026-09-01", end: "2026-09-03" });
   const [selectedRecord, setSelectedRecord] = useState<Record<string, unknown> | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdownId(null);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  function handleDownload(r: Record<string, unknown>) {
+    // If there is no specific preview/PDF view yet, we just alert or do standard view
+    alert("Download functionality for Debit Note is being configured.");
+  }
+
+  function handleDuplicate(r: Record<string, unknown>) {
+    const newId = "dn-" + Date.now();
+    const newNo = String(r.dn_no ?? "DN") + "-COPY";
+    const clone = { ...r, id: newId, dn_no: newNo };
+    setRows((prev) => {
+      const updated = [clone, ...prev];
+      return updated;
+    });
+    alert("Successfully duplicated as " + newNo);
+  }
+
+  function handleEmail(r: Record<string, unknown>) {
+    const custEmail = String(r.customer_email ?? r.vendor_email ?? "");
+    const invNo = String(r.dn_no ?? "Debit Note");
+    const amount = Number(r.total ?? r.amount ?? 0);
+    const subject = encodeURIComponent("Debit Note " + invNo + " from Vertofi");
+    const body = encodeURIComponent("Dear Customer,\n\nPlease find attached the details for Debit Note " + invNo + " amounting to " + amount + ".\n\nThank you.");
+    window.location.href = "mailto:" + custEmail + "?subject=" + subject + "&body=" + body;
+  }
+
 
   useEffect(() => {
     let alive = true;
@@ -41,6 +87,21 @@ export function DebitNotesView({
       alive = false;
     };
   }, [orgId]);
+
+  
+  const kpis = useMemo(() => {
+    const now = new Date();
+    const ym = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+    let monthCount = 0, totalAmt = 0, gstAmt = 0, pendingCount = 0;
+    for (const r of rows) {
+      const t = Number(r.total || r.amount || 0);
+      totalAmt += t;
+      if (String(r.date || "").startsWith(ym)) monthCount++;
+      if (String(r.status || "").toUpperCase() === "PENDING") pendingCount++;
+      gstAmt += Number(r.tax || r.totalTax || 0);
+    }
+    return { monthCount, totalAmt, pendingCount, gstAmt };
+  }, [rows]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
@@ -145,7 +206,7 @@ export function DebitNotesView({
       </div>
 
       {/* Table */}
-      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+      <div className="mt-4 w-full overflow-visible rounded-lg border border-border">
         <table className="w-full text-left text-xs">
           <thead className="border-b border-border bg-bg2 text-[11px] font-semibold text-muted">
             <tr>
@@ -211,16 +272,56 @@ export function DebitNotesView({
                     </span>
                   </td>
                   <td className="px-3 py-3 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRecord(r)}
-                      className="rounded-lg p-1.5 text-muted transition hover:bg-slate-100 hover:text-ink cursor-pointer group"
-                      title="View Details & Settings"
-                    >
-                      <Settings className="h-4 w-4 mx-auto group-hover:rotate-45 transition-transform duration-200" />
-                    </button>
-                  </td>
-                </tr>
+                      <div className="flex items-center justify-center gap-1.5 relative">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rowKey = String(r.id || r.invoice_no || r.bill_no || r.proforma_no || r.cn_no || r.dn_no || r.dc_no || "doc");
+                            setOpenDropdownId(openDropdownId === rowKey ? null : rowKey);
+                          }}
+                          className="inline-flex items-center justify-center p-1 text-blue-500 hover:text-blue-700 transition cursor-pointer"
+                        >
+                          <MoreHorizontal className="h-5 w-5" />
+                        </button>
+                        
+                        {openDropdownId === String(r.id || r.invoice_no || r.bill_no || r.proforma_no || r.cn_no || r.dn_no || r.dc_no || "doc") && (
+                          <div 
+                            className="absolute right-8 top-8 z-50 w-64 rounded-md bg-white shadow-xl border border-slate-200 text-left text-[13px] text-slate-700 font-normal divide-y divide-slate-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button onClick={() => { setSelectedRecord(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <Eye className="h-4 w-4 text-slate-400" /> View
+                            </button>
+                            <button onClick={() => { typeof handleDownload === 'function' ? handleDownload(r) : alert('Download ' + r.id); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <Download className="h-4 w-4 text-slate-400" /> Download
+                            </button>
+                            <button onClick={() => { typeof handleDuplicate === 'function' ? handleDuplicate(r) : alert('Duplicate ' + r.id); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Duplicate Debit Note
+                            </button>
+                            <button onClick={() => { typeof handleEmail === 'function' ? handleEmail(r) : alert('Email ' + r.id); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <Mail className="h-4 w-4 text-slate-400" /> Send Email
+                            </button>
+                            <button onClick={() => { setSelectedRecord(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Edit Debit Note
+                            </button>
+                            <button onClick={() => { alert("Convert to Sales Return"); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Convert to Sales Return
+                            </button>
+                            <button onClick={() => { alert("Update Return Period"); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Update Return Period
+                            </button>
+                            <button onClick={() => { 
+                                alert('Cancel ' + r.id);
+                                setOpenDropdownId(null); 
+                            }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-slate-700 cursor-pointer">
+                              <XCircle className="h-4 w-4 text-slate-400" /> Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
               ))
             )}
           </tbody>

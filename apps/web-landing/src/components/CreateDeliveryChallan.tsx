@@ -323,7 +323,7 @@ export function CreateDeliveryChallan({
 
         {/* Items Table Section */}
         <div className="space-y-3">
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <div className="w-full overflow-visible rounded-lg border border-gray-200">
             <table className="w-full text-left text-xs">
               <thead className="bg-[#F9FAFB] text-[12px] font-semibold text-[#6B7280] border-b border-gray-100">
                 <tr>

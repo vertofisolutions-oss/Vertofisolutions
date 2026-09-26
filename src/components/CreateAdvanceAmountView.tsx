@@ -315,7 +315,7 @@ export function CreateAdvanceAmountView({
       </div>
 
       {/* GST Rates Grid Table with full borders */}
-      <div className="overflow-x-auto rounded-none border border-slate-300 mt-6">
+      <div className="w-full overflow-visible rounded-none border border-slate-300 mt-6">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-[#f8fafc] text-slate-700 font-semibold border-b border-slate-300">

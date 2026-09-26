@@ -172,7 +172,7 @@ export function SuppliersView({
         </div>
 
         {/* Data Table */}
-        <div className="overflow-x-auto rounded-lg border border-slate-200/80 mt-2">
+        <div className="w-full overflow-visible rounded-lg border border-slate-200/80 mt-2">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-slate-200 bg-[#f4f6f8] text-[12px] font-semibold text-slate-700">
               <tr>

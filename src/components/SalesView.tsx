@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Receipt, FileText, ShieldCheck, AlertTriangle, Plus, TrendingUp, Download, Search, ArrowUpDown, Calendar, Trash2, LayoutTemplate, Eye } from "lucide-react";
+import { Receipt, FileText, ShieldCheck, AlertTriangle, Plus, TrendingUp, Download, Search, ArrowUpDown, Calendar, Trash2, MoreHorizontal, Eye, RefreshCw, Mail, XCircle, LayoutTemplate } from "lucide-react";
 import { Button, Card } from "@/ui";
 import { api } from "@/lib/api";
 import { InvoiceTemplatePreviewModal } from "./ReportsCenter";
@@ -66,6 +66,47 @@ export function SalesView({ orgId, rows = [], loading, onNewInvoice, onNewDoc }:
   const [dateRange, setDateRange] = useState({ start: "2026-09-01", end: "2026-09-03" });
   const [localRows, setLocalRows] = useState<Record<string, unknown>[]>(() => dedupeInvoices(rows));
   const [editingInvoice, setEditingInvoice] = useState<Record<string, unknown> | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdownId(null);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  function handleDownload(r: Record<string, unknown>) {
+    setPreviewingInvoice(r);
+    setTimeout(() => {
+      const el = document.getElementById("printable-invoice-a4");
+      if (el) {
+        import("@/lib/exportTemplatePdf").then(({ printElementAsPdf }) => {
+          printElementAsPdf(el, String(r.invoice_no ?? "Invoice"));
+        });
+      }
+    }, 500);
+  }
+
+  function handleDuplicate(r: Record<string, unknown>) {
+    const newId = "inv-" + Date.now();
+    const newNo = String(r.invoice_no ?? "INV") + "-COPY";
+    const clone = { ...r, id: newId, invoice_no: newNo, number: newNo };
+    setLocalRows((prev) => {
+      const updated = [clone, ...prev];
+      try { localStorage.setItem("vertofi_local_sales", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    alert("Successfully duplicated as " + newNo);
+  }
+
+  function handleEmail(r: Record<string, unknown>) {
+    const custEmail = String(r.customer_email ?? r.customerEmail ?? "");
+    const invNo = String(r.invoice_no ?? "Invoice");
+    const amount = Number(r.total ?? r.amount ?? 0);
+    const subject = encodeURIComponent("Invoice " + invNo + " from Vertofi");
+    const body = encodeURIComponent("Dear Customer,\n\nPlease find attached the details for Invoice " + invNo + " amounting to " + amount + ".\n\nThank you.");
+    window.location.href = "mailto:" + custEmail + "?subject=" + subject + "&body=" + body;
+  }
+
   const [previewingInvoice, setPreviewingInvoice] = useState<Record<string, unknown> | null>(null);
   const [editForm, setEditForm] = useState<{
     id: string;
@@ -329,7 +370,7 @@ export function SalesView({ orgId, rows = [], loading, onNewInvoice, onNewDoc }:
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-border mt-3">
+        <div className="overflow-visible rounded-lg border border-border mt-3">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-muted border-b border-border">
               <tr>
@@ -409,31 +450,50 @@ export function SalesView({ orgId, rows = [], loading, onNewInvoice, onNewDoc }:
                       </span>
                     </td>
                     <td className="px-3 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex items-center justify-center gap-1.5 relative">
                         <button
                           type="button"
-                          onClick={() => setPreviewingInvoice(r)}
-                          title="View Generated Invoice & Templates"
-                          className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-600 hover:text-white transition cursor-pointer shadow-2xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rowKey = String(r.id || r.invoice_no || "inv");
+                            setOpenDropdownId(openDropdownId === rowKey ? null : rowKey);
+                          }}
+                          className="inline-flex items-center justify-center p-1 text-blue-500 hover:text-blue-700 transition"
                         >
-                          <Eye className="h-3 w-3" />
-                          <span>View</span>
+                          <MoreHorizontal className="h-5 w-5" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(r)}
-                          className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:border-brand hover:text-brand transition cursor-pointer shadow-2xs"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteInvoice(r)}
-                          title="Delete Invoice"
-                          className="rounded-full border border-red-200 bg-red-50 p-1 text-red-600 hover:bg-red-100 hover:text-red-700 transition cursor-pointer shadow-2xs"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        
+                        {openDropdownId === String(r.id || r.invoice_no || "inv") && (
+                          <div 
+                            className="absolute right-8 top-8 z-50 w-64 rounded-md bg-white shadow-xl border border-slate-200 text-left text-[13px] text-slate-700 font-normal divide-y divide-slate-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button onClick={() => { setPreviewingInvoice(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors">
+                              <Eye className="h-4 w-4 text-slate-400" /> View
+                            </button>
+                            <button onClick={() => { handleDownload && handleDownload(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors">
+                              <Download className="h-4 w-4 text-slate-400" /> Download
+                            </button>
+                            <button onClick={() => { handleDuplicate && handleDuplicate(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Duplicate Invoice
+                            </button>
+                            <button onClick={() => { handleEmail && handleEmail(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors">
+                              <Mail className="h-4 w-4 text-slate-400" /> Send Email
+                            </button>
+                            <button onClick={() => { handleOpenEdit(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Edit Invoice
+                            </button>
+                            <button onClick={() => { alert("Convert to Sales Return"); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Convert to Sales Return
+                            </button>
+                            <button onClick={() => { alert("Update Return Period"); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Update Return Period
+                            </button>
+                            <button onClick={() => { handleDeleteInvoice && handleDeleteInvoice(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-slate-700">
+                              <XCircle className="h-4 w-4 text-slate-400" /> Cancel
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>

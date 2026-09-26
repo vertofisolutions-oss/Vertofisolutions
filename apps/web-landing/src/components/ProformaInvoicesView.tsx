@@ -1,17 +1,46 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Download, Plus, Search, Calendar, ArrowUpDown, Eye, Trash2 } from "lucide-react";
+import { Download, Plus, Search, Calendar, ArrowUpDown, Eye, Trash2, MoreHorizontal, RefreshCw, Mail, XCircle } from "lucide-react";
 import { Card } from "@/ui";
-import { InvoiceTemplatePreviewModal } from "./ReportsCenter";
+import { StandardGSTInvoiceModal as InvoiceTemplatePreviewModal } from "./StandardGSTInvoiceModal";
 
 const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const num = (v: unknown) => Number(v ?? 0) || 0;
 
-export function ProformaInvoicesView({ orgId, rows = [], loading, onNewInvoice }: {
+
+function Kpi({ label, value, icon: Icon, tone }: { label: string; value: string; icon: any; tone?: "gold" | "brand" }) {
+  return (
+    <Card className="py-3 px-4 mb-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{label}</p>
+        <Icon className={"h-4 w-4 " + (tone === "gold" ? "text-gold" : "text-brand")} />
+      </div>
+      <p className="mt-1 text-xl font-bold tracking-tight text-ink">{value}</p>
+    </Card>
+  );
+}
+
+export function ProformaInvoicesView({ orgId, rows = [], loading, onNewInvoice, setSelectedRecord, handleDownload, handleDuplicate, handleEmail, handleOpenEdit, handleDeletePurchase, handleDeleteProforma, handleDelete }: {
   orgId: string; rows?: Record<string, unknown>[]; loading?: boolean;
   onNewInvoice: () => void;
+  setSelectedRecord?: (record: Record<string, unknown>) => void;
+  handleDownload?: (record: Record<string, unknown>) => void;
+  handleDuplicate?: (record: Record<string, unknown>) => void;
+  handleEmail?: (record: Record<string, unknown>) => void;
+  handleOpenEdit?: (record: Record<string, unknown>) => void;
+  handleDeletePurchase?: (record: Record<string, unknown>) => void;
+  handleDeleteProforma?: (record: Record<string, unknown>) => void;
+  handleDelete?: (record: Record<string, unknown>) => void;
 }) {
   const [localRows, setLocalRows] = useState<Record<string, unknown>[]>(rows);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdownId(null);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
+
   const [search, setSearch] = useState("");
   const [pageSize, setPageSize] = useState(10);
   const [previewingInvoice, setPreviewingInvoice] = useState<Record<string, unknown> | null>(null);
@@ -46,8 +75,25 @@ export function ProformaInvoicesView({ orgId, rows = [], loading, onNewInvoice }
     void fetch(`/api/v1/accounting/${oid}/sales/${encodeURIComponent(targetId)}`, { method: "DELETE" }).catch(() => {});
   }
 
+  
+  const kpis = useMemo(() => {
+    const now = new Date();
+    const ym = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+    let monthProformas = 0, total = 0, convertedCount = 0, localGst = 0;
+    for (const r of rows) {
+      const t = Number(r.total || r.amount || 0);
+      total += t;
+      if (String(r.date || "").startsWith(ym)) monthProformas += t;
+      if (String(r.status || "").toUpperCase() === "ACCEPTED" || String(r.status || "").toUpperCase() === "CONVERTED") convertedCount++;
+      localGst += Number(r.tax || r.totalTax || 0);
+    }
+    return { monthProformas, total, convertedCount, localGst };
+  }, [rows]);
+
   const filteredRows = useMemo(() => {
     return localRows.filter((r) => {
+      const docType = String(r.doc_type ?? r.docType ?? "").toUpperCase();
+      if (docType !== "PROFORMA INVOICE") return false;
       const q = search.toLowerCase().trim();
       if (!q) return true;
       const invNo = String(r.invoice_no ?? r.invoiceNo ?? "").toLowerCase();
@@ -102,7 +148,7 @@ export function ProformaInvoicesView({ orgId, rows = [], loading, onNewInvoice }
         </div>
       </div>
 
-      <div className="w-full overflow-hidden border border-border shadow-sm">
+      <div className="w-full overflow-visible border border-border shadow-sm">
         {/* Filter & Search Toolbar */}
         <div className="flex flex-col gap-3 p-4 bg-white border-b border-border sm:flex-row sm:items-center sm:justify-between">
           {/* Date range picker */}
@@ -145,7 +191,7 @@ export function ProformaInvoicesView({ orgId, rows = [], loading, onNewInvoice }
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto bg-white">
+        <div className="w-full overflow-visible bg-white">
           <table className="w-full text-left text-xs whitespace-nowrap">
             <thead className="border-b border-border bg-slate-50 text-[12px] font-bold text-ink">
               <tr>
@@ -194,25 +240,54 @@ export function ProformaInvoicesView({ orgId, rows = [], loading, onNewInvoice }
                     <td className="border-r border-border px-3 py-2.5 text-center text-ink">
                       No
                     </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <div className="flex items-center justify-center gap-2.5">
+                    <td className="px-3 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1.5 relative">
                         <button
                           type="button"
-                          onClick={() => setPreviewingInvoice(r)}
-                          className="inline-flex items-center gap-1 text-brand hover:underline font-semibold cursor-pointer"
-                          title="View Generated Proforma Invoice"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rowKey = String(r.id || r.invoice_no || r.bill_no || r.proforma_no || r.cn_no || r.dn_no || r.dc_no || "doc");
+                            setOpenDropdownId(openDropdownId === rowKey ? null : rowKey);
+                          }}
+                          className="inline-flex items-center justify-center p-1 text-blue-500 hover:text-blue-700 transition cursor-pointer"
                         >
-                          <Eye className="h-3.5 w-3.5" />
-                          <span>View</span>
+                          <MoreHorizontal className="h-5 w-5" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteInvoice(r)}
-                          className="inline-flex items-center justify-center rounded-md p-1.5 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer"
-                          title="Delete Proforma Invoice"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        
+                        {openDropdownId === String(r.id || r.invoice_no || r.bill_no || r.proforma_no || r.cn_no || r.dn_no || r.dc_no || "doc") && (
+                          <div 
+                            className="absolute right-8 top-8 z-50 w-64 rounded-md bg-white shadow-xl border border-slate-200 text-left text-[13px] text-slate-700 font-normal divide-y divide-slate-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button onClick={() => { setPreviewingInvoice(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <Eye className="h-4 w-4 text-slate-400" /> View
+                            </button>
+                            <button onClick={() => { if(handleDownload) handleDownload(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <Download className="h-4 w-4 text-slate-400" /> Download
+                            </button>
+                            <button onClick={() => { if(handleDuplicate) handleDuplicate(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Duplicate Proforma Invoice
+                            </button>
+                            <button onClick={() => { if(handleEmail) handleEmail(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <Mail className="h-4 w-4 text-slate-400" /> Send Email
+                            </button>
+                            <button onClick={() => { if(handleOpenEdit) handleOpenEdit(r); else if(setSelectedRecord) setSelectedRecord(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Edit Proforma Invoice
+                            </button>
+                            <button onClick={() => { alert("Convert to Sales Return"); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Convert to Sales Return
+                            </button>
+                            <button onClick={() => { alert("Update Return Period"); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Update Return Period
+                            </button>
+                            <button onClick={() => { 
+                                handleDeleteInvoice(r);
+                                setOpenDropdownId(null); 
+                            }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-slate-700 cursor-pointer">
+                              <XCircle className="h-4 w-4 text-slate-400" /> Cancel
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>

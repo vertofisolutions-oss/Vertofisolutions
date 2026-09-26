@@ -13,6 +13,7 @@ export interface PasswordFieldProps {
   placeholder?: string;
   autoFocus?: boolean;
   autoComplete?: string;
+  disabled?: boolean;
   onEnter?: () => void;
   /** Show a strength meter (use on set-password / register, not login). */
   strength?: boolean;
@@ -40,6 +41,7 @@ export function PasswordField({
   placeholder = "••••••••",
   autoFocus,
   autoComplete = "current-password",
+  disabled,
   onEnter,
   strength,
 }: PasswordFieldProps) {
@@ -54,6 +56,7 @@ export function PasswordField({
           value={value}
           autoFocus={autoFocus}
           autoComplete={autoComplete}
+          disabled={disabled}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && value.length > 0 && onEnter?.()}

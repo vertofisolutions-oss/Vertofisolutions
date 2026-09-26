@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Pencil, User, MapPin, AlertCircle, CheckCircle2, X, Lock, Building2,
-  Sliders, ShieldCheck, Bell, QrCode, Users, Landmark, LayoutTemplate, Eye, Palette, Check, ArrowLeft, Sparkles, Download, Printer, Edit3, Plus, Trash2, ArrowUpRight, Shield, Zap, AlertTriangle
+  Sliders, ShieldCheck, Bell, QrCode, Users, Landmark, LayoutTemplate, Eye, Palette, Check, ArrowLeft, Sparkles, Download, Printer, Edit3, Plus, Trash2, ArrowUpRight, Shield, Zap, AlertTriangle, Wallet, Banknote, ArrowUpDown
 } from "lucide-react";
 import { api, getOrgId } from "@/lib/api";
 import { decodeClaims } from "@/lib/auth";
-import { getPlanLimits, getRecommendedPlanByTurnover, PlanLimits, PLANS, ADD_ONS } from "@/lib/plans";
+import { getPlanLimits, getRecommendedPlanByTurnover, PlanLimits, PLANS, ADD_ONS, normalizePlan } from "@/lib/plans";
 import { TEMPLATES_REGISTRY } from "@/templates/templatesData";
 import { TemplateEditor } from "@/templates/components/TemplateEditor";
 import { DocumentRenderer } from "@/templates/templateEngine/DocumentRenderer";
@@ -73,12 +74,18 @@ const SETTINGS_TABS = [
 type TabType = typeof SETTINGS_TABS[number];
 
 export function BusinessProfileView() {
-  const [activeTab, setActiveTab] = useState<TabType>("My Profile");
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const tabParam = searchParams?.get("tab");
+    if (tabParam === "role-access") return "Role Access";
+    return "My Profile";
+  });
   const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE);
   const [editingSection, setEditingSection] = useState<"personal" | "address" | null>(null);
   const [editForm, setEditForm] = useState<ProfileData>(DEFAULT_PROFILE);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [deactivated, setDeactivated] = useState(false);
+  const [showAddBankModal, setShowAddBankModal] = useState(false);
 
   // Secondary tabs state
   const [passwordForm, setPasswordForm] = useState({ current: "", newPass: "", confirm: "" });
@@ -933,7 +940,8 @@ export function BusinessProfileView() {
 
               {/* Plan Limits & Capacity Callout */}
               {(() => {
-                const limits = getPlanLimits(companyForm.plan);
+                const planMeta = PLANS.find((p) => p.id === normalizePlan(companyForm.plan)) || PLANS[0];
+                const limits = planMeta.limits;
                 return (
                   <div className="rounded-xl border border-blue-200/80 bg-gradient-to-r from-blue-50/70 to-indigo-50/40 p-4 text-xs space-y-2.5">
                     <div className="flex items-center justify-between">
@@ -942,12 +950,12 @@ export function BusinessProfileView() {
                           ★
                         </span>
                         <div>
-                          <p className="font-bold text-slate-900">{limits.name} Plan — Outcome: <span className="text-blue-700">{limits.outcome}</span></p>
-                          <p className="text-[11px] text-slate-500">{limits.tagline}</p>
+                          <p className="font-bold text-slate-900">{planMeta.name} Plan — Outcome: <span className="text-blue-700">{planMeta.outcome}</span></p>
+                          <p className="text-[11px] text-slate-500">{planMeta.tagline}</p>
                         </div>
                       </div>
                       <span className="rounded-full bg-blue-100 px-2.5 py-0.5 font-bold text-blue-800 text-[11px]">
-                        {limits.price}
+                        {planMeta.priceDisplay}
                       </span>
                     </div>
 
@@ -962,11 +970,11 @@ export function BusinessProfileView() {
                       </div>
                       <div className="bg-white/80 rounded-lg p-2 border border-blue-100">
                         <span className="text-slate-400 block text-[10px] uppercase font-bold">Monthly Invoices/Txn</span>
-                        <span className="font-bold text-slate-800">{limits.transactions} / mo</span>
+                        <span className="font-bold text-slate-800">{planMeta.transactions}</span>
                       </div>
                       <div className="bg-white/80 rounded-lg p-2 border border-blue-100">
                         <span className="text-slate-400 block text-[10px] uppercase font-bold">Scanned Bills</span>
-                        <span className="font-bold text-slate-800">{limits.scannedBills === 0 ? "—" : `${limits.scannedBills} / mo`}</span>
+                        <span className="font-bold text-slate-800">{planMeta.scannedBills}</span>
                       </div>
                     </div>
                   </div>
@@ -1120,7 +1128,7 @@ export function BusinessProfileView() {
                 <div className="space-y-6">
                   {/* Document Category Tabs (Pill style matching screenshot) */}
                   <div className="rounded-2xl bg-[#F2F4F7] p-2.5 border border-slate-200/80 shadow-2xs">
-                    <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="flex items-center gap-2 w-full overflow-visible [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                       {[
                         "Sale Invoice",
                         "Purchase Invoice",
@@ -1722,7 +1730,8 @@ export function BusinessProfileView() {
           {/* TAB 8: ROLE ACCESS — USER ACCOUNTS & TEAM MANAGEMENT BASED ON PRICING PLAN */}
           {activeTab === "Role Access" && (() => {
             const planKey = companyForm.plan || (typeof window !== "undefined" ? localStorage.getItem("vertofi.plan") : null) || "FREE";
-            const limits = getPlanLimits(planKey);
+            const planMeta = PLANS.find((p) => p.id === normalizePlan(planKey)) || PLANS[0];
+            const limits = planMeta.limits;
             const userCount = teamAccounts.length;
             const maxUsers = limits.maxUsers;
             const isUnlimited = maxUsers >= 999999;
@@ -1741,7 +1750,7 @@ export function BusinessProfileView() {
                 return;
               }
               if (isAtLimit) {
-                setInviteError(`User limit reached (${maxUsers} users on ${limits.name} plan). Upgrade your plan or purchase an Extra User add-on.`);
+                setInviteError(`User limit reached (${maxUsers} users on ${planMeta.name} plan). Upgrade your plan or purchase an Extra User add-on.`);
                 return;
               }
               if (teamAccounts.some((m) => m.email.toLowerCase() === inviteForm.email.trim().toLowerCase())) {
@@ -1792,7 +1801,7 @@ export function BusinessProfileView() {
                       <h3 className="text-base font-bold text-slate-900">User Accounts & Team Access</h3>
                     </div>
                     <p className="text-xs text-slate-500 mt-1">
-                      User accounts allocated based on your <strong className="text-slate-800 font-semibold">{limits.name} Plan</strong> ({limits.price}).
+                      User accounts allocated based on your <strong className="text-slate-800 font-semibold">{planMeta.name} Plan</strong> ({planMeta.priceDisplay}).
                     </p>
                   </div>
 
@@ -1848,7 +1857,7 @@ export function BusinessProfileView() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
                     <div className="bg-white/80 rounded-lg p-2 border border-slate-200/60">
                       <span className="text-slate-400 block text-[10px] uppercase font-bold">Current Plan</span>
-                      <span className="font-bold text-slate-800">{limits.name} ({limits.outcome})</span>
+                      <span className="font-bold text-slate-800">{planMeta.name} ({planMeta.outcome})</span>
                     </div>
                     <div className="bg-white/80 rounded-lg p-2 border border-slate-200/60">
                       <span className="text-slate-400 block text-[10px] uppercase font-bold">Max Users</span>
@@ -1871,9 +1880,9 @@ export function BusinessProfileView() {
                     <div className="flex items-start gap-2.5">
                       <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-bold text-amber-950">You have reached the maximum {maxUsers} user accounts for {limits.name} Plan.</p>
+                        <p className="font-bold text-amber-950">You have reached the maximum {maxUsers} user accounts for {planMeta.name} Plan.</p>
                         <p className="text-amber-800 text-[11px] mt-0.5 leading-relaxed">
-                          Upgrade to {limits.id === "FREE" ? "Starter (2 users)" : limits.id === "STARTER" ? "Growth (5 users)" : "Scale (15 users)"} or add Extra Users @ ₹149/mo to continue adding team members.
+                          Upgrade to {planMeta.id === "FREE" ? "Starter (2 users)" : planMeta.id === "STARTER" ? "Growth (5 users)" : "Scale (15 users)"} or add Extra Users @ ₹149/mo to continue adding team members.
                         </p>
                       </div>
                     </div>
@@ -1967,7 +1976,8 @@ export function BusinessProfileView() {
           {/* Modal for Inviting New User Account */}
           {showInviteModal && (() => {
             const planKey = companyForm.plan || (typeof window !== "undefined" ? localStorage.getItem("vertofi.plan") : null) || "FREE";
-            const limits = getPlanLimits(planKey);
+            const planMeta = PLANS.find((p) => p.id === normalizePlan(planKey)) || PLANS[0];
+            const limits = planMeta.limits;
             const userCount = teamAccounts.length;
             const maxUsers = limits.maxUsers;
             const isUnlimited = maxUsers >= 999999;
@@ -1985,7 +1995,7 @@ export function BusinessProfileView() {
                 return;
               }
               if (isAtLimit) {
-                setInviteError(`User limit reached (${maxUsers} users on ${limits.name} plan). Upgrade your plan or purchase an Extra User add-on.`);
+                setInviteError(`User limit reached (${maxUsers} users on ${planMeta.name} plan). Upgrade your plan or purchase an Extra User add-on.`);
                 return;
               }
               if (teamAccounts.some((m) => m.email.toLowerCase() === inviteForm.email.trim().toLowerCase())) {
@@ -2039,7 +2049,7 @@ export function BusinessProfileView() {
                     <div className="p-3 rounded-xl text-xs font-medium bg-amber-50 text-amber-900 border border-amber-200 space-y-1">
                       <p className="font-bold">Plan User Account Limit Reached ({maxUsers}/{maxUsers})</p>
                       <p className="text-[11px] text-amber-800">
-                        Upgrade your plan from <strong>{limits.name}</strong> to unlock additional user accounts, or add extra users at ₹149/mo.
+                        Upgrade your plan from <strong>{planMeta.name}</strong> to unlock additional user accounts, or add extra users at ₹149/mo.
                       </p>
                     </div>
                   )}
@@ -2119,38 +2129,93 @@ export function BusinessProfileView() {
 
           {/* TAB 9: MANAGE ACCOUNTS */}
           {activeTab === "Manage Accounts" && (
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-slate-700">
-                <div className="flex items-center gap-2">
-                  <Landmark className="h-4 w-4 text-slate-400" />
-                  <h3 className="text-sm font-semibold tracking-wide text-slate-600">Linked Bank Accounts</h3>
+            <div className="space-y-6">
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-0 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                <div className="flex items-center gap-4 p-5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-50 text-slate-700">
+                    <Wallet className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">Balance Total</p>
+                    <p className="text-lg font-bold text-emerald-600">₹ 0.00</p>
+                  </div>
                 </div>
+                <div className="flex items-center gap-4 p-5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-50 text-slate-700">
+                    <Banknote className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">Cash</p>
+                    <p className="text-lg font-bold text-emerald-600">₹ 0.00</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 p-5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-50 text-slate-700">
+                    <Building2 className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">Accounts Total</p>
+                    <p className="text-lg font-bold text-emerald-600">0</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Bar */}
+              <div className="flex justify-end gap-3">
+                <select className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition">
+                  <option value="">Select Account</option>
+                </select>
                 <button
-                  type="button"
-                  onClick={() => alert("Add Bank Account dialog")}
-                  className="rounded-full border border-slate-300 bg-white px-3.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                  onClick={() => setShowAddBankModal(true)}
+                  className="flex items-center gap-1.5 rounded-lg bg-[#2b7bc7] px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#256bb0] transition"
                 >
-                  + Add Bank
+                  <Plus className="h-4 w-4" /> Add New
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/40 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800">HDFC Bank</span>
-                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">PRIMARY</span>
-                  </div>
-                  <p className="text-slate-600">A/C: •••••••••• 4892</p>
-                  <p className="text-[11px] text-slate-400">IFSC: HDFC0001234 • Current Account</p>
+              {/* Table */}
+              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                <div className="w-full overflow-visible">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-700">
+                        <th className="px-4 py-3 font-semibold w-16">
+                          <div className="flex items-center gap-2">#</div>
+                        </th>
+                        <th className="px-4 py-3 font-semibold">
+                          <div className="flex items-center justify-between gap-2">Account No <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" /></div>
+                        </th>
+                        <th className="px-4 py-3 font-semibold">
+                          <div className="flex items-center justify-between gap-2">Name <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" /></div>
+                        </th>
+                        <th className="px-4 py-3 font-semibold">
+                          <div className="flex items-center justify-between gap-2">Balance <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" /></div>
+                        </th>
+                        <th className="px-4 py-3 font-semibold">
+                          <div className="flex items-center justify-between gap-2">Type <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" /></div>
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-right">
+                          <div className="flex items-center justify-end gap-2">Action <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" /></div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td colSpan={6} className="px-4 py-6 text-center text-sm font-medium text-[#2b7bc7]">
+                          No data available in table
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/40 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800">ICICI Bank</span>
-                    <span className="text-[10px] font-semibold text-slate-500">SECONDARY</span>
+                {/* Footer */}
+                <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+                  <p className="text-sm font-medium text-[#2b7bc7]">Showing 0 to 0 of 0 entries</p>
+                  <div className="flex gap-4 text-sm font-medium text-slate-700">
+                    <button className="hover:text-[#2b7bc7] transition">Previous</button>
+                    <button className="hover:text-[#2b7bc7] transition">Next</button>
                   </div>
-                  <p className="text-slate-600">A/C: •••••••••• 9921</p>
-                  <p className="text-[11px] text-slate-400">IFSC: ICIC0000542 • Current Account</p>
                 </div>
               </div>
             </div>
@@ -2295,6 +2360,84 @@ export function BusinessProfileView() {
                 className="rounded-full bg-[#1E60D5] px-5 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 cursor-pointer shadow-sm"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Bank Account Modal */}
+      {showAddBankModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+          <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl space-y-4 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-800">Add Account</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddBankModal(false)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs text-slate-700">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-600">Account No*</label>
+                  <input type="text" placeholder="Account No" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-blue-500 shadow-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-600">Initial Balance*</label>
+                  <input type="text" placeholder="Initial Balance" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-blue-500 shadow-sm" />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-600">Name*</label>
+                  <input type="text" placeholder="Enter Name" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-blue-500 shadow-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-600">Account Type*</label>
+                  <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-blue-500 shadow-sm bg-white">
+                    <option value="Savings">Savings</option>
+                    <option value="Current">Current</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-600">Bank Name*</label>
+                  <input type="text" placeholder="Enter Bank Name" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-blue-500 shadow-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-600">IFSC Code*</label>
+                  <input type="text" placeholder="Enter IFSC Code" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-blue-500 shadow-sm" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-600">Note</label>
+                <textarea rows={3} placeholder="Note" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:border-blue-500 shadow-sm resize-none"></textarea>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowAddBankModal(false)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddBankModal(false)}
+                className="rounded-lg bg-blue-600 px-5 py-2 text-xs font-bold text-white hover:bg-blue-700 transition cursor-pointer shadow-sm shadow-blue-500/20"
+              >
+                Submit
               </button>
             </div>
           </div>

@@ -37,18 +37,19 @@ const REFRESH_KEY = "vertofi.refresh";
 export function setTokens(access: string, refresh: string): void {
   localStorage.setItem(ACCESS_KEY, access);
   localStorage.setItem(REFRESH_KEY, refresh);
+  localStorage.setItem("vertofi.panels.access", access);
+  localStorage.setItem("vertofi.panels.refresh", refresh);
 }
 export function clearTokens(): void {
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
-  // Also drop the cached org id — otherwise a different user signing in on the
-  // same browser could momentarily carry the previous user's org (stale tenant
-  // data). getOrgId() is token-authoritative now, but clearing it here removes
-  // any window for stale cross-tenant state.
+  localStorage.removeItem("vertofi.panels.access");
+  localStorage.removeItem("vertofi.panels.refresh");
   localStorage.removeItem("vertofi.orgId");
 }
 export function getAccess(): string | null {
-  return typeof window === "undefined" ? null : localStorage.getItem(ACCESS_KEY);
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ACCESS_KEY) || localStorage.getItem("vertofi.panels.access");
 }
 
 const ORG_KEY = "vertofi.orgId";
@@ -183,8 +184,6 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true, ret
   // full of silent 401s.
   if (res.status === 401 && auth && !retried) {
     if (await tryRefresh()) return request<T>(path, init, auth, true);
-    clearTokens();
-    // Redirect suppressed
     throw new ApiError(401, "session_expired");
   }
   if (!res.ok) {
@@ -197,11 +196,6 @@ async function request<T>(path: string, init: RequestInit = {}, auth = true, ret
       code = Array.isArray(raw) ? raw.join("; ") : String(raw);
     } catch {
       /* non-json error */
-    }
-    // Subscription gate: the gateway returns 402 when the org is PAST_DUE / trial
-    // expired. Route the user to the reactivation (payment) screen.
-    if (res.status === 402 && typeof window !== "undefined" && !window.location.pathname.startsWith("/reactivate")) {
-      window.location.href = "/reactivate";
     }
     throw new ApiError(res.status, code);
   }

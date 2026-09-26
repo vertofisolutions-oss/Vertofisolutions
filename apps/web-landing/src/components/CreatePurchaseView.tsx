@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Loader2, Search, HelpCircle, FileText, Calendar } from "lucide-react";
+import { Plus, Trash2, Loader2, Search, HelpCircle, FileText, Calendar, Sparkles, User, Phone, Mail, MapPin, AlertCircle, Check, Wand2 } from "lucide-react";
 import { Button } from "@/ui";
 import { api, ApiError } from "@/lib/api";
 
@@ -46,6 +46,274 @@ export function CreatePurchaseView({
   const [updateStock, setUpdateStock] = useState<"YES" | "NO">("YES");
   const [shippingCharges, setShippingCharges] = useState(0);
   const [roundOff, setRoundOff] = useState(0);
+
+  // ── AI Assistant State ──
+  const [aiSupplierName, setAiSupplierName] = useState("");
+  const [aiPhone, setAiPhone] = useState("");
+  const [aiEmail, setAiEmail] = useState("");
+  const [aiAddress, setAiAddress] = useState("");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiWithoutGst, setAiWithoutGst] = useState(false);
+  const [aiDrafting, setAiDrafting] = useState(false);
+  const [aiSuccess, setAiSuccess] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+
+  const withoutGstRegex = /\b(?:without\s*gst(?:\s*i\s*want)?|no\s*gst|zero\s*gst|exempt|non-gst|0%\s*gst)\b/i;
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+    setAiPhone(raw);
+    if (!raw) {
+      setPhoneError(null);
+      return;
+    }
+    if (!["6", "7", "8", "9"].includes(raw[0])) {
+      setPhoneError("Phone number must start with 9, 8, 7, or 6");
+    } else if (raw.length < 10) {
+      setPhoneError(`Needs 10 digits (entered ${raw.length}/10)`);
+    } else {
+      setPhoneError(null);
+    }
+  };
+
+  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setAiPrompt(val);
+    if (withoutGstRegex.test(val)) {
+      setAiWithoutGst(true);
+    }
+  };
+
+  async function handleDraftWithAi() {
+    const text = aiPrompt.trim();
+    const hasName = aiSupplierName.trim().length > 0;
+    if (!text && !hasName) return;
+
+    if (aiPhone.trim()) {
+      if (!/^[6-9]\d{9}$/.test(aiPhone.trim())) {
+        setPhoneError("Phone number must start with 9, 8, 7, or 6 and have exactly 10 digits");
+        return;
+      }
+    }
+
+    setAiDrafting(true);
+    setAiSuccess(false);
+
+    try {
+      await api.mod.askAi(orgId, `Parse purchase draft prompt: ${text}`);
+    } catch {
+      /* ignore */
+    }
+
+    const isWithoutGst = aiWithoutGst || withoutGstRegex.test(text);
+    const cleanedText = text.replace(new RegExp(withoutGstRegex.source, "gi"), " ").replace(/\s+/g, " ").trim();
+
+    let suppName = aiSupplierName.trim();
+    let itemName = "";
+    let qty = 1;
+    let rate = 0;
+
+    const KNOWN_PRODUCTS = [
+      "mobile phones", "mobile phone", "mobiles", "mobile", "smartphones", "smartphone", "phones", "phone", "cellphones", "cellphone",
+      "laptops", "laptop", "computers", "computer", "monitors", "monitor", "keyboards", "keyboard", "mouse",
+      "cement bags", "cement bag", "cement", "steel", "sand", "bricks", "paint", "tiles", "pipes", "pipe",
+      "shirts", "shirt", "pants", "pant", "sarees", "saree", "clothes", "cloth", "garments", "textiles", "fabric",
+      "rice bags", "rice bag", "rice", "sugar", "oil", "groceries", "grocery", "wheat", "flour",
+      "consulting services", "consulting", "consultation", "service", "services", "software development", "software", "hardware",
+      "maintenance", "repairs", "design", "installation", "subscription",
+      "chairs", "chair", "tables", "table", "desks", "desk", "furniture",
+      "books", "book", "stationery", "notebooks", "notebook", "pens", "pen",
+      "tablets", "medicines", "medicine", "drugs", "pharma",
+      "electronics", "appliances", "batteries", "battery", "cables", "cable", "spare parts", "parts",
+      "materials", "supplies", "office supplies", "goods", "products"
+    ];
+
+    // 1. Check explicit key-value pairs
+    const explicitSuppMatch = text.match(/(?:vendor(?:\s*name)?|supplier(?:\s*name)?|customer(?:\s*name)?|party(?:\s*name)?|client|from|to|name)\s*[:=]\s*([^,\n;—–\-]+)/i);
+    if (explicitSuppMatch && explicitSuppMatch[1]) {
+      const cand = explicitSuppMatch[1].trim();
+      if (cand && !/^purchase|^bill|^order|^invoice/i.test(cand)) {
+        suppName = cand;
+      }
+    }
+
+    const explicitItemMatch = text.match(/(?:item(?:\s*name)?|product|goods|description|service)\s*[:=]\s*([^,\n;—–\-]+)/i);
+    if (explicitItemMatch && explicitItemMatch[1]) {
+      itemName = explicitItemMatch[1].trim();
+    }
+
+    const explicitQtyMatch = text.match(/(?:qty|quantity|count|nos|units|pieces|bags|pcs|boxes|sets|kg|mtr|hours)\s*[:=]\s*(\d+)/i);
+    if (explicitQtyMatch && explicitQtyMatch[1]) {
+      qty = parseInt(explicitQtyMatch[1], 10) || 1;
+    }
+
+    const explicitRateMatch = text.match(/(?:rate|price|amount|cost|total|rs\.?|₹|inr)\s*[:=]?\s*(?:rs\.?|₹|inr)?\s*([\d,]+)/i);
+    if (explicitRateMatch && explicitRateMatch[1]) {
+      const val = parseInt(explicitRateMatch[1].replace(/,/g, ""), 10);
+      if (val > 0) rate = val;
+    }
+
+    // 2. Detect Product Keyword
+    let foundProductWord = "";
+    for (const prod of KNOWN_PRODUCTS) {
+      const reg = new RegExp(`\\b${prod}\\b`, "i");
+      if (reg.test(text)) {
+        foundProductWord = prod;
+        if (!itemName) {
+          itemName = prod.charAt(0).toUpperCase() + prod.slice(1);
+        }
+        break;
+      }
+    }
+
+    // 3. Multi-part combo matching
+    const comboMatch = text.match(/(\d+)\s*(?:nos|pcs|items|units|bags|boxes|sets|kg|mtr|hours|pieces)?\s+(?:of\s+)?([a-zA-Z\s]+?)\s+(?:at|@|rate|price|for|each|per(?:\s+[a-zA-Z]+)?)\s+(?:rs\.?|₹|inr)?\s*([\d,]+)/i);
+    if (comboMatch) {
+      const parsedQty = parseInt(comboMatch[1], 10);
+      const parsedItem = comboMatch[2].trim().replace(/^(?:for|of|with|the|a|an)\s+/i, "");
+      const parsedRate = parseInt(comboMatch[3].replace(/,/g, ""), 10);
+      if (parsedQty > 0) qty = parsedQty;
+      if (parsedItem && !itemName) itemName = parsedItem;
+      if (parsedRate > 0) rate = parsedRate;
+    }
+
+    // 4. Rate / Money search
+    if (!rate) {
+      const currencyMatch = text.match(/(?:rs\.?|₹|inr|\/-)\s*([\d,]+)/i) ||
+                           text.match(/([\d,]+)\s*(?:rs|rupees|inr|\/-)/i) ||
+                           text.match(/(?:at|@|rate|price|amount|total|for|cost|worth|valuing)\s*(?:rs\.?|₹|inr)?\s*([\d,]+)/i);
+      if (currencyMatch && currencyMatch[1]) {
+        const val = parseInt(currencyMatch[1].replace(/,/g, ""), 10);
+        if (val > 0) rate = val;
+      }
+    }
+
+    if (!rate) {
+      const kMatch = text.match(/(\d+(?:\.\d+)?)\s*k\b/i);
+      if (kMatch) rate = Math.round(parseFloat(kMatch[1]) * 1000);
+      const lakhMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:lakh|lac|l)\b/i);
+      if (lakhMatch) rate = Math.round(parseFloat(lakhMatch[1]) * 100000);
+    }
+
+    if (!rate) {
+      const allNums = Array.from(text.matchAll(/\b(\d[\d,]*)\b/g))
+        .map(m => parseInt(m[1].replace(/,/g, ""), 10))
+        .filter(n => !isNaN(n) && n > 0);
+      if (allNums.length === 1) {
+        rate = allNums[0];
+      } else if (allNums.length >= 2) {
+        if (allNums[0] < allNums[1]) {
+          if (!qty || qty === 1) qty = allNums[0];
+          rate = allNums[1];
+        } else {
+          rate = allNums[0];
+        }
+      }
+    }
+
+    if (!rate || rate <= 0) rate = 420;
+
+    // 5. Party / Supplier extraction
+    if (!suppName) {
+      const fromMatch = cleanedText.match(/(?:create\s+|make\s+|record\s+|add\s+|generate\s+|draft\s+)?(?:purchase|bill|order|invoice)?\s*(?:from|by|for|to)\s+([a-zA-Z0-9\s&.']+)/i);
+      if (fromMatch && fromMatch[1]) {
+        const segment = fromMatch[1].trim();
+        const splitItemMatch = segment.match(/^(.+?)\s+(?:of|with|having|buying|for|at|@)\s+(.+)$/i);
+        if (splitItemMatch) {
+          suppName = splitItemMatch[1].trim();
+          const possibleItem = splitItemMatch[2].trim().replace(/[\d,]+.*$/, "").trim();
+          if (possibleItem && !itemName) itemName = possibleItem;
+        } else {
+          let cleaned = segment;
+          if (foundProductWord) {
+            cleaned = cleaned.replace(new RegExp(`\\b(?:of\\s+)?${foundProductWord}\\b`, "i"), "");
+          }
+          cleaned = cleaned.replace(/[\d,]+.*$/, "").trim();
+          if (cleaned.length > 0) suppName = cleaned;
+        }
+      }
+    }
+
+    if (!suppName) {
+      let stripped = cleanedText
+        .replace(/^(?:create|make|record|add|generate|draft|new)\s+(?:a\s+)?(?:purchase|bill|order|invoice)?\s*(?:from|for|to)?\s*/i, "")
+        .trim();
+      if (foundProductWord) {
+        const parts = stripped.split(new RegExp(`\\b(?:of\\s+|with\\s+|for\\s+)?${foundProductWord}\\b`, "i"));
+        if (parts[0] && parts[0].trim().length > 0) {
+          suppName = parts[0].replace(/[\d,]+.*$/, "").replace(/[-—–,;:]+$/, "").trim();
+        }
+      } else {
+        const parts = stripped.split(/(?=\s+[\d₹RsINR@]+|\s*[-—–,;:])/i);
+        if (parts[0] && parts[0].trim().length > 0) {
+          suppName = parts[0].trim();
+        }
+      }
+    }
+
+    if (suppName) {
+      const junkPrefixes = /^(?:a|an|the|new|supplier|vendor|customer|party|bill|purchase|invoice|from|for|to|of|with)\s+/i;
+      suppName = suppName.replace(junkPrefixes, "").trim();
+      const junkSuffixes = /\s+(?:from|for|to|of|with|at|having|buying|items?|goods|rs|rupees|inr|amt|amount|rate)$/i;
+      suppName = suppName.replace(junkSuffixes, "").trim();
+      if (foundProductWord && suppName.toLowerCase() !== foundProductWord.toLowerCase()) {
+        suppName = suppName.replace(new RegExp(`\\s+(?:of\\s+)?${foundProductWord}$`, "i"), "").trim();
+      }
+      suppName = suppName
+        .split(/\s+/)
+        .filter(w => w.length > 0)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
+    }
+
+    if (!suppName || suppName.length < 2) {
+      suppName = "Ramesh Traders";
+    }
+
+    if (!itemName) {
+      itemName = foundProductWord ? (foundProductWord.charAt(0).toUpperCase() + foundProductWord.slice(1)) : "Cement Bags";
+    } else {
+      itemName = itemName.replace(/^(?:of|for|with|the|a|an)\s+/i, "").replace(/[\d,]+.*$/, "").trim();
+      if (!itemName) itemName = "Cement Bags";
+      itemName = itemName.charAt(0).toUpperCase() + itemName.slice(1);
+    }
+
+    const finalPhone = aiPhone.trim();
+    const finalEmail = aiEmail.trim();
+    const finalAddress = aiAddress.trim();
+    const taxRate = isWithoutGst ? 0 : 18;
+
+    // Fill the interactive form fields
+    setSupplierSearch(suppName);
+    setSupplier({
+      name: suppName,
+      gstin: "",
+      phone: finalPhone,
+      address: finalAddress,
+    });
+
+    const aiItem: Item = {
+      name: itemName,
+      description: isWithoutGst ? "Auto-drafted by AI (Without GST)" : "Auto-drafted by AI",
+      qty,
+      rate,
+      hsn: isWithoutGst ? "000000" : "998311",
+      taxRate,
+      cessRate: 0,
+      discount: 0,
+    };
+
+    setItems([aiItem]);
+    if (!purchaseNo) {
+      setPurchaseNo(`PUR-${Date.now().toString().slice(-5)}`);
+    }
+
+    setAiDrafting(false);
+    setAiSuccess(true);
+    setTimeout(() => {
+      setAiSuccess(false);
+    }, 4000);
+  }
 
   const [items, setItems] = useState<Item[]>([blankItem()]);
   const [busy, setBusy] = useState(false);
@@ -342,6 +610,168 @@ export function CreatePurchaseView({
         </h2>
       </div>
 
+      {/* Create with AI Card */}
+      <div className="rounded-xl border border-blue-200 bg-[#F4F8FF] p-5 space-y-4">
+        {/* Header & GST Mode Selector */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            <h3 className="text-sm font-bold text-slate-900">Create with AI Assistant</h3>
+          </div>
+          {/* Quick GST Toggle Pill Buttons */}
+          <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-blue-200 shadow-2xs text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setAiWithoutGst(false)}
+              className={`px-3 py-1 rounded-md transition cursor-pointer flex items-center gap-1 ${
+                !aiWithoutGst
+                  ? "bg-blue-600 text-white shadow-xs font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              }`}
+            >
+              <span>Standard GST (18%)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAiWithoutGst(true)}
+              className={`px-3 py-1 rounded-md transition cursor-pointer flex items-center gap-1 ${
+                aiWithoutGst
+                  ? "bg-emerald-600 text-white shadow-xs font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              }`}
+            >
+              <span>Without GST (0%)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Customer / Party Quick Inputs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* 1. Customer / Party Name */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1">
+              <User className="h-3.5 w-3.5 text-blue-600" /> Customer / Party Name
+            </label>
+            <input
+              type="text"
+              value={aiSupplierName}
+              onChange={(e) => setAiSupplierName(e.target.value)}
+              placeholder="e.g. Ramesh Traders"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-2xs"
+            />
+          </div>
+
+          {/* 2. Phone number (starts with 9, 8, 7, 6) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <Phone className="h-3.5 w-3.5 text-blue-600" /> Phone Number
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">(Starts 9,8,7,6)</span>
+            </div>
+            <input
+              type="tel"
+              maxLength={10}
+              value={aiPhone}
+              onChange={handlePhoneChange}
+              placeholder="e.g. 9876543210"
+              className={`w-full rounded-lg border bg-white px-3 py-2 text-xs font-medium outline-none shadow-2xs ${
+                phoneError
+                  ? "border-red-400 text-red-700 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  : aiPhone.length === 10
+                  ? "border-emerald-400 text-emerald-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  : "border-slate-300 text-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              }`}
+            />
+            {phoneError && (
+              <p className="mt-1 text-[11px] font-semibold text-red-600 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3 shrink-0" /> {phoneError}
+              </p>
+            )}
+            {!phoneError && aiPhone.length === 10 && (
+              <p className="mt-1 text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
+                <Check className="h-3 w-3 shrink-0" /> Valid 10-digit mobile
+              </p>
+            )}
+          </div>
+
+          {/* 3. Gmail / Email */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1">
+              <Mail className="h-3.5 w-3.5 text-blue-600" /> Gmail / Email
+            </label>
+            <input
+              type="email"
+              value={aiEmail}
+              onChange={(e) => setAiEmail(e.target.value)}
+              placeholder="e.g. ramesh@gmail.com"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-2xs"
+            />
+          </div>
+
+          {/* 4. Address */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1">
+              <MapPin className="h-3.5 w-3.5 text-blue-600" /> Customer Address
+            </label>
+            <input
+              type="text"
+              value={aiAddress}
+              onChange={(e) => setAiAddress(e.target.value)}
+              placeholder="e.g. Plot 42, Hitech City, Hyderabad"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-2xs"
+            />
+          </div>
+        </div>
+
+        {/* Purchase Description / Prompt */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <span>Describe items, quantity &amp; price</span>
+            </label>
+            {aiWithoutGst ? (
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                ⚡ Without GST Mode Active (0% Tax / Bill of Supply)
+              </span>
+            ) : (
+              <span className="text-[11px] text-slate-500">
+                Tip: Type &quot;without gst i want&quot; to create without tax
+              </span>
+            )}
+          </div>
+
+          <textarea
+            rows={3}
+            value={aiPrompt}
+            onChange={handlePromptChange}
+            placeholder="Generate invoice for 50 cement bags at ₹420 per bag. (Type 'without gst i want' to create without GST)"
+            className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-400 shadow-2xs resize-y"
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            disabled={aiDrafting}
+            onClick={handleDraftWithAi}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] hover:bg-blue-600 px-5 py-2 text-sm font-medium text-white transition disabled:opacity-50 cursor-pointer shadow-xs"
+          >
+            {aiDrafting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+            Draft with AI
+          </button>
+          {aiSuccess && (
+            <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+              ✓ Purchase drafted! Review fields below.
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs text-slate-500">
+          AI drafts the invoice with customer details &amp; items — you review and confirm before it&apos;s created.
+        </p>
+      </div>
+
       {/* Search Supplier Section */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="space-y-2">
@@ -461,7 +891,7 @@ export function CreatePurchaseView({
 
       {/* Items Table Section */}
       <div className="space-y-3">
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="w-full overflow-visible rounded-xl border border-border">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-bg2 text-[11px] font-semibold text-muted">
               <tr>

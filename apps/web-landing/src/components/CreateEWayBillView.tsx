@@ -439,7 +439,7 @@ export function CreateEWayBillView({
         </div>
 
         {/* Item Grid Table */}
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="w-full overflow-visible rounded-xl border border-border">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-bg2 text-[11px] font-semibold text-muted">
               <tr>

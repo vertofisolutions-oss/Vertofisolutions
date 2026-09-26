@@ -301,7 +301,7 @@ export function ProductsView({
         </div>
 
         {/* Table */}
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+        <div className="mt-4 w-full overflow-visible rounded-lg border border-border">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-bg2 text-[11px] font-semibold text-muted">
               <tr>

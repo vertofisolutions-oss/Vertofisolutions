@@ -1,13 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { Plus, Download, Search, ArrowUpDown, Calendar, Settings, Sparkles, FileText, Upload, Trash2, CheckCircle2, Loader2, FileDown } from "lucide-react";
+import { Plus, Receipt, ShieldCheck, AlertTriangle, TrendingUp, Download, Search, ArrowUpDown, Calendar, Settings, Sparkles, FileText, Upload, Trash2, CheckCircle2, Loader2, FileDown, MoreHorizontal, Eye, RefreshCw, Mail, XCircle } from "lucide-react";
 import { Card } from "@/ui";
 import { api } from "@/lib/api";
 import { RecordSettingsModal } from "./RecordSettingsModal";
-import { InvoiceTemplatePreviewModal } from "./ReportsCenter";
+import { StandardGSTInvoiceModal as InvoiceTemplatePreviewModal } from "./StandardGSTInvoiceModal";
 
 const inr = (n: number) => `₹ ${Number(n || 0).toLocaleString("en-IN")}`;
+
+
+function Kpi({ label, value, icon: Icon, tone }: { label: string; value: string; icon: any; tone?: "gold" | "brand" }) {
+  return (
+    <Card className="py-3 px-4 mb-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">{label}</p>
+        <Icon className={"h-4 w-4 " + (tone === "gold" ? "text-gold" : "text-brand")} />
+      </div>
+      <p className="mt-1 text-xl font-bold tracking-tight text-ink">{value}</p>
+    </Card>
+  );
+}
 
 export function PurchasesView({
   orgId,
@@ -39,6 +52,47 @@ export function PurchasesView({
   const [selectedRecord, setSelectedRecord] = useState<Record<string, unknown> | null>(null);
   const [previewPurchase, setPreviewPurchase] = useState<Record<string, unknown> | null>(null);
   const [autoExportPdf, setAutoExportPdf] = useState(false);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdownId(null);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  function handleDownload(r: Record<string, unknown>) {
+    setPreviewPurchase(r);
+    setTimeout(() => {
+      const el = document.getElementById("printable-invoice-a4");
+      if (el) {
+        import("@/lib/exportTemplatePdf").then(({ printElementAsPdf }) => {
+          printElementAsPdf(el, String(r.bill_no ?? r.purchase_no ?? "Purchase"));
+        });
+      }
+    }, 500);
+  }
+
+  function handleDuplicate(r: Record<string, unknown>) {
+    const newId = "pur-" + Date.now();
+    const newNo = String(r.bill_no ?? r.purchase_no ?? "PUR") + "-COPY";
+    const clone = { ...r, id: newId, bill_no: newNo, purchase_no: newNo, number: newNo };
+    setRows((prev) => {
+      const updated = [clone, ...prev];
+      try { localStorage.setItem("vertofi_local_purchases", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    alert("Successfully duplicated as " + newNo);
+  }
+
+  function handleEmail(r: Record<string, unknown>) {
+    const custEmail = String(r.vendor_email ?? "");
+    const invNo = String(r.bill_no ?? r.purchase_no ?? "Purchase");
+    const amount = Number(r.total ?? 0);
+    const subject = encodeURIComponent("Purchase " + invNo + " from Vertofi");
+    const body = encodeURIComponent("Dear Vendor,\n\nPlease find attached the details for Purchase " + invNo + " amounting to " + amount + ".\n\nThank you.");
+    window.location.href = "mailto:" + custEmail + "?subject=" + subject + "&body=" + body;
+  }
+
 
   const billInputRef = useRef<HTMLInputElement>(null);
   const [uploadingBill, setUploadingBill] = useState(false);
@@ -235,6 +289,21 @@ export function PurchasesView({
     };
   }, [orgId]);
 
+  
+  const kpis = useMemo(() => {
+    const now = new Date();
+    const ym = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+    let monthPurchases = 0, total = 0, unpaidCount = 0, unpaidAmt = 0, localGst = 0;
+    for (const r of rows) {
+      const t = Number(r.total || r.amount || 0);
+      total += t;
+      if (String(r.date || "").startsWith(ym)) monthPurchases += t;
+      if (String(r.status || "").toUpperCase() !== "PAID") { unpaidCount++; unpaidAmt += t; }
+      localGst += Number(r.tax || r.totalTax || 0);
+    }
+    return { monthPurchases, total, unpaidCount, unpaidAmt, localGst };
+  }, [rows]);
+
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
       const q = search.toLowerCase().trim();
@@ -278,6 +347,15 @@ export function PurchasesView({
 
   return (
     <div className="w-full space-y-4">
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi label="PURCHASES THIS MONTH" value={inr(kpis.monthPurchases)} icon={TrendingUp} tone="brand" />
+        <Kpi label="TOTAL PURCHASED" value={inr(kpis.total)} icon={Receipt} tone="brand" />
+        <Kpi label="GST PAID" value={inr(kpis.localGst)} icon={ShieldCheck} tone="gold" />
+        <Kpi label="UNPAID BILLS" value={kpis.unpaidCount + " · " + inr(kpis.unpaidAmt)} icon={AlertTriangle} tone="brand" />
+      </div>
+
       {/* Command Center Card */}
       <div className="flex items-center justify-between rounded-lg border border-border bg-white px-4 py-2.5 shadow-sm">
         <div className="flex items-center gap-2 text-[13px] text-slate-500">
@@ -417,7 +495,7 @@ export function PurchasesView({
       </div>
 
       {/* Table */}
-      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+      <div className="mt-4 w-full overflow-visible rounded-lg border border-border">
         <table className="w-full text-left text-xs">
           <thead className="border-b border-border bg-bg2 text-[11px] font-semibold text-muted">
             <tr>
@@ -477,37 +555,56 @@ export function PurchasesView({
                     </span>
                   </td>
                   <td className="px-3 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRecord(r)}
-                        className="rounded-lg p-1.5 text-muted transition hover:bg-slate-100 hover:text-ink cursor-pointer group"
-                        title="View Details & Settings"
-                      >
-                        <Settings className="h-4 w-4 mx-auto group-hover:rotate-45 transition-transform duration-200" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePurchase(r)}
-                        className="inline-flex items-center justify-center rounded-md p-1.5 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer"
-                        title="Delete Purchase"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPreviewPurchase(r);
-                          setAutoExportPdf(true);
-                        }}
-                        className="inline-flex items-center justify-center rounded-md p-1.5 text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition cursor-pointer"
-                        title="Download / Export PDF"
-                      >
-                        <FileDown className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                      <div className="flex items-center justify-center gap-1.5 relative">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rowKey = String(r.id || r.invoice_no || r.bill_no || r.proforma_no || r.cn_no || r.dn_no || r.dc_no || "doc");
+                            setOpenDropdownId(openDropdownId === rowKey ? null : rowKey);
+                          }}
+                          className="inline-flex items-center justify-center p-1 text-blue-500 hover:text-blue-700 transition cursor-pointer"
+                        >
+                          <MoreHorizontal className="h-5 w-5" />
+                        </button>
+                        
+                        {openDropdownId === String(r.id || r.invoice_no || r.bill_no || r.proforma_no || r.cn_no || r.dn_no || r.dc_no || "doc") && (
+                          <div 
+                            className="absolute right-8 top-8 z-50 w-64 rounded-md bg-white shadow-xl border border-slate-200 text-left text-[13px] text-slate-700 font-normal divide-y divide-slate-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button onClick={() => { setSelectedRecord(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <Eye className="h-4 w-4 text-slate-400" /> View
+                            </button>
+                            <button onClick={() => { typeof handleDownload === 'function' ? handleDownload(r) : alert('Download ' + r.id); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <Download className="h-4 w-4 text-slate-400" /> Download
+                            </button>
+                            <button onClick={() => { typeof handleDuplicate === 'function' ? handleDuplicate(r) : alert('Duplicate ' + r.id); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Duplicate Purchase
+                            </button>
+                            <button onClick={() => { typeof handleEmail === 'function' ? handleEmail(r) : alert('Email ' + r.id); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <Mail className="h-4 w-4 text-slate-400" /> Send Email
+                            </button>
+                            <button onClick={() => { setSelectedRecord(r); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Edit Purchase
+                            </button>
+                            <button onClick={() => { alert("Convert to Purchase Return"); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Convert to Purchase Return
+                            </button>
+                            <button onClick={() => { alert("Update Return Period"); setOpenDropdownId(null); }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors cursor-pointer">
+                              <RefreshCw className="h-4 w-4 text-slate-400" /> Update Return Period
+                            </button>
+                            <button onClick={() => { 
+                                handleDeletePurchase(r);
+                                setOpenDropdownId(null); 
+                            }} className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-slate-700 cursor-pointer">
+                              <XCircle className="h-4 w-4 text-slate-400" /> Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
               ))
             )}
           </tbody>
@@ -525,7 +622,6 @@ export function PurchasesView({
       {previewPurchase && (
         <InvoiceTemplatePreviewModal
           sale={previewPurchase}
-          autoExport={autoExportPdf}
           onClose={() => {
             setPreviewPurchase(null);
             setAutoExportPdf(false);

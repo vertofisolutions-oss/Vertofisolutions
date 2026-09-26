@@ -18,6 +18,15 @@ import {
 } from "@/ui";
 import { Search, Loader2, CheckCircle2 } from "lucide-react";
 import { api, setTokens, setOrgId, ApiError } from "@/lib/api";
+import {
+  isPhoneRegistered,
+  isEmailRegistered,
+  getRegisteredUsers,
+  saveRegisteredUsers,
+  createActiveSession,
+  RegisteredUser,
+} from "@/lib/auth";
+import { normalizePlan } from "@/lib/plans";
 import { DocumentUpload } from "../../components/DocumentUpload";
 import { Celebration } from "../../components/Celebration";
 
@@ -78,6 +87,7 @@ export default function RegisterPage() {
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [lastOtpEmail, setLastOtpEmail] = useState("");
   const [activeOtp, setActiveOtp] = useState("");
   const [otpExpiry, setOtpExpiry] = useState<number>(0);
@@ -179,45 +189,37 @@ export default function RegisterPage() {
       setError("Password must be at least 8 characters long.");
       return;
     }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
 
     // Check if mobile or email is already registered locally or on server
     const targetMobile = mobile.trim();
     const targetEmail = email.trim().toLowerCase();
 
-    // 1. Client-side registry check
-    try {
-      if (typeof window !== "undefined") {
-        const storedUsersRaw = localStorage.getItem("vertofi_registered_users");
-        const storedUsers: { mobile?: string; email?: string }[] = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
-        const existingMobile = localStorage.getItem("vertofi_user_mobile");
-        const existingEmail = localStorage.getItem("vertofi_user_email");
+    // 4. Strict Phone Uniqueness Check
+    if (isPhoneRegistered(targetMobile)) {
+      setError("An account already exists with this phone number. Please use a different phone number.");
+      return;
+    }
 
-        const isMobileRegistered =
-          (existingMobile && existingMobile.trim() === targetMobile) ||
-          storedUsers.some((u) => u.mobile && u.mobile.trim() === targetMobile);
-
-        if (isMobileRegistered) {
-          setError("This mobile number is already registered. Please sign in instead.");
-          return;
-        }
-
-        const isEmailRegistered =
-          (existingEmail && existingEmail.trim().toLowerCase() === targetEmail) ||
-          storedUsers.some((u) => u.email && u.email.trim().toLowerCase() === targetEmail);
-
-        if (isEmailRegistered) {
-          setError("This work email is already registered. Please sign in instead.");
-          return;
-        }
-      }
-    } catch { /* ignore */ }
+    // 5. Strict Email Uniqueness Check
+    if (isEmailRegistered(targetEmail)) {
+      setError("An account already exists with this email address. Please sign in instead.");
+      return;
+    }
 
     setBusy(true);
     try {
-      // 2. Server-side duplicate check
+      // 2. Server-side duplicate check if reachable
       const checkRes = await api.checkUser(targetMobile, targetEmail).catch(() => ({ exists: false, message: "" }));
       if (checkRes && checkRes.exists) {
-        setError(checkRes.message || "This mobile number or email is already registered. Please sign in instead.");
+        if (checkRes.message?.toLowerCase().includes("phone") || checkRes.message?.toLowerCase().includes("mobile")) {
+          setError("An account already exists with this phone number. Please use a different phone number.");
+        } else {
+          setError("An account already exists with this email address. Please sign in instead.");
+        }
         setBusy(false);
         return;
       }
@@ -369,21 +371,51 @@ export default function RegisterPage() {
       // Successful verification
       const cleanMobile = mobile.trim();
       const cleanEmail = email.trim().toLowerCase();
+      const finalName = (biz.ownerName || biz.legalName || cleanEmail.split("@")[0] || "Business Owner").trim();
+      
       try {
         if (typeof window !== "undefined") {
-          const storedUsersRaw = localStorage.getItem("vertofi_registered_users");
-          const storedUsers: { mobile?: string; email?: string; registeredAt?: string }[] = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
-          if (!storedUsers.some((u) => u.mobile === cleanMobile || u.email === cleanEmail)) {
-            storedUsers.push({ mobile: cleanMobile, email: cleanEmail, registeredAt: new Date().toISOString() });
-            localStorage.setItem("vertofi_registered_users", JSON.stringify(storedUsers));
+          const users = getRegisteredUsers();
+          const existingIdx = users.findIndex(
+            (u) => u.mobile === cleanMobile || u.email.toLowerCase() === cleanEmail
+          );
+
+          const userRecord: RegisteredUser = {
+            id: existingIdx >= 0 ? users[existingIdx].id : `usr_${Date.now()}`,
+            name: finalName,
+            email: cleanEmail,
+            mobile: cleanMobile,
+            password: password,
+            plan: normalizePlan(plan),
+            billingCycle: cycle,
+            role: "BUSINESS_OWNER",
+            businessProfile: {
+              name: finalName,
+              legalName: biz.legalName || finalName,
+              tradeName: (biz as any).tradeName || biz.legalName || finalName,
+              email: cleanEmail,
+              mobile: cleanMobile,
+              gstin: biz.gstin || "",
+              pan: biz.pan || "",
+              state: biz.state || "",
+              turnover: setup.revenueRange || "",
+              plan: normalizePlan(plan),
+            },
+            status: "ACTIVE",
+            createdAt: existingIdx >= 0 ? users[existingIdx].createdAt : new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          if (existingIdx >= 0) {
+            users[existingIdx] = userRecord;
+          } else {
+            users.push(userRecord);
           }
+          saveRegisteredUsers(users);
+          createActiveSession(userRecord, true);
         }
         api.recordUser(cleanMobile, cleanEmail).catch(() => {});
       } catch { /* ignore */ }
-
-      const mockPayload = { sub: email, role: "BUSINESS_OWNER", orgId: `org-${Date.now()}` };
-      const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + btoa(JSON.stringify(mockPayload)) + ".mocksignature";
-      setTokens(mockToken, "mock-refresh-token");
 
       next(); // Step 2 -> Step 3: Business
     } catch (e) {
@@ -502,17 +534,50 @@ export default function RegisterPage() {
     setBusy(true);
     setError(null);
     try {
+      const chosenPlan = normalizePlan(plan);
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanMobile = mobile.trim();
+      const finalName = (biz.ownerName || biz.legalName || cleanEmail.split("@")[0] || "Business Owner").trim();
+
       if (typeof window !== "undefined") {
-        localStorage.setItem("vertofi.plan", plan);
-        localStorage.setItem("vertofi_user_plan", plan);
-        localStorage.setItem("vertofi_billing_cycle", cycle);
-        try {
-          const profileRaw = localStorage.getItem("vertofi_business_profile");
-          const p = profileRaw ? JSON.parse(profileRaw) : {};
-          p.plan = plan;
-          localStorage.setItem("vertofi_business_profile", JSON.stringify(p));
-        } catch {}
-        window.dispatchEvent(new Event("vertofi:plan-changed"));
+        const users = getRegisteredUsers();
+        const existingIdx = users.findIndex(
+          (u) => u.mobile === cleanMobile || u.email.toLowerCase() === cleanEmail
+        );
+
+        const userRecord: RegisteredUser = {
+          id: existingIdx >= 0 ? users[existingIdx].id : `usr_${Date.now()}`,
+          name: finalName,
+          email: cleanEmail,
+          mobile: cleanMobile,
+          password: password,
+          plan: chosenPlan,
+          billingCycle: cycle,
+          role: "BUSINESS_OWNER",
+          businessProfile: {
+            name: finalName,
+            legalName: biz.legalName || finalName,
+            tradeName: (biz as any).tradeName || biz.legalName || finalName,
+            email: cleanEmail,
+            mobile: cleanMobile,
+            gstin: biz.gstin || "",
+            pan: biz.pan || "",
+            state: biz.state || "",
+            turnover: setup.revenueRange || "",
+            plan: chosenPlan,
+          },
+          status: "ACTIVE",
+          createdAt: existingIdx >= 0 ? users[existingIdx].createdAt : new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        if (existingIdx >= 0) {
+          users[existingIdx] = userRecord;
+        } else {
+          users.push(userRecord);
+        }
+        saveRegisteredUsers(users);
+        createActiveSession(userRecord, true);
       }
 
       if (orgId) {
@@ -649,6 +714,12 @@ export default function RegisterPage() {
                 onChange={setPassword}
                 autoComplete="new-password"
                 strength
+              />
+              <PasswordField
+                label="Confirm password"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                autoComplete="new-password"
               />
 
               <div className="flex items-center gap-2 rounded-xl border border-blue-200/80 bg-blue-50/60 p-3 text-xs text-blue-900">
