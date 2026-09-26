@@ -1826,7 +1826,73 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
   if (matchedCol) {
     // GET: List all records in collection
     if (method === "GET") {
-      const items = serverDb.get(matchedCol, orgId);
+      let items = serverDb.get(matchedCol, orgId);
+      if (matchedCol === "profit_leakage_issues" && items.length === 0) {
+        const defaultLeaks = [
+          {
+            id: "leak-1",
+            category: "Overspending",
+            title: "Abnormal 42% Spike in Cloud Infrastructure",
+            description: "AWS cloud hosting increased from ₹24,000 to ₹38,500 without proportionate sales increase.",
+            amount: 14500,
+            riskLevel: "High",
+            status: "Active",
+            vendor: "Amazon Web Services",
+            detectedDate: "2026-09-24",
+            recommendation: "Review auto-scaling instances and terminate unused test environments.",
+          },
+          {
+            id: "leak-2",
+            category: "DuplicateInvoice",
+            title: "Potential Duplicate Payment on Freight Delivery",
+            description: "Identical invoice amounts ₹8,200 submitted on 12th & 15th for the same delivery docket.",
+            amount: 8200,
+            riskLevel: "High",
+            status: "Active",
+            vendor: "TechLogix Freight",
+            detectedDate: "2026-09-22",
+            recommendation: "Hold payment release until POD (Proof of Delivery) verification is matched.",
+          },
+          {
+            id: "leak-3",
+            category: "UnclaimedITC",
+            title: "Unclaimed GSTR-2B Input Tax Credit",
+            description: "Supplier GSTR-1 filed but ITC not claimed in draft 3B calculation.",
+            amount: 9600,
+            riskLevel: "Medium",
+            status: "Active",
+            vendor: "Apex Industrial Supplies",
+            detectedDate: "2026-09-20",
+            recommendation: "Auto-reconcile and push matched ITC into Table 4A(5) of GSTR-3B.",
+          },
+          {
+            id: "leak-4",
+            category: "UnnecessarySubscription",
+            title: "Unused SaaS Video & Collaboration Licences",
+            description: "12 Zoom Pro licences inactive for >45 days with zero meeting hours recorded.",
+            amount: 6800,
+            riskLevel: "Low",
+            status: "Active",
+            vendor: "Zoom Video Inc",
+            detectedDate: "2026-09-18",
+            recommendation: "Downgrade dormant accounts to free tier on next renewal cycle.",
+          },
+          {
+            id: "leak-5",
+            category: "HiddenFee",
+            title: "Payment Gateway IMPS Surcharge Discrepancy",
+            description: "Merchant gateway deducted 2.4% processing fee instead of negotiated 1.6% slab.",
+            amount: 3400,
+            riskLevel: "Medium",
+            status: "Active",
+            vendor: "Razorpay Gateway",
+            detectedDate: "2026-09-15",
+            recommendation: "Submit refund dispute ticket with signed SLA contract proof.",
+          },
+        ];
+        defaultLeaks.forEach((dl) => serverDb.insert("profit_leakage_issues", orgId, dl));
+        items = serverDb.get(matchedCol, orgId);
+      }
       return NextResponse.json(items, { status: 200, headers: { "Cache-Control": "no-store" } });
     }
 

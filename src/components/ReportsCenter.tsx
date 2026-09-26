@@ -2169,6 +2169,21 @@ export function ReportsCenter({ orgId }: { orgId: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Financial & GST Statements Cards */}
+      <div>
+        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Financial &amp; GST statements</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {PRIMARY_REPORTS.map((r) => (
+            <ReportCard
+              key={r.docType}
+              orgId={orgId}
+              def={r}
+              onOpen={() => setModalReportId(r.slug)}
+            />
+          ))}
+        </div>
+      </div>
+
       {/* Report documents — generated from live data */}
       <Card>
         <h3 className="text-[14px] font-semibold text-ink">Report documents</h3>

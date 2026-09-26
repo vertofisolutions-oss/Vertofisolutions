@@ -16,21 +16,33 @@ function ModuleInner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const router = useRouter();
 
-  const workspaceSections: Record<string, string> = {
-    "expenses": "expenses",
-    "bank-reconciliation": "reconciliation",
-    "intelligence": "intelligence",
+  const dedicatedRoutes: Record<string, string> = {
+    "profitleak-finder": "/profitleak-finder",
+    "profit-leaks": "/profitleak-finder",
+    "industry-benchmarks": "/module/industry-benchmarks",
+    "accounting-warranty": "/module/accounting-warranty",
+    "vendor-trust": "/module/vendor-trust",
+    "tax-warnings": "/module/tax-warnings",
+    "business-lifeguard": "/module/business-lifeguard",
+    "virtual-business-director": "/module/virtual-business-director",
+    "financial-black-box": "/module/financial-black-box",
+    "whatsapp-accounting": "/module/whatsapp-accounting",
+    "moneymap-live": "/module/money-map",
+    "money-map": "/module/money-map",
+    "expenses": "/workspace?section=expenses",
+    "bank-reconciliation": "/workspace?section=reconciliation",
+    "intelligence": "/workspace?section=intelligence",
   };
 
-  const isRedirect = Boolean(workspaceSections[slug]);
+  const redirectTarget = dedicatedRoutes[slug];
 
   useEffect(() => {
-    if (workspaceSections[slug]) {
-      router.replace(`/workspace?section=${workspaceSections[slug]}`);
+    if (redirectTarget) {
+      router.replace(redirectTarget);
     }
-  }, [router, slug]);
+  }, [router, redirectTarget]);
 
-  if (isRedirect) return null;
+  if (redirectTarget) return null;
   const mod = MODULES[slug];
 
   return (
