@@ -1764,6 +1764,68 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     return NextResponse.json({ data }, { status: 200, headers: { "Cache-Control": "no-store" } });
   }
 
+  // ── 8c. Accounting Warranty ──
+  if (targetPath.includes("warranty/status")) {
+    const status = {
+      plan: "ENTERPRISE",
+      coverageLimit: 1000000,
+      coverageUsed: 125000,
+      coverageRemaining: 875000,
+      scorecard: {
+        overall: 96,
+        components: [
+          { name: "Tax Compliance", score: 98, status: "Healthy" },
+          { name: "Vendor Payments", score: 92, status: "Good" },
+          { name: "Payroll Precision", score: 100, status: "Excellent" },
+          { name: "ITC Reconciliation", score: 94, status: "Healthy" }
+        ]
+      },
+      monitoring: [
+        { feature: "Real-Time Bank Feed Sync", status: "Active", uptime: "99.9%" },
+        { feature: "AI GST Anomaly Detection", status: "Active", uptime: "100%" },
+        { feature: "Vendor Fraud Shield", status: "Active", uptime: "99.9%" }
+      ],
+      sla: [
+        { metric: "Max Audit Response Time", value: "4 Hours", achieved: "1.2 Hours" },
+        { metric: "Max Penalty Resolution", value: "3 Business Days", achieved: "1 Day" }
+      ],
+      blackbox: [
+        {
+          id: "EVT-9999",
+          type: "Warranty Issued",
+          description: "Full compliance audit passed. Warranty active.",
+          severity: "Low",
+          actor: "System",
+          timestamp: "2026-09-01 10:00 IST",
+          category: "Compliance"
+        }
+      ]
+    };
+    return NextResponse.json({ status }, { status: 200, headers: { "Cache-Control": "no-store" } });
+  }
+
+  if (targetPath.includes("warranty/claims")) {
+    const claims = [
+      {
+        id: "CLM-1002",
+        date: "2026-08-15",
+        amount: 25000,
+        type: "GST Late Fee",
+        status: "Paid",
+        reason: "System sync delay caused GSTR-3B filing to be delayed by 1 day. Vertofi paid the penalty."
+      },
+      {
+        id: "CLM-1003",
+        date: "2026-09-10",
+        amount: 100000,
+        type: "ITC Mismatch Penalty",
+        status: "Under Review",
+        reason: "Supplier defaulted on GSTR-1, but Vertofi AI failed to flag the vendor early enough."
+      }
+    ];
+    return NextResponse.json({ claims }, { status: 200, headers: { "Cache-Control": "no-store" } });
+  }
+
   // ── 9. Reports: Balance Sheet & PnL ──
   if (targetPath.includes("reports") || targetPath.includes("balance-sheet") || targetPath.includes("pnl")) {
     const sales = serverDb.get("sales", orgId);
