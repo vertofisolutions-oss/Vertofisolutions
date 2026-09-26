@@ -6,9 +6,6 @@
   "functions": {
     "src/app/api/**/*": {
       "maxDuration": 300
-    },
-    "api/**/*": {
-      "maxDuration": 300
     }
   }
 }
