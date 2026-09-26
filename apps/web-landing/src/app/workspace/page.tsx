@@ -51,6 +51,7 @@ import { DocumentUpload } from "../../components/DocumentUpload";
 import { api, getAccess, getOrgId, ApiError } from "@/lib/api";
 import { MODULES } from "../../components/module/registry";
 import { LockedFeatureGate } from "../../components/LockedFeatureGate";
+import { AuthGuard } from "../../components/AuthGuard";
 
 const SECTIONS = [
   { key: "overview", label: "Overview", icon: LayoutGrid },
@@ -153,9 +154,11 @@ function parseLocation() {
 
 export default function Workspace() {
   return (
-    <Suspense fallback={null}>
-      <WorkspaceInner />
-    </Suspense>
+    <AuthGuard>
+      <Suspense fallback={null}>
+        <WorkspaceInner />
+      </Suspense>
+    </AuthGuard>
   );
 }
 

@@ -27,11 +27,9 @@ function LoginInner() {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get("logout") === "1") {
         clearTokens();
-      } else if (isAuthenticated()) {
-        router.replace("/dashboard");
       }
     }
-  }, [router]);
+  }, []);
 
   async function handleSignIn(e?: React.FormEvent) {
     if (e) {
@@ -41,8 +39,12 @@ function LoginInner() {
     setError(null);
 
     const cleanId = identifier.trim();
+    if (!cleanId && !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
     if (!cleanId) {
-      setError("Please enter your email or mobile number.");
+      setError("Please enter your email.");
       return;
     }
     if (!password) {
@@ -53,14 +55,14 @@ function LoginInner() {
     setBusy(true);
 
     try {
-      // Simulate slight processing tick for crisp loading feedback
-      await new Promise((resolve) => setTimeout(resolve, 350));
+      // Processing tick for crisp feedback
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const authResult = authenticateUser(cleanId, password, rememberMe);
 
       if (!authResult.success || !authResult.user) {
         // STOP LOGIN + SHOW ERROR + REMAIN ON LOGIN PAGE
-        setError(authResult.error || "Authentication failed. Please check your credentials.");
+        setError(authResult.error || "Invalid email or password.");
         setBusy(false);
         return;
       }
@@ -68,8 +70,15 @@ function LoginInner() {
       // Successful authentication
       const user = authResult.user;
       const userPlan = (user.plan || "FREE").toLowerCase();
-      router.push(`/dashboard?plan=${userPlan}`);
-    } catch (err: unknown) {
+      
+      const searchParams = new URLSearchParams(window.location.search);
+      const returnUrl = searchParams.get("returnUrl");
+      if (returnUrl && returnUrl.startsWith("/")) {
+        router.push(returnUrl);
+      } else {
+        router.push(`/dashboard?plan=${userPlan}`);
+      }
+    } catch {
       setError("Authentication error. Please check your credentials and try again.");
       setBusy(false);
     }

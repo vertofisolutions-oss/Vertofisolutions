@@ -350,8 +350,11 @@ export function authenticateUser(
   const cleanId = (identifier || "").trim();
   const password = passwordInput || "";
 
+  if (!cleanId && !password) {
+    return { success: false, error: "Please enter your email and password." };
+  }
   if (!cleanId) {
-    return { success: false, error: "Please enter your email or mobile number." };
+    return { success: false, error: "Please enter your email." };
   }
   if (!password) {
     return { success: false, error: "Please enter your password." };
@@ -490,7 +493,9 @@ export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false;
   const token = getAccess();
   const userId = localStorage.getItem(CURRENT_USER_ID_KEY);
-  return Boolean(token && userId);
+  if (!token || !userId) return false;
+  const users = getRegisteredUsers();
+  return users.some((u) => u.id === userId && u.status === "ACTIVE");
 }
 
 /** Permanently update an existing user's plan */

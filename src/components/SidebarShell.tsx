@@ -321,12 +321,16 @@ function SidebarShellContent({ children }: { children: React.ReactNode }) {
   useEffect(() => { setMobileOpen(false); }, [pathname, currentUrl]);
 
   const [currentUser, setCurrentUser] = useState<RegisteredUser | null>(null);
+  const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      router.replace("/login");
+      setIsAuthed(false);
+      const returnUrl = encodeURIComponent(pathname || "/dashboard");
+      router.replace(`/login?returnUrl=${returnUrl}`);
       return;
     }
+    setIsAuthed(true);
     const syncUser = () => {
       setCurrentUser(getCurrentUser());
     };
@@ -337,7 +341,7 @@ function SidebarShellContent({ children }: { children: React.ReactNode }) {
       window.removeEventListener("vertofi:auth-changed", syncUser);
       window.removeEventListener("storage", syncUser);
     };
-  }, [router]);
+  }, [router, pathname]);
 
   function toggleCollapse() {
     setCollapsed((c) => {
@@ -612,6 +616,17 @@ function SidebarShellContent({ children }: { children: React.ReactNode }) {
       ))}
     </nav>
   );
+
+  if (isAuthed === null || isAuthed === false) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+          <p className="text-xs font-semibold text-slate-500">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg2">

@@ -7,14 +7,17 @@ import {
   Layers, Server, Database, Key, HelpCircle, ShoppingCart
 } from "lucide-react";
 import { SidebarShell } from "../../components/SidebarShell";
+import { AuthGuard } from "../../components/AuthGuard";
 import { api, getOrgId } from "@/lib/api";
 import { getPlanLimits, PlanLimits, PLANS, normalizePlan, PlanTier } from "@/lib/plans";
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={null}>
-      <DashboardInner />
-    </Suspense>
+    <AuthGuard>
+      <Suspense fallback={null}>
+        <DashboardInner />
+      </Suspense>
+    </AuthGuard>
   );
 }
 
