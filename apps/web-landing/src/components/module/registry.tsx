@@ -925,7 +925,17 @@ function HealthScore() {
       )}
 
       <Panel title="Score History">
-        {h.error ? <Err text={h.error} /> : <Table cols={["Computed", "Score", "Rating"]} rows={(Array.isArray(h.data) ? h.data : []).map((r) => [dt(r.computed_at), String(r.score), String(r.rating ?? "—")])} />}
+        {(Array.isArray(h.data) && h.data.length > 0) ? (
+          <Table cols={["Computed", "Score", "Rating"]} rows={h.data.map((r) => [dt(r.computed_at), String(r.score), String(r.rating ?? "—")])} />
+        ) : (
+          <div className="py-5 text-center text-xs text-slate-500">
+            {isFree ? (
+              <span>Your baseline score history will accumulate as transactions and GST filings stream in. Run a <strong>Diagnostic Assessment</strong> above to calculate and save custom score reports.</span>
+            ) : (
+              <span>No continuous ledger history recorded yet. The score recomputes automatically as events stream in.</span>
+            )}
+          </div>
+        )}
       </Panel>
       <Hint text="The score recomputes automatically as ledger, GST and reconciliation events stream in." />
     </div>

@@ -455,8 +455,8 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
 
     const requiredPlan = premiumRoutes[parts[0]];
     
-    // Allow saving simulated BHS history regardless of plan
-    if (requiredPlan && !(parts[0] === "bhs" && targetPath.includes("simulated-history"))) {
+    // Allow saving simulated BHS history and reading BHS score/history regardless of plan
+    if (requiredPlan && parts[0] !== "bhs") {
       const planLevels: Record<string, number> = { "FREE": 0, "STARTER": 1, "GROWTH": 2, "SCALE": 3, "ENTERPRISE": 4 };
       const userLevel = planLevels[plan] || 0;
       const requiredLevel = planLevels[requiredPlan] || 0;
@@ -588,7 +588,7 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     return NextResponse.json(metrics[0] || {}, { status: 200 });
   }
 
-  // ── BHS Simulated History ──
+  // ── BHS History & Simulated History ──
   if (targetPath.includes("bhs") && targetPath.includes("simulated-history")) {
     if (method === "GET") {
       const history = serverDb.get("bhs_simulated_history", orgId) || [];
@@ -605,6 +605,25 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
       if (id && id !== "simulated-history") {
         serverDb.delete("bhs_simulated_history", orgId, id);
         return NextResponse.json({ success: true }, { status: 200 });
+      }
+    }
+  }
+
+  if (targetPath.includes("bhs") && targetPath.includes("history")) {
+    if (method === "GET") {
+      const history = serverDb.get("bhs_history", orgId) || [];
+      return NextResponse.json(Array.isArray(history) ? history : [], { status: 200 });
+    }
+  }
+
+  if (parts[0] === "bhs" || targetPath.startsWith("bhs")) {
+    if (method === "GET") {
+      try {
+        const { calculateBHS } = await import("../../../../lib/bhs/calculator");
+        const result = await calculateBHS(orgId);
+        return NextResponse.json(result || { score: 64, rating: "Fair (Teaser)" }, { status: 200 });
+      } catch {
+        return NextResponse.json({ score: 64, rating: "Fair (Teaser)" }, { status: 200 });
       }
     }
   }
