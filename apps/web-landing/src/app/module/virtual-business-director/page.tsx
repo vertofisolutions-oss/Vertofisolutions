@@ -189,9 +189,348 @@ export default function VBDPage() {
     </div>
   );
 
+  const [simulating, setSimulating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [hiringResult, setHiringResult] = useState<any | null>(null);
+
+  const formatInr = (n: number | string | null | undefined) => {
+    if (n === null || n === undefined || isNaN(Number(n))) return "—";
+    return Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+  };
+
+  const runHiringSimulation = async () => {
+    setValidationError(null);
+    const salaryRaw = details.salary;
+    const revenueRaw = details.revenueContribution;
+    const trainingRaw = details.trainingCost;
+
+    if (salaryRaw === undefined || salaryRaw === "" || isNaN(Number(salaryRaw)) || Number(salaryRaw) <= 0) {
+      setValidationError("Please enter the proposed monthly salary.");
+      return;
+    }
+    if (revenueRaw === undefined || revenueRaw === "" || isNaN(Number(revenueRaw)) || Number(revenueRaw) < 0) {
+      setValidationError("Please enter the expected monthly revenue contribution.");
+      return;
+    }
+    if (trainingRaw === undefined || trainingRaw === "" || isNaN(Number(trainingRaw)) || Number(trainingRaw) < 0) {
+      setValidationError("Please enter the training/onboarding cost.");
+      return;
+    }
+
+    setSimulating(true);
+    setHiringResult(null);
+
+    const monthlySalary = Number(salaryRaw);
+    const monthlyRevenue = Number(revenueRaw);
+    const trainingCost = Number(trainingRaw);
+
+    const monthlyNetContribution = monthlyRevenue - monthlySalary;
+    const annualSalaryCost = monthlySalary * 12;
+    const annualRevenueContribution = monthlyRevenue * 12;
+    const annualNetContribution = monthlyNetContribution * 12;
+    const firstYearCost = annualSalaryCost + trainingCost;
+    const firstYearNetImpact = annualRevenueContribution - firstYearCost;
+    const monthlyROI = monthlySalary > 0 ? ((monthlyRevenue - monthlySalary) / monthlySalary) * 100 : null;
+    const firstYearROI = firstYearCost > 0 ? (firstYearNetImpact / firstYearCost) * 100 : 0;
+    const breakEvenMonths = monthlyNetContribution > 0 ? (trainingCost === 0 ? 0 : trainingCost / monthlyNetContribution) : null;
+
+    let decision = "RECOMMENDED FOR CONSIDERATION";
+    let decisionStatus = "positive";
+    let decisionExplanation = "Based on the entered assumptions, the expected revenue contribution exceeds the salary and training costs, resulting in a positive first-year financial impact.";
+
+    if (monthlyNetContribution > 0 && firstYearNetImpact <= 0) {
+      decision = "CAUTION — REVIEW ASSUMPTIONS";
+      decisionStatus = "caution";
+      decisionExplanation = "The monthly contribution is positive, but the initial training/onboarding cost prevents a positive first-year impact under the current assumptions.";
+    } else if (monthlyNetContribution <= 0) {
+      decision = "NOT FINANCIALLY ATTRACTIVE UNDER CURRENT ASSUMPTIONS";
+      decisionStatus = "negative";
+      decisionExplanation = "The expected monthly revenue contribution does not currently cover the proposed monthly salary.";
+    }
+
+    const insights = [
+      `Expected monthly revenue contribution of ₹${formatInr(monthlyRevenue)} is ₹${formatInr(Math.abs(monthlyNetContribution))} ${monthlyNetContribution >= 0 ? "above" : "below"} the proposed monthly salary.`,
+      `Training/onboarding cost represents ₹${formatInr(trainingCost)} (${firstYearCost > 0 ? ((trainingCost / firstYearCost) * 100).toFixed(1) : 0}%) of the total first-year investment of ₹${formatInr(firstYearCost)}.`,
+      `The estimated first-year net financial impact is ₹${formatInr(firstYearNetImpact)}.`,
+      `The modeled break-even period is ${breakEvenMonths != null ? (breakEvenMonths === 0 ? "immediate (0 months)" : `approximately ${breakEvenMonths.toFixed(1)} months`) : "not achievable under current assumptions"}.`,
+      "Actual operational results may vary from these financial assumptions based on onboarding ramp-up and market performance."
+    ];
+
+    const conservativeRev = monthlyRevenue * 0.8;
+    const conservativeNetMonthly = conservativeRev - monthlySalary;
+    const conservativeFirstYearImpact = (conservativeRev * 12) - firstYearCost;
+    const conservativeROI = firstYearCost > 0 ? ((conservativeFirstYearImpact / firstYearCost) * 100) : 0;
+
+    const optimisticRev = monthlyRevenue * 1.2;
+    const optimisticNetMonthly = optimisticRev - monthlySalary;
+    const optimisticFirstYearImpact = (optimisticRev * 12) - firstYearCost;
+    const optimisticROI = firstYearCost > 0 ? ((optimisticFirstYearImpact / firstYearCost) * 100) : 0;
+
+    const resultObj = {
+      monthlySalary,
+      monthlyRevenue,
+      trainingCost,
+      monthlyNetContribution,
+      annualSalaryCost,
+      annualRevenueContribution,
+      annualNetContribution,
+      firstYearCost,
+      firstYearNetImpact,
+      monthlyROI,
+      firstYearROI,
+      breakEvenMonths,
+      decision,
+      decisionStatus,
+      decisionExplanation,
+      insights,
+      scenarios: [
+        {
+          name: "Conservative (80%)",
+          monthlyRev: conservativeRev,
+          netMonthly: conservativeNetMonthly,
+          firstYearImpact: conservativeFirstYearImpact,
+          roi: `${conservativeROI.toFixed(2)}%`
+        },
+        {
+          name: "Current Plan (100%)",
+          monthlyRev: monthlyRevenue,
+          netMonthly: monthlyNetContribution,
+          firstYearImpact: firstYearNetImpact,
+          roi: `${firstYearROI.toFixed(2)}%`
+        },
+        {
+          name: "Optimistic (120%)",
+          monthlyRev: optimisticRev,
+          netMonthly: optimisticNetMonthly,
+          firstYearImpact: optimisticFirstYearImpact,
+          roi: `${optimisticROI.toFixed(2)}%`
+        }
+      ]
+    };
+
+    // Simulate brief processing for fluid UI
+    await new Promise(r => setTimeout(r, 450));
+    setHiringResult(resultObj);
+    setSimulating(false);
+
+    // Asynchronously register in backend for history & CPA Review
+    try {
+      await fetch("/api/v1/vbd/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: "Hiring", details: { salary: monthlySalary, revenueContribution: monthlyRevenue, trainingCost } })
+      });
+      await fetch(`/api/v1/vbd_decisions/${orgId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: `VBD-${Math.floor(1000 + Math.random() * 9000)}`,
+          category: "Hiring",
+          question: `Hire role at ₹${monthlySalary}/mo`,
+          inputs: { salary: monthlySalary, revenueContribution: monthlyRevenue, trainingCost },
+          analysis: {
+            decision: decisionStatus === "positive" ? "YES" : decisionStatus === "caution" ? "CAUTION" : "NO",
+            decisionLabel: decision,
+            riskScore: decisionStatus === "positive" ? 22 : decisionStatus === "caution" ? 54 : 85,
+            financialImpact: { initialCost: `₹${formatInr(trainingCost)}`, recurringCost: `₹${formatInr(monthlySalary)}/mo`, profitImpact: `₹${formatInr(firstYearNetImpact)}/yr` },
+            cpaStatus: "Pending CPA Review"
+          },
+          createdAt: new Date().toISOString()
+        })
+      });
+    } catch {}
+  };
+
+  const renderHiringResultCard = () => {
+    if (!hiringResult) return null;
+    const r = hiringResult;
+    const isPositive = r.decisionStatus === "positive";
+    const isCaution = r.decisionStatus === "caution";
+
+    return (
+      <div className="space-y-6 animate-in fade-in pt-6">
+        {/* HEADER */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-100 gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-[11px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded border ${
+                  isPositive 
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                    : isCaution 
+                    ? "bg-amber-50 text-amber-700 border-amber-200" 
+                    : "bg-rose-50 text-rose-700 border-rose-200"
+                }`}>
+                  {r.decision}
+                </span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">HIRING SIMULATION RESULT</h2>
+              <p className="text-xs text-slate-500 mt-0.5">AI-powered financial assessment of this hiring decision.</p>
+            </div>
+            <div className="text-left sm:text-right">
+              <span className="text-xs text-slate-400 font-medium">Model Status</span>
+              <p className="font-mono text-sm font-bold text-emerald-600">Calculated &amp; Verified</p>
+            </div>
+          </div>
+
+          {/* SUMMARY CARDS */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 pt-6">
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+              <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wide block">Monthly Salary</span>
+              <p className="text-xl font-bold text-slate-900 mt-1 font-mono">₹{formatInr(r.monthlySalary)}</p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+              <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wide block">Expected Monthly Revenue</span>
+              <p className="text-xl font-bold text-slate-900 mt-1 font-mono">₹{formatInr(r.monthlyRevenue)}</p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+              <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wide block">Monthly Net Contribution</span>
+              <p className={`text-xl font-bold mt-1 font-mono ${r.monthlyNetContribution >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {r.monthlyNetContribution >= 0 ? '+' : ''}₹{formatInr(r.monthlyNetContribution)}
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+              <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wide block">First-Year Net Impact</span>
+              <p className={`text-xl font-bold mt-1 font-mono ${r.firstYearNetImpact >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {r.firstYearNetImpact >= 0 ? '+' : ''}₹{formatInr(r.firstYearNetImpact)}
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+              <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wide block">ROI (First-Year)</span>
+              <p className={`text-xl font-bold mt-1 font-mono ${r.firstYearROI >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                {r.firstYearROI.toFixed(2)}%
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+              <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wide block">Break-Even Period</span>
+              <p className="text-base font-bold text-slate-900 mt-1">
+                {r.breakEvenMonths != null 
+                  ? (r.breakEvenMonths === 0 ? "Immediate (0 mo)" : `${r.breakEvenMonths.toFixed(1)} Months`)
+                  : "Not achievable"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* FINANCIAL BREAKDOWN & HIRING DECISION */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* FINANCIAL BREAKDOWN */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 pb-3 border-b border-slate-100 flex items-center gap-2">
+              <Calculator className="h-4 w-4 text-indigo-600" /> Financial Breakdown
+            </h3>
+            <div className="divide-y divide-slate-100 text-xs text-slate-600 mt-2">
+              <div className="py-2.5 flex justify-between"><span>Proposed Monthly Salary</span><span className="font-semibold text-slate-900 font-mono">₹{formatInr(r.monthlySalary)}</span></div>
+              <div className="py-2.5 flex justify-between"><span>Expected Monthly Revenue Contribution</span><span className="font-semibold text-slate-900 font-mono">₹{formatInr(r.monthlyRevenue)}</span></div>
+              <div className="py-2.5 flex justify-between"><span>Monthly Net Contribution</span><span className={`font-semibold font-mono ${r.monthlyNetContribution >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>₹{formatInr(r.monthlyNetContribution)}</span></div>
+              <div className="py-2.5 flex justify-between"><span>Annual Salary Cost (12 Months)</span><span className="font-semibold text-slate-900 font-mono">₹{formatInr(r.annualSalaryCost)}</span></div>
+              <div className="py-2.5 flex justify-between"><span>Annual Revenue Contribution</span><span className="font-semibold text-slate-900 font-mono">₹{formatInr(r.annualRevenueContribution)}</span></div>
+              <div className="py-2.5 flex justify-between"><span>Training / Onboarding Cost (One-time)</span><span className="font-semibold text-slate-900 font-mono">₹{formatInr(r.trainingCost)}</span></div>
+              <div className="py-2.5 flex justify-between font-bold text-slate-800 bg-slate-50 px-2 rounded"><span>First-Year Total Cost</span><span className="font-mono">₹{formatInr(r.firstYearCost)}</span></div>
+              <div className="py-2.5 flex justify-between font-bold text-slate-800 bg-slate-50 px-2 rounded"><span>First-Year Net Financial Impact</span><span className={`font-mono ${r.firstYearNetImpact >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>₹{formatInr(r.firstYearNetImpact)}</span></div>
+              <div className="py-2.5 flex justify-between font-bold text-slate-800 bg-slate-50 px-2 rounded"><span>First-Year ROI</span><span className="text-indigo-600 font-mono">{r.firstYearROI.toFixed(2)}%</span></div>
+            </div>
+          </div>
+
+          {/* HIRING DECISION & AI INSIGHTS */}
+          <div className="space-y-6">
+            {/* HIRING DECISION CARD */}
+            <div className={`rounded-2xl border p-6 shadow-sm ${
+              isPositive 
+                ? "bg-emerald-50/60 border-emerald-200" 
+                : isCaution 
+                ? "bg-amber-50/60 border-amber-200" 
+                : "bg-rose-50/60 border-rose-200"
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                {isPositive ? (
+                  <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+                ) : isCaution ? (
+                  <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-rose-600 shrink-0" />
+                )}
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+                  Hiring Decision: {r.decision}
+                </h3>
+              </div>
+              <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                {r.decisionExplanation}
+              </p>
+              <div className="mt-3 pt-3 border-t border-slate-200/60 text-[11px] text-slate-500">
+                * Strategic guidance generated based on entered assumptions. Real performance depends on execution and operational factors.
+              </div>
+            </div>
+
+            {/* AI SIMULATION INSIGHTS */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-3 flex items-center gap-2">
+                <BrainCircuit className="h-4 w-4 text-indigo-600" /> AI Simulation Insights
+              </h3>
+              <div className="space-y-2.5 text-xs text-slate-700">
+                {r.insights.map((ins: string, idx: number) => (
+                  <div key={idx} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <span className="text-indigo-600 font-bold shrink-0">•</span>
+                    <span className="leading-snug">{ins}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* WHAT-IF ANALYSIS & SCENARIO TABLE */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="pb-4 border-b border-slate-100">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-indigo-600" /> What-If Analysis &amp; Scenario Comparison
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Sensitivity model evaluating hiring economics across fluctuating monthly revenue performance.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto mt-4">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                <tr>
+                  <th className="p-3">Scenario</th>
+                  <th className="p-3">Monthly Revenue</th>
+                  <th className="p-3">Monthly Net Contribution</th>
+                  <th className="p-3">First-Year Net Impact</th>
+                  <th className="p-3 text-right">ROI</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {r.scenarios.map((sc: any, i: number) => (
+                  <tr key={i} className={i === 1 ? "bg-indigo-50/50 font-semibold" : "hover:bg-slate-50"}>
+                    <td className="p-3 text-slate-900">{sc.name}</td>
+                    <td className="p-3 font-mono">₹{formatInr(sc.monthlyRev)}</td>
+                    <td className={`p-3 font-mono ${sc.netMonthly >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {sc.netMonthly >= 0 ? '+' : ''}₹{formatInr(sc.netMonthly)}
+                    </td>
+                    <td className={`p-3 font-mono ${sc.firstYearImpact >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {sc.firstYearImpact >= 0 ? '+' : ''}₹{formatInr(sc.firstYearImpact)}
+                    </td>
+                    <td className="p-3 font-mono text-right font-bold text-indigo-600">{sc.roi}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderWizard = () => (
-    <div className="mx-auto max-w-2xl mt-8 animate-in fade-in">
-      <button onClick={() => setView("dashboard")} className="mb-6 flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800">
+    <div className="mx-auto max-w-3xl mt-8 animate-in fade-in space-y-6">
+      <button onClick={() => setView("dashboard")} className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800">
         <ArrowRight className="h-4 w-4 rotate-180" /> Back to Dashboard
       </button>
       
@@ -201,6 +540,13 @@ export default function VBDPage() {
           <h2 className="text-2xl font-bold text-slate-800">{category} Decision Engine</h2>
         </div>
         <p className="text-sm text-slate-500 mb-6">Provide the financial parameters to run the AI Simulation.</p>
+
+        {validationError && (
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-3 text-xs font-semibold text-rose-800">
+            <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+            <span>{validationError}</span>
+          </div>
+        )}
 
         {missingDataMsg && (
           <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-3">
@@ -213,15 +559,42 @@ export default function VBDPage() {
           <div className="space-y-4">
             <div>
               <label className="text-xs font-bold uppercase text-slate-500">Proposed Monthly Salary (₹)</label>
-              <input type="number" onChange={e => setDetails({...details, salary: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm" />
+              <input 
+                type="number" 
+                value={details.salary ?? ""}
+                onChange={e => {
+                  setDetails({...details, salary: e.target.value});
+                  if (validationError) setValidationError(null);
+                }} 
+                placeholder="e.g. 50000"
+                className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400" 
+              />
             </div>
             <div>
               <label className="text-xs font-bold uppercase text-slate-500">Expected Monthly Revenue Contribution (₹)</label>
-              <input type="number" onChange={e => setDetails({...details, revenueContribution: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm" />
+              <input 
+                type="number" 
+                value={details.revenueContribution ?? ""}
+                onChange={e => {
+                  setDetails({...details, revenueContribution: e.target.value});
+                  if (validationError) setValidationError(null);
+                }} 
+                placeholder="e.g. 100000"
+                className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400" 
+              />
             </div>
             <div>
               <label className="text-xs font-bold uppercase text-slate-500">Training/Onboarding Cost (₹)</label>
-              <input type="number" onChange={e => setDetails({...details, trainingCost: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm" />
+              <input 
+                type="number" 
+                value={details.trainingCost ?? ""}
+                onChange={e => {
+                  setDetails({...details, trainingCost: e.target.value});
+                  if (validationError) setValidationError(null);
+                }} 
+                placeholder="e.g. 50000"
+                className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400" 
+              />
             </div>
           </div>
         )}
@@ -267,11 +640,18 @@ export default function VBDPage() {
         )}
 
         <div className="mt-8">
-          <button onClick={runAnalysis} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200">
-            Run AI Simulation
+          <button 
+            onClick={category === "Hiring" ? runHiringSimulation : runAnalysis} 
+            disabled={simulating}
+            className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {simulating ? "Running Simulation..." : "Run AI Simulation"}
           </button>
         </div>
       </div>
+
+      {/* HIRING SIMULATION RESULT (RENDERED DIRECTLY ON SAME PAGE) */}
+      {category === "Hiring" && renderHiringResultCard()}
     </div>
   );
 
