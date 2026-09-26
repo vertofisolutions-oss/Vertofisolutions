@@ -1,0 +1,26 @@
+[
+  {
+    "id": "INC-2026-0889",
+    "created_at": "2026-09-26T22:06:52.551Z",
+    "updated_at": "2026-09-26T22:06:52.551Z",
+    "title": "GSTR-2B Input Tax Credit Mismatch Spike",
+    "category": "Statutory Compliance",
+    "severity": "High",
+    "status": "Resolved",
+    "createdAt": "2026-09-21 16:45 IST",
+    "description": "Automated 2B scraper identified 3 supplier invoices missing from portal JSON feed.",
+    "impact": "₹24,800 ITC Saved"
+  },
+  {
+    "id": "INC-2026-0901",
+    "created_at": "2026-09-26T22:06:52.548Z",
+    "updated_at": "2026-09-26T22:06:52.548Z",
+    "title": "Unexpected Vendor Bank Account Change",
+    "category": "Bank Fraud Prevention",
+    "severity": "Critical",
+    "status": "Investigating",
+    "createdAt": "2026-09-25 11:20 IST",
+    "description": "Vendor Apex Industrial changed beneficiary account number without signed mandate letter.",
+    "impact": "₹1,45,000 Payment Held"
+  }
+]

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "EVT-9964",
+    "created_at": "2026-09-26T22:06:44.926Z",
+    "updated_at": "2026-09-26T22:06:44.926Z",
+    "type": "Payroll Challan Verified & Locked",
+    "description": "Statutory PF & ESI contributions calculated for 18 employees",
+    "severity": "Low",
+    "actor": "Automated Payroll Pipeline",
+    "timestamp": "2026-09-20 10:30 IST",
+    "category": "Payroll"
+  },
+  {
+    "id": "EVT-9971",
+    "created_at": "2026-09-26T22:06:44.924Z",
+    "updated_at": "2026-09-26T22:06:44.924Z",
+    "type": "GST 2B Reconciliation Auto-Completed",
+    "description": "Matched 142 supplier invoices against portal feed with zero unlinked credits",
+    "severity": "Low",
+    "actor": "Vertofi AI Compliance Engine",
+    "timestamp": "2026-09-24 01:00 IST",
+    "category": "Tax"
+  },
+  {
+    "id": "EVT-9978",
+    "created_at": "2026-09-26T22:06:44.923Z",
+    "updated_at": "2026-09-26T22:06:44.923Z",
+    "type": "Abnormal Late Night Sales Invoice Created",
+    "description": "Invoice #INV-2026-882 created at 02:45 AM for ₹1,80,000",
+    "severity": "High",
+    "actor": "API Integration Gateway",
+    "timestamp": "2026-09-24 02:45 IST",
+    "category": "Sales"
+  },
+  {
+    "id": "EVT-9982",
+    "created_at": "2026-09-26T22:06:44.921Z",
+    "updated_at": "2026-09-26T22:06:44.921Z",
+    "type": "Bank Account Detail Modified",
+    "description": "Beneficiary IFSC & Account number changed for supplier Apex Industrial",
+    "severity": "Critical",
+    "actor": "Finance Team User (Goutham)",
+    "timestamp": "2026-09-25 11:15 IST",
+    "category": "Banking"
+  }
+]

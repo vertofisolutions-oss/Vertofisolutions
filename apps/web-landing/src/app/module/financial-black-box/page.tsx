@@ -33,10 +33,12 @@ export default function BlackBoxPage() {
         evRes.ok ? evRes.json() : [],
         incRes.ok ? incRes.json() : []
       ]);
-      setEvents(evJson);
-      setIncidents(incJson);
+      setEvents(Array.isArray(evJson) ? evJson : (Array.isArray(evJson?.events) ? evJson.events : []));
+      setIncidents(Array.isArray(incJson) ? incJson : (Array.isArray(incJson?.incidents) ? incJson.incidents : []));
     } catch (err) {
       console.error(err);
+      setEvents([]);
+      setIncidents([]);
     } finally {
       setLoading(false);
     }

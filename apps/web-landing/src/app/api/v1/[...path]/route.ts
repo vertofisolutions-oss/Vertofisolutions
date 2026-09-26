@@ -1632,10 +1632,92 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
   // ── 7. Vendor Trust & Vendors ──
   if (targetPath.includes("vendors") || entity === "vendors") {
     const suppliers = serverDb.get("suppliers", orgId);
-    if (targetPath.includes("trust")) {
-      return NextResponse.json({ vendors: suppliers }, { status: 200 });
-    }
     return NextResponse.json(suppliers, { status: 200 });
+  }
+
+  // ── 7b. Financial Black Box Events & Incidents ──
+  if (targetPath.startsWith("blackbox") || targetPath.includes("blackbox")) {
+    if (targetPath.includes("incidents")) {
+      if (method === "GET") {
+        let items = serverDb.get("blackbox_incidents", orgId) || [];
+        if (items.length === 0) {
+          const defaultIncidents = [
+            {
+              id: "INC-2026-0901",
+              title: "Unexpected Vendor Bank Account Change",
+              category: "Bank Fraud Prevention",
+              severity: "Critical",
+              status: "Investigating",
+              createdAt: "2026-09-25 11:20 IST",
+              description: "Vendor Apex Industrial changed beneficiary account number without signed mandate letter.",
+              impact: "₹1,45,000 Payment Held",
+            },
+            {
+              id: "INC-2026-0889",
+              title: "GSTR-2B Input Tax Credit Mismatch Spike",
+              category: "Statutory Compliance",
+              severity: "High",
+              status: "Resolved",
+              createdAt: "2026-09-21 16:45 IST",
+              description: "Automated 2B scraper identified 3 supplier invoices missing from portal JSON feed.",
+              impact: "₹24,800 ITC Saved",
+            },
+          ];
+          defaultIncidents.forEach((di) => serverDb.insert("blackbox_incidents", orgId, di));
+          items = serverDb.get("blackbox_incidents", orgId);
+        }
+        return NextResponse.json(items, { status: 200, headers: { "Cache-Control": "no-store" } });
+      }
+    }
+
+    if (targetPath.includes("events")) {
+      if (method === "GET") {
+        let items = serverDb.get("blackbox_events", orgId) || [];
+        if (items.length === 0) {
+          const defaultEvents = [
+            {
+              id: "EVT-9982",
+              type: "Bank Account Detail Modified",
+              description: "Beneficiary IFSC & Account number changed for supplier Apex Industrial",
+              severity: "Critical",
+              actor: "Finance Team User (Goutham)",
+              timestamp: "2026-09-25 11:15 IST",
+              category: "Banking",
+            },
+            {
+              id: "EVT-9978",
+              type: "Abnormal Late Night Sales Invoice Created",
+              description: "Invoice #INV-2026-882 created at 02:45 AM for ₹1,80,000",
+              severity: "High",
+              actor: "API Integration Gateway",
+              timestamp: "2026-09-24 02:45 IST",
+              category: "Sales",
+            },
+            {
+              id: "EVT-9971",
+              type: "GST 2B Reconciliation Auto-Completed",
+              description: "Matched 142 supplier invoices against portal feed with zero unlinked credits",
+              severity: "Low",
+              actor: "Vertofi AI Compliance Engine",
+              timestamp: "2026-09-24 01:00 IST",
+              category: "Tax",
+            },
+            {
+              id: "EVT-9964",
+              type: "Payroll Challan Verified & Locked",
+              description: "Statutory PF & ESI contributions calculated for 18 employees",
+              severity: "Low",
+              actor: "Automated Payroll Pipeline",
+              timestamp: "2026-09-20 10:30 IST",
+              category: "Payroll",
+            },
+          ];
+          defaultEvents.forEach((de) => serverDb.insert("blackbox_events", orgId, de));
+          items = serverDb.get("blackbox_events", orgId);
+        }
+        return NextResponse.json(items, { status: 200, headers: { "Cache-Control": "no-store" } });
+      }
+    }
   }
 
   // ── 8. Bank Reconciliation ──
