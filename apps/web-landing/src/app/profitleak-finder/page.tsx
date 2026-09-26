@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarShell } from "../../components/SidebarShell";
 import { LockedFeatureGate } from "../../components/LockedFeatureGate";
@@ -432,7 +432,174 @@ function ActionCenterTab({ issues, updateStatus }: { issues: any[], updateStatus
   );
 }
 
+const UPLOAD_SECTIONS = [
+  {
+    id: "bank_statement",
+    title: "Bank Statements",
+    desc: "PDF or Excel formats",
+    accept: ".pdf,.xlsx,.xls",
+    allowedExtensions: ["pdf", "xlsx", "xls"],
+    formatHint: "PDF, XLS, or XLSX",
+  },
+  {
+    id: "gst_data",
+    title: "GST Data (2A/2B/3B)",
+    desc: "JSON or Excel downloads",
+    accept: ".json,.xlsx,.xls",
+    allowedExtensions: ["json", "xlsx", "xls"],
+    formatHint: "JSON, XLS, or XLSX",
+  },
+  {
+    id: "invoices_receipts",
+    title: "Invoices & Receipts",
+    desc: "PDFs or scanned images",
+    accept: ".pdf,.png,.jpg,.jpeg,.webp",
+    allowedExtensions: ["pdf", "png", "jpg", "jpeg", "webp"],
+    formatHint: "PDF, PNG, JPG, JPEG, or WEBP",
+  },
+  {
+    id: "tally_zoho",
+    title: "Tally / Zoho Backup",
+    desc: "XML or Excel exports",
+    accept: ".xml,.xlsx,.xls",
+    allowedExtensions: ["xml", "xlsx", "xls"],
+    formatHint: "XML, XLS, or XLSX",
+  },
+  {
+    id: "payroll_sheets",
+    title: "Payroll Sheets",
+    desc: "Excel formats",
+    accept: ".xlsx,.xls",
+    allowedExtensions: ["xlsx", "xls"],
+    formatHint: "XLS or XLSX",
+  },
+  {
+    id: "credit_card",
+    title: "Credit Card Statements",
+    desc: "PDF formats",
+    accept: ".pdf",
+    allowedExtensions: ["pdf"],
+    formatHint: "PDF",
+  },
+];
+
+function IngestionUploadCard({
+  item,
+  selectedFile,
+  error,
+  onSelectFile,
+  onError,
+}: {
+  item: (typeof UPLOAD_SECTIONS)[number];
+  selectedFile: File | null;
+  error?: string;
+  onSelectFile: (file: File) => void;
+  onError: (msg: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!item.allowedExtensions.includes(ext)) {
+      onError("Invalid file type. Please select a supported file.");
+      return;
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      onError("File is too large. Please select a smaller file.");
+      return;
+    }
+
+    onSelectFile(file);
+  };
+
+  const handleTriggerPicker = () => {
+    if (inputRef.current) {
+      inputRef.current.value = "";
+      inputRef.current.click();
+    }
+  };
+
+  return (
+    <div
+      onClick={handleTriggerPicker}
+      className={`border-2 border-dashed rounded-xl p-5 transition cursor-pointer text-center group ${
+        selectedFile
+          ? "border-emerald-400 bg-emerald-50/40 hover:border-emerald-500"
+          : "border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50"
+      }`}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept={item.accept}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      <h3 className="font-bold text-slate-800 group-hover:text-indigo-700">{item.title}</h3>
+      <p className="text-xs text-slate-500 mt-1">{item.desc}</p>
+
+      {selectedFile ? (
+        <div className="mt-3 space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-semibold max-w-full">
+            <span className="font-bold">✓</span>
+            <span className="truncate max-w-[200px]">{selectedFile.name}</span>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTriggerPicker();
+              }}
+              className="text-xs font-bold bg-white border border-slate-200 px-3 py-1.5 rounded-lg group-hover:border-indigo-300 text-slate-700 hover:text-indigo-600 shadow-sm"
+            >
+              Change File
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleTriggerPicker();
+          }}
+          className="mt-4 text-xs font-bold bg-white border border-slate-200 px-4 py-2 rounded-lg group-hover:border-indigo-300 text-slate-800"
+        >
+          Select File
+        </button>
+      )}
+
+      {error && (
+        <p className="mt-2 text-xs font-semibold text-rose-600">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function DataIngestionTab() {
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, File>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const handleSelectFile = (id: string, file: File) => {
+    setSelectedFiles((prev) => ({ ...prev, [id]: file }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleError = (id: string, msg: string) => {
+    setErrors((prev) => ({ ...prev, [id]: msg }));
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
       <div className="text-center max-w-lg mx-auto">
@@ -446,21 +613,15 @@ function DataIngestionTab() {
       </div>
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { title: "Bank Statements", desc: "PDF or Excel formats" },
-          { title: "GST Data (2A/2B/3B)", desc: "JSON or Excel downloads" },
-          { title: "Invoices & Receipts", desc: "PDFs or scanned images" },
-          { title: "Tally / Zoho Backup", desc: "XML or Excel exports" },
-          { title: "Payroll Sheets", desc: "Excel formats" },
-          { title: "Credit Card Statements", desc: "PDF formats" }
-        ].map(item => (
-          <div key={item.title} className="border-2 border-dashed border-slate-200 rounded-xl p-5 hover:border-indigo-400 hover:bg-indigo-50/50 transition cursor-pointer text-center group">
-            <h3 className="font-bold text-slate-800 group-hover:text-indigo-700">{item.title}</h3>
-            <p className="text-xs text-slate-500 mt-1">{item.desc}</p>
-            <button className="mt-4 text-xs font-bold bg-white border border-slate-200 px-4 py-2 rounded-lg group-hover:border-indigo-300">
-              Select File
-            </button>
-          </div>
+        {UPLOAD_SECTIONS.map((item) => (
+          <IngestionUploadCard
+            key={item.id}
+            item={item}
+            selectedFile={selectedFiles[item.id] || null}
+            error={errors[item.id]}
+            onSelectFile={(file) => handleSelectFile(item.id, file)}
+            onError={(msg) => handleError(item.id, msg)}
+          />
         ))}
       </div>
     </div>
