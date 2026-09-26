@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { SidebarShell } from "../../../components/SidebarShell";
 import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
 import { 
-  ShieldCheck, Search, ShieldAlert, AlertTriangle, AlertOctagon, 
+  ShieldCheck, Search, ShieldAlert, AlertTriangle, AlertOctagon, AlertCircle,
   CheckCircle, ArrowRight, Activity, TrendingUp, TrendingDown,
   Building, FileText, Landmark, Clock, Info
 } from "lucide-react";
