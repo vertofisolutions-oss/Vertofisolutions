@@ -671,7 +671,9 @@ function WorkspaceInner() {
             </LockedFeatureGate>
           )}
           {section === "gst" && orgId && (
-            <GstDashboardView orgId={orgId} />
+            <LockedFeatureGate feature="gst_monitoring">
+              <GstDashboardView orgId={orgId} />
+            </LockedFeatureGate>
           )}
           {section === "intelligence" && orgId && (
             <LockedFeatureGate feature="ai_advisor">

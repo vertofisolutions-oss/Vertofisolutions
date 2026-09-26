@@ -459,7 +459,21 @@ function DashboardInner() {
             return (
               <button
                 key={action.label}
-                onClick={() => router.push(action.href)}
+                onClick={(e) => {
+                  if (isLocked) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof window !== "undefined") {
+                      window.dispatchEvent(
+                        new CustomEvent("vertofi:show-upgrade-modal", {
+                          detail: { feature: action.label, minPlan: "Starter" },
+                        })
+                      );
+                    }
+                    return;
+                  }
+                  router.push(action.href);
+                }}
                 className={`flex items-center gap-1.5 rounded-md border px-3.5 py-1.5 text-xs font-semibold shadow-sm transition cursor-pointer ${
                   action.min === "FREE"
                     ? "border-blue-600 bg-blue-50 text-blue-700 hover:bg-blue-100"
@@ -491,7 +505,21 @@ function DashboardInner() {
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* 1. Create your first invoice */}
             <div
-              onClick={() => router.push("/workspace?section=sales&action=create-invoice")}
+              onClick={(e) => {
+                if (isFree) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(
+                      new CustomEvent("vertofi:show-upgrade-modal", {
+                        detail: { feature: "Invoicing & Sales", minPlan: "Starter" },
+                      })
+                    );
+                  }
+                  return;
+                }
+                router.push("/workspace?section=sales&action=create-invoice");
+              }}
               className="flex items-start justify-between rounded-lg border border-slate-200 bg-white p-3 transition hover:border-slate-400 cursor-pointer"
             >
               <div className="flex items-start gap-3">
@@ -510,7 +538,21 @@ function DashboardInner() {
 
             {/* 2. Connect bank & reconcile */}
             <div
-              onClick={() => router.push("/workspace?section=reconciliation")}
+              onClick={(e) => {
+                if (isFree) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(
+                      new CustomEvent("vertofi:show-upgrade-modal", {
+                        detail: { feature: "Bank Reconciliation", minPlan: "Starter" },
+                      })
+                    );
+                  }
+                  return;
+                }
+                router.push("/workspace?section=reconciliation");
+              }}
               className="flex items-start justify-between rounded-lg border border-slate-200 bg-white p-3 transition hover:border-slate-400 cursor-pointer"
             >
               <div className="flex items-start gap-3">
@@ -529,7 +571,21 @@ function DashboardInner() {
 
             {/* 3. Connect GST */}
             <div
-              onClick={() => router.push("/workspace?section=gst")}
+              onClick={(e) => {
+                if (isFree) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(
+                      new CustomEvent("vertofi:show-upgrade-modal", {
+                        detail: { feature: "GST Portal & Auto-Filing", minPlan: "Starter" },
+                      })
+                    );
+                  }
+                  return;
+                }
+                router.push("/workspace?section=gst");
+              }}
               className="flex items-start justify-between rounded-lg border-2 border-blue-500 bg-white p-3 transition shadow-sm cursor-pointer"
             >
               <div className="flex items-start gap-3">
