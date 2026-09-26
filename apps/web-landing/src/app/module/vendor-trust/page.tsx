@@ -15,6 +15,7 @@ export default function VendorTrustPage() {
   const [orgId] = useState("demo-business-org");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [scanStep, setScanStep] = useState(0);
   const [report, setReport] = useState<VendorReport | null>(null);
   const [history, setHistory] = useState<any[]>([]);
@@ -45,14 +46,31 @@ export default function VendorTrustPage() {
 
   const handleSearch = async (e?: React.FormEvent, historicalQuery?: string) => {
     e?.preventDefault();
-    const searchQuery = historicalQuery || query;
-    if (!searchQuery) return;
-    
+    const rawQuery = historicalQuery || query;
+    const searchQuery = rawQuery.trim().toUpperCase();
+
+    if (!searchQuery) {
+      setErrorMessage("Please enter a valid GSTIN.");
+      setReport(null);
+      return;
+    }
+
+    const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    if (!gstinRegex.test(searchQuery)) {
+      if (searchQuery.length !== 15) {
+        setErrorMessage("Please enter a GSTIN for verified vendor analysis.");
+      } else {
+        setErrorMessage("Please enter a valid GSTIN.");
+      }
+      setReport(null);
+      return;
+    }
+
+    setErrorMessage(null);
     setLoading(true);
     setReport(null);
     setScanStep(0);
 
-    // Simulate progressive scanning UI
     const interval = setInterval(() => {
       setScanStep(s => {
         if (s >= scanSteps.length - 1) {
@@ -61,7 +79,7 @@ export default function VendorTrustPage() {
         }
         return s + 1;
       });
-    }, 500);
+    }, 350);
 
     try {
       const res = await fetch("/api/v1/vendor-trust/analyze", {
@@ -70,18 +88,19 @@ export default function VendorTrustPage() {
         body: JSON.stringify({ vendorQuery: searchQuery })
       });
       const json = await res.json();
-      if (json.success) {
+      if (json.success && json.report) {
         setReport(json.report);
-        // Save to history
         await fetch(`/api/v1/vendor_trust_reports/${orgId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ query: searchQuery, score: json.report.trustScore, date: new Date().toISOString() })
         });
         fetchHistory();
+      } else {
+        setErrorMessage(json.error || "GSTIN not found or no registration information is available.");
       }
     } catch (err) {
-      console.error(err);
+      setErrorMessage("GST verification service is currently unavailable. Please try again.");
     } finally {
       clearInterval(interval);
       setLoading(false);
@@ -96,33 +115,47 @@ export default function VendorTrustPage() {
   };
 
   const renderDashboard = () => (
-    <div className="space-y-8 animate-in fade-in max-w-4xl mx-auto">
+    <div className="space-y-8 animate-in fade-in max-w-5xl mx-auto">
       <div className="rounded-2xl bg-slate-900 p-8 shadow-2xl text-white relative overflow-hidden">
         <div className="relative z-10">
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
             <ShieldCheck className="h-8 w-8 text-emerald-400" /> Vendor Trust Score
           </h1>
           <p className="text-slate-300 text-sm mb-6 max-w-lg">
-            Business Fraud Prevention & Vendor Reliability Intelligence System. Answer the question: <span className="font-bold text-white">"Should I trust this vendor?"</span>
+            Business Fraud Prevention &amp; Vendor Reliability Intelligence System. Answer the question: <span className="font-bold text-white">&quot;Should I trust this vendor?&quot;</span>
           </p>
           
           <form onSubmit={handleSearch} className="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Check a Vendor</p>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
                 <input 
                   type="text" 
                   value={query}
-                  onChange={e => setQuery(e.target.value)}
+                  onChange={e => {
+                    setQuery(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                   placeholder="Enter Vendor Name or GSTIN (e.g. Should I trust ABC Suppliers?)" 
-                  className="w-full rounded-lg bg-white/10 pl-10 pr-4 py-3 text-white placeholder-slate-400 border border-slate-400/30 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className="w-full rounded-lg bg-white/10 pl-10 pr-4 py-3 text-white placeholder-slate-400 border border-slate-400/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 font-mono text-sm"
                 />
               </div>
-              <button type="submit" disabled={!query || loading} className="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50">
-                Analyze
+              <button 
+                type="submit" 
+                disabled={loading} 
+                className="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-2"
+              >
+                {loading ? "Analyzing..." : "Analyze"}
               </button>
             </div>
+
+            {errorMessage && (
+              <div className="mt-3 p-3 rounded-lg bg-rose-500/20 border border-rose-400/30 text-rose-200 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
           </form>
         </div>
         {/* BG flair */}
@@ -130,23 +163,32 @@ export default function VendorTrustPage() {
       </div>
 
       {loading && (
-        <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
-          <div className="relative h-20 w-20 mb-6">
+        <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm flex flex-col items-center justify-center min-h-[250px]">
+          <div className="relative h-16 w-16 mb-4">
             <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
             <div className="absolute inset-0 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin"></div>
-            <ShieldCheck className="absolute inset-0 m-auto h-8 w-8 text-emerald-500 animate-pulse" />
+            <ShieldCheck className="absolute inset-0 m-auto h-7 w-7 text-emerald-500 animate-pulse" />
           </div>
-          <h3 className="font-bold text-slate-800 text-lg mb-2">Running Due Diligence...</h3>
-          <p className="text-sm font-medium text-emerald-600 h-6">{scanSteps[scanStep]}</p>
+          <h3 className="font-bold text-slate-800 text-base mb-1">Running Due Diligence...</h3>
+          <p className="text-xs font-medium text-emerald-600 h-5">{scanSteps[scanStep]}</p>
         </div>
       )}
+
+      {report && renderReport()}
 
       {!loading && !report && history.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wide">Recently Checked Vendors</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {history.map((h, i) => (
-              <div key={i} onClick={() => handleSearch(undefined, h.query)} className="border border-slate-100 p-4 rounded-lg flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors">
+              <div 
+                key={i} 
+                onClick={() => {
+                  setQuery(h.query);
+                  handleSearch(undefined, h.query);
+                }} 
+                className="border border-slate-100 p-4 rounded-lg flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+              >
                 <div>
                   <p className="font-bold text-slate-800 text-sm truncate max-w-[200px]">{h.query}</p>
                   <p className="text-[10px] text-slate-500">{new Date(h.date).toLocaleDateString()}</p>
