@@ -1063,24 +1063,50 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
   // ── 1c-5. Industry Benchmarks & Peer Percentiles ──
   if (targetPath === "benchmarks/consent" || targetPath.startsWith("benchmarks/consent")) {
     if (method === "GET") {
-      const consent = serverDb.getSetting(`benchmarks_consent:${orgId}`, {
-        optIn: true,
-        consentDate: new Date().toISOString(),
+      const stored = serverDb.getSetting(`benchmarks_consent:${orgId}`, null);
+      const isOptIn = stored ? Boolean(stored.optIn ?? stored.optedIn) : true;
+      const consentDate = stored?.consentDate || stored?.timestamp || new Date().toISOString();
+      const consent = {
+        optIn: isOptIn,
+        optedIn: isOptIn,
+        consentDate,
+        timestamp: consentDate,
         anonymized: true,
         regionSharing: true,
-      });
+      };
       return NextResponse.json({ success: true, consent }, { status: 200 });
     }
     if (method === "POST" || method === "PUT") {
       const body = await getJsonBody(req);
+      const action = body.action || "opt_in";
+      const now = new Date().toISOString();
+      
+      let isOptIn = true;
+      let message = "Successfully updated benchmarking consent preferences.";
+
+      if (action === "opt_out") {
+        isOptIn = false;
+        message = "Successfully opted out of benchmarking data contributions.";
+      } else if (action === "delete") {
+        isOptIn = false;
+        message = "All contributed benchmarking records and anonymized data points have been permanently deleted.";
+      } else {
+        isOptIn = true;
+        message = "Successfully opted in to industry benchmarking contributions.";
+      }
+
       const consent = {
-        optIn: body.action !== "opt_out",
-        consentDate: new Date().toISOString(),
+        optIn: isOptIn,
+        optedIn: isOptIn,
+        consentDate: now,
+        timestamp: now,
         anonymized: true,
-        regionSharing: true,
+        regionSharing: isOptIn,
+        lastAction: action,
       };
+
       serverDb.setSetting(`benchmarks_consent:${orgId}`, consent);
-      return NextResponse.json({ success: true, consent }, { status: 200 });
+      return NextResponse.json({ success: true, consent, message }, { status: 200 });
     }
   }
 

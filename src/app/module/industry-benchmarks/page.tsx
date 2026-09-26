@@ -15,6 +15,8 @@ export default function IndustryBenchmarksPage() {
   const [loading, setLoading] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [sharedToast, setSharedToast] = useState(false);
+  const [consentBusy, setConsentBusy] = useState<"opt_in" | "opt_out" | "delete" | null>(null);
+  const [consentToast, setConsentToast] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const [benchmarkData, setBenchmarkData] = useState<any>(null);
@@ -181,16 +183,24 @@ export default function IndustryBenchmarksPage() {
 
   const handleConsentToggle = async (action: "opt_in" | "opt_out" | "delete") => {
     try {
+      setConsentBusy(action);
       const res = await fetch(`/api/v1/benchmarks/consent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      if (res.ok) {
-        fetchConsent();
+      const json = await res.json();
+      if (res.ok && json.consent) {
+        setConsent(json.consent);
+        setConsentToast(json.message || "Consent settings updated successfully.");
+        setTimeout(() => setConsentToast(null), 4500);
       }
     } catch (err) {
       console.error(err);
+      setConsentToast("Error updating consent. Please try again.");
+      setTimeout(() => setConsentToast(null), 3000);
+    } finally {
+      setConsentBusy(null);
     }
   };
 
@@ -534,11 +544,21 @@ export default function IndustryBenchmarksPage() {
       </div>
     );
 
+    const isOptedIn = Boolean(consent.optIn ?? consent.optedIn);
+    const lastDate = consent.consentDate || consent.timestamp ? new Date(consent.consentDate || consent.timestamp).toLocaleString("en-IN") : new Date().toLocaleString("en-IN");
+
     return (
       <div className="space-y-6 animate-in fade-in max-w-4xl mx-auto">
         <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
           <EyeOff className="h-6 w-6 text-slate-500" /> Benchmark Privacy & Consent
         </h2>
+
+        {consentToast && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 px-5 py-4 rounded-xl flex items-center gap-3 shadow-sm animate-in fade-in">
+            <Check className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span className="text-sm font-bold">{consentToast}</span>
+          </div>
+        )}
         
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
           <div className="flex items-center justify-between mb-8 pb-8 border-b border-slate-100">
@@ -546,8 +566,8 @@ export default function IndustryBenchmarksPage() {
               <h3 className="text-lg font-bold text-slate-800">Data Contribution Status</h3>
               <p className="text-slate-500 text-sm mt-1">Manage whether your anonymized data contributes to the industry benchmarks.</p>
             </div>
-            <span className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider ${consent.optedIn ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-              {consent.optedIn ? 'Opted In' : 'Opted Out'}
+            <span className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider ${isOptedIn ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+              {isOptedIn ? 'Opted In' : 'Opted Out'}
             </span>
           </div>
 
@@ -588,21 +608,39 @@ export default function IndustryBenchmarksPage() {
 
           <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
             <h4 className="font-bold text-slate-800 mb-4">Consent Actions</h4>
-            <div className="flex flex-wrap gap-4">
-              {consent.optedIn ? (
-                <button onClick={() => handleConsentToggle("opt_out")} className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-md font-bold text-sm transition-colors shadow-sm">
+            <div className="flex flex-wrap items-center gap-4">
+              {isOptedIn ? (
+                <button 
+                  type="button"
+                  onClick={() => handleConsentToggle("opt_out")} 
+                  disabled={consentBusy !== null}
+                  className="bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-50 text-slate-700 px-5 py-2.5 rounded-lg font-bold text-sm transition-colors shadow-xs flex items-center gap-2 cursor-pointer"
+                >
+                  {consentBusy === "opt_out" && <Loader2 className="h-4 w-4 animate-spin" />}
                   Opt-Out of Benchmarking
                 </button>
               ) : (
-                <button onClick={() => handleConsentToggle("opt_in")} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md font-bold text-sm transition-colors shadow-sm">
+                <button 
+                  type="button"
+                  onClick={() => handleConsentToggle("opt_in")} 
+                  disabled={consentBusy !== null}
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg font-bold text-sm transition-colors shadow-xs flex items-center gap-2 cursor-pointer"
+                >
+                  {consentBusy === "opt_in" && <Loader2 className="h-4 w-4 animate-spin" />}
                   Opt-In to Benchmarking
                 </button>
               )}
-              <button onClick={() => handleConsentToggle("delete")} className="bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 px-4 py-2 rounded-md font-bold text-sm transition-colors shadow-sm">
+              <button 
+                type="button"
+                onClick={() => handleConsentToggle("delete")} 
+                disabled={consentBusy !== null}
+                className="bg-white border border-rose-200 hover:bg-rose-50 disabled:opacity-50 text-rose-600 px-5 py-2.5 rounded-lg font-bold text-sm transition-colors shadow-xs flex items-center gap-2 cursor-pointer"
+              >
+                {consentBusy === "delete" && <Loader2 className="h-4 w-4 animate-spin" />}
                 Request Data Deletion
               </button>
             </div>
-            <p className="text-[10px] text-slate-400 mt-4 uppercase">Last updated: {new Date(consent.timestamp).toLocaleString()}</p>
+            <p className="text-[11px] text-slate-400 mt-4 uppercase font-mono">Last updated: {lastDate}</p>
           </div>
         </div>
       </div>
