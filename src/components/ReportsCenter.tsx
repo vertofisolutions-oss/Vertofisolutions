@@ -2152,6 +2152,10 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
 }
 
 const REPORT_DOCUMENTS_LIST = [
+  { title: "Profit & Loss", mapTo: "p-and-l", icon: TrendingUp },
+  { title: "Balance Sheet", mapTo: "balance-sheet", icon: Landmark },
+  { title: "Cash Flow", mapTo: "cashflow", icon: Activity },
+  { title: "GST Summary", mapTo: "gst-dashboard", icon: ShieldCheck },
   { title: "Trial Balance", mapTo: "trial-balance", icon: FileSpreadsheet },
   { title: "General Ledger", mapTo: "general-ledger", icon: FileText },
   { title: "Account Statement", mapTo: "account-statement", icon: Receipt },
@@ -2165,21 +2169,6 @@ export function ReportsCenter({ orgId }: { orgId: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Financial & GST Statements Cards */}
-      <div>
-        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Financial &amp; GST statements</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {PRIMARY_REPORTS.map((r) => (
-            <ReportCard
-              key={r.docType}
-              orgId={orgId}
-              def={r}
-              onOpen={() => setModalReportId(r.slug)}
-            />
-          ))}
-        </div>
-      </div>
-
       {/* Report documents — generated from live data */}
       <Card>
         <h3 className="text-[14px] font-semibold text-ink">Report documents</h3>
