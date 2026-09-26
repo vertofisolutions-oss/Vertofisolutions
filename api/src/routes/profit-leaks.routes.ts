@@ -1,1 +1,1 @@
-export const profit-leaksRoutes = {};
+export const profitLeaksRoutes = {};

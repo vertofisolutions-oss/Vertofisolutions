@@ -1,1 +1,1 @@
-export const error-handler = {};
+export const errorHandler = {};

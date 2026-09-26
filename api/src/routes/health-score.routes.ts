@@ -1,1 +1,1 @@
-export const health-scoreRoutes = {};
+export const healthScoreRoutes = {};

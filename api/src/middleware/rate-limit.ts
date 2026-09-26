@@ -1,1 +1,1 @@
-export const rate-limit = {};
+export const rateLimit = {};
