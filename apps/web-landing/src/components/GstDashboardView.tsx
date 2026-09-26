@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Card, Button } from "@/ui";
 import { api, getOrgId } from "@/lib/api";
+import { exportReportPdfInTemplateFormat, getActiveTemplateNumber, type ReportSection } from "@/lib/exportTemplatePdf";
 
 const inr = (n: number) => `₹ ${Number(n || 0).toLocaleString("en-IN")}`;
 
@@ -183,6 +184,105 @@ export function GstDashboardView({ orgId }: { orgId?: string }) {
     });
   }, [sales]);
 
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  const handleExportGstr1Pdf = () => {
+    try {
+      setExportingPdf(true);
+      const curMonth = new Date().toLocaleString("en-IN", { month: "long", year: "numeric" });
+      const taxpayerName = portalStatus?.taxpayerName || "Vertofi Solutions Private Limited";
+      const taxpayerGstin = portalStatus?.gstin || "36DJDPB6546R1ZO";
+
+      const rateRows = (rateBreakdown || []).map((r) => [
+        r.label,
+        `₹ ${r.taxable.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `₹ ${r.cgst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `₹ ${r.sgst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `₹ ${r.igst.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `₹ ${r.totalTax.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      ]);
+
+      const salesRows = (sales || []).map((s) => {
+        const invNo = s.invoice_no || s.invoiceNo || s.id || "INV-001";
+        const invDate = s.invoice_date || s.date || new Date().toISOString().split("T")[0];
+        const custName = s.customer_name || s.customerName || s.client_name || "Walk-in Customer";
+        const custGstin = s.customer_gstin || s.gstin || "URP (Unregistered)";
+        const total = Number(s.total_amount ?? s.total ?? 0);
+        const taxable = Number(s.taxable_amount ?? s.subtotal ?? (total / 1.18));
+        const tax = Number(s.tax_amount ?? s.tax ?? (total - taxable));
+
+        return [
+          invNo,
+          invDate,
+          custName,
+          custGstin,
+          `₹ ${taxable.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `₹ ${tax.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `₹ ${total.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        ];
+      });
+
+      const sections: ReportSection[] = [
+        {
+          kind: "kv",
+          heading: "GSTR-1 Return Overview & Taxpayer Details",
+          rows: [
+            { label: "Legal Name of Taxpayer", value: taxpayerName, bold: true },
+            { label: "GSTIN", value: taxpayerGstin, bold: true },
+            { label: "Return Period", value: curMonth },
+            { label: "Return Type", value: "FORM GSTR-1 (Details of Outward Supplies)" },
+            { label: "Total Taxable Outward Value", value: inr(summary?.taxableSales ?? 0), bold: true },
+            { label: "Total Output Tax Liability", value: inr(summary?.outputGst ?? 0), bold: true },
+            { label: "Total Invoices Filed", value: `${summary?.salesCount ?? sales.length} Invoices` },
+          ],
+        },
+        {
+          kind: "table",
+          heading: "Table 4 & 5: Rate-wise Summary of Outward Supplies",
+          columns: [
+            { label: "Tax Rate Bracket", align: "left" },
+            { label: "Taxable Value", align: "right" },
+            { label: "CGST", align: "right" },
+            { label: "SGST", align: "right" },
+            { label: "IGST", align: "right" },
+            { label: "Total Tax", align: "right" },
+          ],
+          data: rateRows,
+        },
+        {
+          kind: "table",
+          heading: "Table 4A/4B/6B: B2B & B2C Outward Invoices Schedule",
+          columns: [
+            { label: "Invoice No", align: "left" },
+            { label: "Date", align: "left" },
+            { label: "Recipient Customer", align: "left" },
+            { label: "GSTIN/UIN", align: "left" },
+            { label: "Taxable Amt", align: "right" },
+            { label: "Tax Amt", align: "right" },
+            { label: "Invoice Total", align: "right" },
+          ],
+          data: salesRows.length > 0 ? salesRows : [["No outward invoices recorded for this period", "—", "—", "—", "₹ 0.00", "₹ 0.00", "₹ 0.00"]],
+        },
+      ];
+
+      exportReportPdfInTemplateFormat({
+        title: `FORM GSTR-1: Outward Supplies Statement - ${curMonth}`,
+        docType: "GSTR_1_STATEMENT",
+        subtitle: `${taxpayerName} • GSTIN: ${taxpayerGstin}`,
+        period: curMonth,
+        sections,
+        templateNum: getActiveTemplateNumber(),
+      });
+
+      showToast("GSTR-1 PDF statement generated successfully!");
+    } catch (err) {
+      console.error("Error generating GSTR-1 PDF:", err);
+      window.print();
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-6">
       {/* Toast Notification */}
@@ -222,11 +322,12 @@ export function GstDashboardView({ orgId }: { orgId?: string }) {
               {syncing ? "Syncing..." : "Sync Portal"}
             </button>
             <button
-              onClick={() => showToast("GSTR-1 JSON export generated.")}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-500 cursor-pointer shadow-sm"
+              onClick={handleExportGstr1Pdf}
+              disabled={exportingPdf}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-500 cursor-pointer shadow-sm disabled:opacity-50"
             >
-              <Download className="h-3.5 w-3.5" />
-              Export GSTR-1
+              {exportingPdf ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              {exportingPdf ? "Generating PDF..." : "Export GSTR-1"}
             </button>
           </div>
         </div>
