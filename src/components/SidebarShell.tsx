@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useRef, startTransition } from "react";
+import { useEffect, useMemo, useState, useRef, startTransition, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -203,6 +203,14 @@ function readPlan(): Plan {
 const COLLAPSE_KEY = "vertofi.sidebar.collapsed";
 
 export function SidebarShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-bg2">{children}</div>}>
+      <SidebarShellContent>{children}</SidebarShellContent>
+    </Suspense>
+  );
+}
+
+function SidebarShellContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

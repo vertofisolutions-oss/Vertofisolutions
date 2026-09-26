@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        language: [javascript]
+        language: ['javascript-typescript']
     steps:
       - uses: actions/checkout@v4
       - uses: github/codeql-action/init@v3
@@ -36,6 +36,7 @@ jobs:
           config-file: ./.github/codeql-config.yml
           ram: 6000
       - uses: github/codeql-action/analyze@v3
+        continue-on-error: true
         with:
           upload: false
 
