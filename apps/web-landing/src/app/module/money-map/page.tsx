@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { SidebarShell } from "../../../components/SidebarShell";
+import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
 import {
   Activity, ArrowRight, DollarSign, TrendingDown, TrendingUp, AlertTriangle, 
   Settings, Clock, PieChart, Info, Download, Maximize2, X
@@ -81,7 +82,8 @@ export default function MoneyMapPage() {
 
   return (
     <SidebarShell>
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+      <LockedFeatureGate feature="moneymap_live">
+        <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
         
         {/* TOP BAR */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-slate-900 p-6 shadow-lg text-white">
@@ -259,7 +261,8 @@ export default function MoneyMapPage() {
           </div>
         </div>
 
-      </main>
+        </main>
+      </LockedFeatureGate>
 
       {/* SCENARIO BUILDER MODAL */}
       {scenarioOpen && (

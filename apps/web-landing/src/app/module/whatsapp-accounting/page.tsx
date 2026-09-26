@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SidebarShell } from "../../../components/SidebarShell";
+import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
 import { 
   MessageCircle, FileText, Image as ImageIcon, Mic, 
   CheckCircle, AlertTriangle, ShieldCheck, Download, 
@@ -391,24 +392,26 @@ export default function WhatsAppAccountingPage() {
 
   return (
     <SidebarShell>
-      <main className="px-4 py-8 bg-slate-50 min-h-screen">
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 mb-8 w-fit mx-auto bg-white p-1 rounded-xl shadow-sm border border-slate-200">
-          <button onClick={() => setView("inbox")} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'inbox' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
-            <MessageCircle className="h-4 w-4" /> AI Inbox
-          </button>
-          <button onClick={() => { setView("documents"); setActiveDoc(null); }} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'documents' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
-            <FileText className="h-4 w-4" /> Vault & Approvals
-          </button>
-          <button onClick={() => setView("settings")} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'settings' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
-            <Settings className="h-4 w-4" /> Configuration
-          </button>
-        </div>
+      <LockedFeatureGate feature="whatsapp_micro_accounting">
+        <main className="px-4 py-8 bg-slate-50 min-h-screen">
+          {/* Navigation Tabs */}
+          <div className="flex flex-wrap items-center gap-2 mb-8 w-fit mx-auto bg-white p-1 rounded-xl shadow-sm border border-slate-200">
+            <button onClick={() => setView("inbox")} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'inbox' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
+              <MessageCircle className="h-4 w-4" /> AI Inbox
+            </button>
+            <button onClick={() => { setView("documents"); setActiveDoc(null); }} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'documents' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
+              <FileText className="h-4 w-4" /> Vault & Approvals
+            </button>
+            <button onClick={() => setView("settings")} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'settings' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
+              <Settings className="h-4 w-4" /> Configuration
+            </button>
+          </div>
 
-        {view === "inbox" && renderInbox()}
-        {view === "documents" && renderDocuments()}
-        {view === "settings" && renderSettings()}
-      </main>
+          {view === "inbox" && renderInbox()}
+          {view === "documents" && renderDocuments()}
+          {view === "settings" && renderSettings()}
+        </main>
+      </LockedFeatureGate>
     </SidebarShell>
   );
 }

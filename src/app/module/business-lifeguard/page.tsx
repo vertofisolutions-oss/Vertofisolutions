@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SidebarShell } from "../../../components/SidebarShell";
+import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
 import {
   LifeBuoy, AlertTriangle, CheckCircle2, Clock, UploadCloud, ArrowRight,
   ShieldAlert, ShieldCheck, X, FileText, MessageSquare, Plus, Activity
@@ -158,7 +159,8 @@ export default function BusinessLifeguardPage() {
 
   return (
     <SidebarShell>
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <LockedFeatureGate feature="business_lifeguard">
+        <main className="mx-auto max-w-6xl px-4 py-8">
         
         {/* ===================== DASHBOARD VIEW ===================== */}
         {view === "dashboard" && (
@@ -536,7 +538,8 @@ export default function BusinessLifeguardPage() {
           </div>
         )}
 
-      </main>
+        </main>
+      </LockedFeatureGate>
     </SidebarShell>
   );
 }

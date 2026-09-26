@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SidebarShell } from "../../../components/SidebarShell";
+import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
 import { 
   MessageCircle, FileText, Image as ImageIcon, Mic, 
   CheckCircle, AlertTriangle, ShieldCheck, Download, 
@@ -288,30 +289,129 @@ export default function WhatsAppAccountingPage() {
             </div>
           </div>
         </div>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4"><FileText className="h-5 w-5 text-indigo-500" /> WhatsApp-Based Monthly Reports</h3>
+          <p className="text-sm text-slate-500 mb-6">Select which reports to auto-generate and send every month.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+              <span className="text-sm font-medium text-slate-700">Profit & Loss</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+              <span className="text-sm font-medium text-slate-700">Cashflow</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+              <span className="text-sm font-medium text-slate-700">Expense breakdown</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+              <span className="text-sm font-medium text-slate-700">GST summary</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+              <span className="text-sm font-medium text-slate-700">Pending invoices</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+              <span className="text-sm font-medium text-slate-700">ITC claim report</span>
+            </label>
+          </div>
+          <p className="mt-4 text-xs text-slate-400">Reports are sent as Image infographic, PDF, or WhatsApp message summary.</p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4"><CheckCircle className="h-5 w-5 text-emerald-500" /> Approval & Control (Zero Risk)</h3>
+          <p className="text-sm text-slate-500 mb-6">Nothing goes out without consent. Configure approval flows.</p>
+          <div className="space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked disabled className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 opacity-50" />
+              <span className="text-sm font-medium text-slate-700">Owner approval via WhatsApp</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked disabled className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 opacity-50" />
+              <span className="text-sm font-medium text-slate-700">"Approve / Reject" buttons</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked disabled className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 opacity-50" />
+              <span className="text-sm font-medium text-slate-700">Editable preview</span>
+            </label>
+            <div className="bg-emerald-50 p-3 rounded border border-emerald-100 flex items-center gap-3">
+              <ShieldCheck className="h-4 w-4 text-emerald-500" /> <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">GST-compliant invoice format</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 md:col-span-2">
+          <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4"><Settings className="h-5 w-5 text-indigo-500" /> Auto-Trigger Scenarios</h3>
+          <p className="text-sm text-slate-500 mb-6">No Manual Request Needed. AI detects events and takes action.</p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Scenario</p>
+              <p className="font-bold text-slate-700 mb-2">Sales return detected</p>
+              <p className="text-xs font-bold text-indigo-500 uppercase">Action</p>
+              <p className="text-sm font-medium text-slate-600">Credit note created</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Scenario</p>
+              <p className="font-bold text-slate-700 mb-2">Price mismatch</p>
+              <p className="text-xs font-bold text-indigo-500 uppercase">Action</p>
+              <p className="text-sm font-medium text-slate-600">Debit note suggested</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Scenario</p>
+              <p className="font-bold text-slate-700 mb-2">Advance received</p>
+              <p className="text-xs font-bold text-indigo-500 uppercase">Action</p>
+              <p className="text-sm font-medium text-slate-600">Receipt voucher</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Scenario</p>
+              <p className="font-bold text-slate-700 mb-2">Partial payment</p>
+              <p className="text-xs font-bold text-indigo-500 uppercase">Action</p>
+              <p className="text-sm font-medium text-slate-600">Balance reminder</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Scenario</p>
+              <p className="font-bold text-slate-700 mb-2">Overpayment</p>
+              <p className="text-xs font-bold text-indigo-500 uppercase">Action</p>
+              <p className="text-sm font-medium text-slate-600">Credit note</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Scenario</p>
+              <p className="font-bold text-slate-700 mb-2">Discount approved</p>
+              <p className="text-xs font-bold text-indigo-500 uppercase">Action</p>
+              <p className="text-sm font-medium text-slate-600">Credit note</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 
   return (
     <SidebarShell>
-      <main className="px-4 py-8 bg-slate-50 min-h-screen">
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 mb-8 w-fit mx-auto bg-white p-1 rounded-xl shadow-sm border border-slate-200">
-          <button onClick={() => setView("inbox")} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'inbox' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
-            <MessageCircle className="h-4 w-4" /> AI Inbox
-          </button>
-          <button onClick={() => { setView("documents"); setActiveDoc(null); }} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'documents' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
-            <FileText className="h-4 w-4" /> Vault & Approvals
-          </button>
-          <button onClick={() => setView("settings")} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'settings' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
-            <Settings className="h-4 w-4" /> Configuration
-          </button>
-        </div>
+      <LockedFeatureGate feature="whatsapp_micro_accounting">
+        <main className="px-4 py-8 bg-slate-50 min-h-screen">
+          {/* Navigation Tabs */}
+          <div className="flex flex-wrap items-center gap-2 mb-8 w-fit mx-auto bg-white p-1 rounded-xl shadow-sm border border-slate-200">
+            <button onClick={() => setView("inbox")} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'inbox' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
+              <MessageCircle className="h-4 w-4" /> AI Inbox
+            </button>
+            <button onClick={() => { setView("documents"); setActiveDoc(null); }} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'documents' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
+              <FileText className="h-4 w-4" /> Vault & Approvals
+            </button>
+            <button onClick={() => setView("settings")} className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${view === 'settings' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
+              <Settings className="h-4 w-4" /> Configuration
+            </button>
+          </div>
 
-        {view === "inbox" && renderInbox()}
-        {view === "documents" && renderDocuments()}
-        {view === "settings" && renderSettings()}
-      </main>
+          {view === "inbox" && renderInbox()}
+          {view === "documents" && renderDocuments()}
+          {view === "settings" && renderSettings()}
+        </main>
+      </LockedFeatureGate>
     </SidebarShell>
   );
 }

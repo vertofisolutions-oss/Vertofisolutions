@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { SidebarShell } from "../../../components/SidebarShell";
+import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
 import {
   AlertTriangle, ShieldCheck, Activity, Search, AlertCircle, ArrowRight, DollarSign,
   TrendingDown, RefreshCw, UploadCloud, PieChart, LineChart as LineChartIcon
@@ -87,7 +88,8 @@ export default function PredictiveTaxWarningsPage() {
 
   return (
     <SidebarShell>
-      <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
+      <LockedFeatureGate feature="predictive_tax_warning">
+        <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
         
         {/* HEADER */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -345,7 +347,8 @@ export default function PredictiveTaxWarningsPage() {
           </p>
         </div>
 
-      </main>
+        </main>
+      </LockedFeatureGate>
     </SidebarShell>
   );
 }

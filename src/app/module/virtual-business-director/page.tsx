@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SidebarShell } from "../../../components/SidebarShell";
+import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
 import { 
   BrainCircuit, ShieldAlert, LineChart, MessageSquare, 
   CheckCircle, XCircle, Clock, AlertTriangle, ArrowRight,
@@ -427,70 +428,72 @@ export default function VBDPage() {
 
   return (
     <SidebarShell>
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        
-        {/* Role Toggle Header */}
-        <div className="flex justify-end mb-4">
-          <div className="bg-slate-100 p-1 rounded-lg flex items-center border border-slate-200">
-            <button onClick={() => { setRole("client"); setView("dashboard"); }} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${role === 'client' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>Business Owner View</button>
-            <button onClick={() => { setRole("cpa"); setView("dashboard"); }} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${role === 'cpa' ? 'bg-indigo-600 shadow text-white' : 'text-slate-500 hover:text-slate-800'}`}>CPA Review Dashboard</button>
-          </div>
-        </div>
-
-        {/* CPA Review Dashboard */}
-        {role === "cpa" && view === "dashboard" ? (
-          <div className="space-y-6 animate-in fade-in">
-            <div className="rounded-2xl bg-indigo-900 p-6 text-white shadow-lg flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2"><UserCheck className="h-6 w-6" /> CPA Human Oversight Dashboard</h1>
-                <p className="text-indigo-200 text-sm mt-1">Review, validate, and approve AI decisions before they reach the client.</p>
-              </div>
-              <div className="bg-indigo-800 px-4 py-2 rounded-lg text-center">
-                <p className="text-3xl font-black text-emerald-400">{decisions.filter(d => d.analysis?.cpaStatus !== 'CPA Approved').length}</p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Pending</p>
-              </div>
+      <LockedFeatureGate feature="virtual_business_director">
+        <main className="mx-auto max-w-6xl px-4 py-8">
+          
+          {/* Role Toggle Header */}
+          <div className="flex justify-end mb-4">
+            <div className="bg-slate-100 p-1 rounded-lg flex items-center border border-slate-200">
+              <button onClick={() => { setRole("client"); setView("dashboard"); }} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${role === 'client' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>Business Owner View</button>
+              <button onClick={() => { setRole("cpa"); setView("dashboard"); }} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${role === 'cpa' ? 'bg-indigo-600 shadow text-white' : 'text-slate-500 hover:text-slate-800'}`}>CPA Review Dashboard</button>
             </div>
+          </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 text-xs uppercase font-bold">
-                  <tr>
-                    <th className="p-4">Case ID</th>
-                    <th className="p-4">Category</th>
-                    <th className="p-4">AI Decision</th>
-                    <th className="p-4">Risk</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {decisions.length === 0 ? (
-                    <tr><td colSpan={6} className="p-8 text-center text-slate-500">No decisions in queue.</td></tr>
-                  ) : decisions.map((d, i) => (
-                    <tr key={i} className="hover:bg-slate-50">
-                      <td className="p-4 font-bold text-slate-800">{d.id}</td>
-                      <td className="p-4 text-slate-600">{d.category}</td>
-                      <td className="p-4 font-bold">{d.analysis?.decision}</td>
-                      <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${d.analysis?.riskScore > 70 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>{d.analysis?.riskScore}/100</span></td>
-                      <td className="p-4"><span className="text-xs font-semibold text-slate-500">{d.analysis?.cpaStatus}</span></td>
-                      <td className="p-4 text-right">
-                        <button onClick={() => { setActiveDecision(d); setView("result"); }} className="text-indigo-600 hover:text-indigo-800 text-xs font-bold bg-indigo-50 px-3 py-1.5 rounded">Review Case</button>
-                      </td>
+          {/* CPA Review Dashboard */}
+          {role === "cpa" && view === "dashboard" ? (
+            <div className="space-y-6 animate-in fade-in">
+              <div className="rounded-2xl bg-indigo-900 p-6 text-white shadow-lg flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold flex items-center gap-2"><UserCheck className="h-6 w-6" /> CPA Human Oversight Dashboard</h1>
+                  <p className="text-indigo-200 text-sm mt-1">Review, validate, and approve AI decisions before they reach the client.</p>
+                </div>
+                <div className="bg-indigo-800 px-4 py-2 rounded-lg text-center">
+                  <p className="text-3xl font-black text-emerald-400">{decisions.filter(d => d.analysis?.cpaStatus !== 'CPA Approved').length}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Pending</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 text-xs uppercase font-bold">
+                    <tr>
+                      <th className="p-4">Case ID</th>
+                      <th className="p-4">Category</th>
+                      <th className="p-4">AI Decision</th>
+                      <th className="p-4">Risk</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4 text-right">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {decisions.length === 0 ? (
+                      <tr><td colSpan={6} className="p-8 text-center text-slate-500">No decisions in queue.</td></tr>
+                    ) : decisions.map((d, i) => (
+                      <tr key={i} className="hover:bg-slate-50">
+                        <td className="p-4 font-bold text-slate-800">{d.id}</td>
+                        <td className="p-4 text-slate-600">{d.category}</td>
+                        <td className="p-4 font-bold">{d.analysis?.decision}</td>
+                        <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${d.analysis?.riskScore > 70 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>{d.analysis?.riskScore}/100</span></td>
+                        <td className="p-4"><span className="text-xs font-semibold text-slate-500">{d.analysis?.cpaStatus}</span></td>
+                        <td className="p-4 text-right">
+                          <button onClick={() => { setActiveDecision(d); setView("result"); }} className="text-indigo-600 hover:text-indigo-800 text-xs font-bold bg-indigo-50 px-3 py-1.5 rounded">Review Case</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        ) : (
-          <>
-            {view === "dashboard" && renderDashboard()}
-            {view === "wizard" && renderWizard()}
-            {view === "analyzing" && renderAnalyzing()}
-            {view === "result" && renderResult()}
-          </>
-        )}
-      </main>
+          ) : (
+            <>
+              {view === "dashboard" && renderDashboard()}
+              {view === "wizard" && renderWizard()}
+              {view === "analyzing" && renderAnalyzing()}
+              {view === "result" && renderResult()}
+            </>
+          )}
+        </main>
+      </LockedFeatureGate>
     </SidebarShell>
   );
 }

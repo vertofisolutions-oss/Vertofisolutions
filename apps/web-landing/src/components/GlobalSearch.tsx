@@ -83,7 +83,17 @@ export function GlobalSearch({ targets }: { targets: SearchTarget[] }) {
   function go(h: Hit) {
     setOpen(false);
     if (h.kind === "module") {
-      if (h.locked || !h.href) return;
+      if (h.locked) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("vertofi:show-upgrade-modal", {
+              detail: { label: h.label, minPlan: "STARTER", href: h.href },
+            })
+          );
+        }
+        return;
+      }
+      if (!h.href) return;
       router.push(h.href);
     } else if (h.kind === "customer") {
       router.push("/workspace");

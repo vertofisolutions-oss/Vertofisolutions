@@ -13,11 +13,12 @@ import {
   PieChart, Scale, LineChart,
   Building2, CreditCard, User,
   Menu, X, Lock, ChevronLeft, ChevronRight, LogOut,
+  Sparkles, Check, ArrowRight, ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
 import { clearTokens, getAccess } from "@/lib/api";
 import { getCurrentUser, isAuthenticated, logout as authLogout, RegisteredUser } from "@/lib/auth";
-import { subscriptionService, getUserActivePlan, PlanTier } from "@/lib/plans";
+import { subscriptionService, getUserActivePlan, PlanTier, PLANS } from "@/lib/plans";
 import { GlobalSearch, type SearchTarget } from "./GlobalSearch";
 
 /** Plans, ordered weakest → strongest for gating comparisons. */
@@ -402,7 +403,46 @@ function SidebarShellContent({ children }: { children: React.ReactNode }) {
     return true;
   }
 
-  function handleNavClick(e: React.MouseEvent<HTMLAnchorElement>, targetHref: string, parentLabel?: string) {
+  const [upgradeModalFeature, setUpgradeModalFeature] = useState<{
+    label: string;
+    minPlan: Plan;
+    href?: string;
+  } | null>(null);
+  const [modalCycle, setModalCycle] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
+
+  useEffect(() => {
+    const onShowUpgrade = (e: Event) => {
+      const custom = e as CustomEvent<{ label?: string; minPlan?: Plan; href?: string }>;
+      if (custom.detail) {
+        setUpgradeModalFeature({
+          label: custom.detail.label || "Feature",
+          minPlan: custom.detail.minPlan || "STARTER",
+          href: custom.detail.href,
+        });
+      }
+    };
+    window.addEventListener("vertofi:show-upgrade-modal", onShowUpgrade);
+    return () => window.removeEventListener("vertofi:show-upgrade-modal", onShowUpgrade);
+  }, []);
+
+  function handleNavClick(
+    e: React.MouseEvent<HTMLAnchorElement>,
+    targetHref: string,
+    parentLabel?: string,
+    isLocked?: boolean,
+    minPlan?: Plan
+  ) {
+    if (isLocked) {
+      e.preventDefault();
+      e.stopPropagation();
+      setUpgradeModalFeature({
+        label: parentLabel || "Feature",
+        minPlan: minPlan || "STARTER",
+        href: targetHref,
+      });
+      return;
+    }
+
     if (navRef.current) {
       sessionStorage.setItem("vertofi.sidebar.scroll", String(navRef.current.scrollTop));
     }
@@ -465,21 +505,27 @@ function SidebarShellContent({ children }: { children: React.ReactNode }) {
                 <div key={`${section.title}-${item.label}`} className="space-y-0.5">
                   <div className="flex items-center">
                     <Link
-                      href={item.resolvedHref}
-                      prefetch={true}
-                      onMouseEnter={() => router.prefetch(item.resolvedHref!)}
-                      onMouseDown={() => router.prefetch(item.resolvedHref!)}
-                      onTouchStart={() => router.prefetch(item.resolvedHref!)}
+                      href={item.locked ? "#" : item.resolvedHref}
+                      prefetch={!item.locked}
+                      onMouseEnter={() => !item.locked && router.prefetch(item.resolvedHref!)}
+                      onMouseDown={() => !item.locked && router.prefetch(item.resolvedHref!)}
+                      onTouchStart={() => !item.locked && router.prefetch(item.resolvedHref!)}
                       onClick={(e) => {
+                        if (item.locked) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleNavClick(e, item.resolvedHref!, item.label, true, item.min);
+                          return;
+                        }
                         // Always expand when clicking parent, never collapse on nav
                         if (hasSub && !collapsed) {
                           setExpanded((prev) => ({ ...prev, [item.label]: true }));
                         }
-                        handleNavClick(e, item.resolvedHref!, item.label);
+                        handleNavClick(e, item.resolvedHref!, item.label, false, item.min);
                       }}
                       title={collapsed ? item.label : item.label}
                       className={[
-                        "group flex flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition",
+                        "group flex flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition cursor-pointer",
                         collapsed ? "justify-center" : "",
                         active && !hasSub
                           ? "bg-brand text-white font-semibold"
@@ -525,14 +571,22 @@ function SidebarShellContent({ children }: { children: React.ReactNode }) {
                         return (
                           <Link
                             key={sub.label}
-                            href={sub.href}
-                            prefetch={true}
-                            onMouseEnter={() => router.prefetch(sub.href)}
-                            onMouseDown={() => router.prefetch(sub.href)}
-                            onTouchStart={() => router.prefetch(sub.href)}
-                            onClick={(e) => handleNavClick(e, sub.href, item.label)}
+                            href={item.locked ? "#" : sub.href}
+                            prefetch={!item.locked}
+                            onMouseEnter={() => !item.locked && router.prefetch(sub.href)}
+                            onMouseDown={() => !item.locked && router.prefetch(sub.href)}
+                            onTouchStart={() => !item.locked && router.prefetch(sub.href)}
+                            onClick={(e) => {
+                              if (item.locked) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleNavClick(e, sub.href, `${item.label} · ${sub.label}`, true, item.min);
+                                return;
+                              }
+                              handleNavClick(e, sub.href, item.label, false, item.min);
+                            }}
                             className={[
-                              "flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px] font-medium transition",
+                              "flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px] font-medium transition cursor-pointer",
                               subActive
                                 ? "bg-brand text-white font-semibold shadow-sm"
                                 : item.locked
@@ -655,6 +709,213 @@ function SidebarShellContent({ children }: { children: React.ReactNode }) {
       <div className={`${collapsed ? "lg:pl-[68px]" : "lg:pl-60"} transition-[padding] duration-200`}>
         {children}
       </div>
+
+      {/* ── Upgrade Modal for Locked Features ── */}
+      {upgradeModalFeature && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setUpgradeModalFeature(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl space-y-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-amber-100 border border-amber-200 px-3 py-1 text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Lock className="h-3 w-3 text-amber-700" />
+                    Locked on Free Plan
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600">
+                  <span>Feature: <strong className="text-slate-900">{upgradeModalFeature.label}</strong></span>
+                  <span>•</span>
+                  <span>Current Plan: <strong className="text-slate-900">{plan}</strong></span>
+                  <span>•</span>
+                  <span>Required Plan: <strong className="text-blue-600">{upgradeModalFeature.minPlan} and above</strong></span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setUpgradeModalFeature(null)}
+                className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Hero Banner */}
+            <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-blue-50/80 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-slate-900">
+                  Unlock {upgradeModalFeature.label} &amp; Automate Your Business
+                </h4>
+                <p className="text-xs text-slate-600">
+                  This capability is part of the <strong>{upgradeModalFeature.minPlan}</strong> tier. Upgrade now to get instant access, AI automation, GST filings, and full reports.
+                </p>
+              </div>
+              {plan === "FREE" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    subscriptionService.startGrowthTrial();
+                    setUpgradeModalFeature(null);
+                  }}
+                  className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 shrink-0 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Start 14-Day Free Trial
+                </button>
+              )}
+            </div>
+
+            {/* Billing Cycle Switcher */}
+            <div className="flex items-center justify-center">
+              <div className="flex items-center rounded-xl bg-slate-100 p-1 border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setModalCycle("MONTHLY")}
+                  className={`rounded-lg px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
+                    modalCycle === "MONTHLY" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  Monthly Billing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalCycle("YEARLY")}
+                  className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
+                    modalCycle === "YEARLY" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  Annual Billing <span className="rounded bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-700">Save up to 17%</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Plan Selection Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {PLANS.filter((p) => p.id !== "FREE").map((p) => {
+                const isTargetMin = p.id === upgradeModalFeature.minPlan;
+                const isGrowth = p.id === "GROWTH";
+                const displayPrice = modalCycle === "MONTHLY" ? p.priceDisplay : p.annualPriceDisplay;
+                const unit = modalCycle === "MONTHLY" ? "/mo" : "/yr";
+
+                return (
+                  <div
+                    key={p.id}
+                    className={`relative flex flex-col justify-between rounded-2xl border p-5 transition ${
+                      isTargetMin
+                        ? "border-blue-600 bg-blue-50/40 ring-2 ring-blue-500/20 shadow-md"
+                        : isGrowth
+                        ? "border-amber-400 bg-white shadow-sm"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    {isTargetMin && (
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                        Required Plan
+                      </span>
+                    )}
+                    {isGrowth && !isTargetMin && (
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                        ★ Most Popular
+                      </span>
+                    )}
+
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-base font-bold text-slate-900">{p.name}</h3>
+                        <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600">
+                          {p.outcome}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 border-t border-slate-100 pt-3">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-extrabold text-slate-900">{displayPrice}</span>
+                          {p.priceDisplay !== "Custom" && <span className="text-xs font-semibold text-slate-500">{unit}</span>}
+                        </div>
+                        {p.founderPriceDisplay && (
+                          <p className="mt-1 text-[10.5px] font-semibold text-amber-700">
+                            Founder: {p.founderPriceDisplay}/mo
+                          </p>
+                        )}
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          {p.users} · {p.gstins}
+                        </p>
+                      </div>
+
+                      <ul className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-xs text-slate-700">
+                        {p.features.slice(0, 4).map((f, idx) => (
+                          <li key={idx} className="flex items-start gap-1.5">
+                            <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span className="text-[11px] leading-tight">{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="mt-5 space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          subscriptionService.setPlan(p.id, modalCycle);
+                          setUpgradeModalFeature(null);
+                        }}
+                        className={`w-full rounded-xl py-2.5 text-xs font-bold transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5 ${
+                          isTargetMin
+                            ? "bg-blue-600 text-white hover:bg-blue-700"
+                            : "bg-slate-900 text-white hover:bg-slate-800"
+                        }`}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" /> Upgrade to {p.name}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 pt-4 text-xs text-slate-500">
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/pricing"
+                  onClick={() => setUpgradeModalFeature(null)}
+                  className="font-bold text-blue-600 hover:underline flex items-center gap-1 shrink-0"
+                >
+                  View Full Pricing Plans <ArrowRight className="h-3 w-3" />
+                </Link>
+                <span>•</span>
+                <Link
+                  href="/subscribe"
+                  onClick={() => setUpgradeModalFeature(null)}
+                  className="font-semibold text-slate-600 hover:underline"
+                >
+                  Manage Subscription
+                </Link>
+              </div>
+
+              {plan === "FREE" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    subscriptionService.startGrowthTrial();
+                    setUpgradeModalFeature(null);
+                  }}
+                  className="inline-flex items-center gap-1 font-bold text-emerald-600 hover:underline cursor-pointer"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Try 14-Day Growth Trial Free
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

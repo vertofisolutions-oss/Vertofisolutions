@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SidebarShell } from "../../../components/SidebarShell";
+import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
 import { 
   Database, Activity, AlertOctagon, History, ShieldAlert,
   ArrowRight, Search, Calendar, FileText, Download, Target, 
@@ -321,20 +322,22 @@ export default function BlackBoxPage() {
 
   return (
     <SidebarShell>
-      <main className="px-4 py-8">
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 mb-8 bg-slate-100 p-1 rounded-lg w-fit mx-auto border border-slate-200">
-          <button onClick={() => setView("overview")} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'overview' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}><Database className="h-4 w-4" /> Overview</button>
-          <button onClick={() => setView("timeline")} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'timeline' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}><History className="h-4 w-4" /> Live Timeline</button>
-          <button onClick={() => { setView("incidents"); setActiveIncident(null); }} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'incidents' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}><AlertOctagon className="h-4 w-4" /> Incidents</button>
-          <button onClick={() => setView("snapshots")} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'snapshots' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}><Calendar className="h-4 w-4" /> Snapshots</button>
-        </div>
+      <LockedFeatureGate feature="financial_blackbox">
+        <main className="px-4 py-8">
+          {/* Navigation Tabs */}
+          <div className="flex items-center gap-2 mb-8 bg-slate-100 p-1 rounded-lg w-fit mx-auto border border-slate-200">
+            <button onClick={() => setView("overview")} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'overview' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}><Database className="h-4 w-4" /> Overview</button>
+            <button onClick={() => setView("timeline")} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'timeline' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}><History className="h-4 w-4" /> Live Timeline</button>
+            <button onClick={() => { setView("incidents"); setActiveIncident(null); }} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'incidents' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}><AlertOctagon className="h-4 w-4" /> Incidents</button>
+            <button onClick={() => setView("snapshots")} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'snapshots' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}><Calendar className="h-4 w-4" /> Snapshots</button>
+          </div>
 
-        {view === "overview" && renderOverview()}
-        {view === "timeline" && renderTimeline()}
-        {view === "incidents" && renderIncidents()}
-        {view === "snapshots" && renderSnapshots()}
-      </main>
+          {view === "overview" && renderOverview()}
+          {view === "timeline" && renderTimeline()}
+          {view === "incidents" && renderIncidents()}
+          {view === "snapshots" && renderSnapshots()}
+        </main>
+      </LockedFeatureGate>
     </SidebarShell>
   );
 }

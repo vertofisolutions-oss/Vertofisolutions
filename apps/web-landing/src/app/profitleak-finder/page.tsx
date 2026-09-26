@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarShell } from "../../components/SidebarShell";
+import { LockedFeatureGate } from "../../components/LockedFeatureGate";
 import {
   TrendingDown, FileWarning, Search, AlertCircle, AlertTriangle, ShieldCheck, 
   Activity, ArrowRight, DollarSign, Ban, UploadCloud, Download, CheckCircle2,
@@ -92,142 +93,144 @@ export default function ProfitLeakFinderPage() {
 
   return (
     <SidebarShell>
-      <div className="mx-auto w-full max-w-[1600px] p-6 space-y-6">
-        
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-slate-900 to-indigo-900 rounded-3xl p-8 shadow-xl text-white overflow-hidden relative">
-          {/* Abstract background shapes */}
-          <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20 pointer-events-none">
-            <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-indigo-500 blur-3xl"></div>
-            <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-purple-500 blur-3xl"></div>
-          </div>
-
-          <div className="relative z-10">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20">
-                <TrendingDown className="h-8 w-8 text-indigo-300" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-extrabold tracking-tight">Profit Leakage Detector</h1>
-                <p className="text-indigo-200 mt-1 font-medium">AI-Driven Internal Audit & Money-Saving Engine</p>
-              </div>
-            </div>
-          </div>
+      <LockedFeatureGate feature="profitleak_finder">
+        <div className="mx-auto w-full max-w-[1600px] p-6 space-y-6">
           
-          <div className="relative z-10">
-            <button 
-              onClick={runAnalysis}
-              disabled={analyzing}
-              className="group relative flex items-center gap-2 px-6 py-3 bg-white text-indigo-900 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-lg hover:shadow-indigo-500/25 disabled:opacity-70"
-            >
-              <RefreshCw className={`h-5 w-5 ${analyzing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
-              {analyzing ? "AI Auditing Ledger..." : "Run AI Audit Now"}
-              {/* Ping animation when active */}
-              {analyzing && <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
-              </span>}
-            </button>
-          </div>
-        </div>
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-slate-900 to-indigo-900 rounded-3xl p-8 shadow-xl text-white overflow-hidden relative">
+            {/* Abstract background shapes */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20 pointer-events-none">
+              <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-indigo-500 blur-3xl"></div>
+              <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-purple-500 blur-3xl"></div>
+            </div>
 
-        {/* Top KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-rose-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-            <div className="relative z-10 flex justify-between items-start">
-              <div>
-                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Potential Savings</p>
-                <h3 className="text-3xl font-black text-rose-600 mt-2 tracking-tight">₹{metrics.totalLeakage.toLocaleString("en-IN")}</h3>
-                <p className="text-xs text-rose-500 font-medium mt-1">Detected this month</p>
-              </div>
-              <div className="p-3 bg-rose-100 text-rose-600 rounded-xl">
-                <AlertCircle className="h-6 w-6" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20">
+                  <TrendingDown className="h-8 w-8 text-indigo-300" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-extrabold tracking-tight">Profit Leakage Detector</h1>
+                  <p className="text-indigo-200 mt-1 font-medium">AI-Driven Internal Audit &amp; Money-Saving Engine</p>
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-            <div className="relative z-10 flex justify-between items-start">
-              <div>
-                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Actual Money Saved</p>
-                <h3 className="text-3xl font-black text-emerald-600 mt-2 tracking-tight">₹{metrics.actualSavings.toLocaleString("en-IN")}</h3>
-                <p className="text-xs text-emerald-600 font-medium mt-1">Resolved issues</p>
-              </div>
-              <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
-                <ShieldCheck className="h-6 w-6" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-amber-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-            <div className="relative z-10 flex justify-between items-start">
-              <div>
-                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">High Risk Issues</p>
-                <h3 className="text-3xl font-black text-amber-600 mt-2 tracking-tight">{metrics.highRisk}</h3>
-                <p className="text-xs text-amber-600 font-medium mt-1">Require immediate attention</p>
-              </div>
-              <div className="p-3 bg-amber-100 text-amber-600 rounded-xl">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-indigo-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-            <div className="relative z-10 flex justify-between items-start">
-              <div>
-                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Active Leakages</p>
-                <h3 className="text-3xl font-black text-indigo-600 mt-2 tracking-tight">{metrics.activeIssues}</h3>
-                <p className="text-xs text-indigo-600 font-medium mt-1">Total pending items</p>
-              </div>
-              <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
-                <Activity className="h-6 w-6" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Interface Navigation */}
-        <div className="flex space-x-1 bg-slate-100 p-1.5 rounded-2xl w-max overflow-x-auto">
-          {TABS.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                  activeTab === tab.id 
-                    ? "bg-white text-indigo-900 shadow-sm" 
-                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                }`}
+            
+            <div className="relative z-10">
+              <button 
+                onClick={runAnalysis}
+                disabled={analyzing}
+                className="group relative flex items-center gap-2 px-6 py-3 bg-white text-indigo-900 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-lg hover:shadow-indigo-500/25 disabled:opacity-70"
               >
-                <Icon className={`h-4 w-4 ${activeTab === tab.id ? "text-indigo-600" : ""}`} />
-                {tab.label}
+                <RefreshCw className={`h-5 w-5 ${analyzing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+                {analyzing ? "AI Auditing Ledger..." : "Run AI Audit Now"}
+                {/* Ping animation when active */}
+                {analyzing && <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+                </span>}
               </button>
-            )
-          })}
-        </div>
-
-        {/* Tab Contents */}
-        <div className="min-h-[500px]">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-              <p className="font-medium">Loading ledger data...</p>
             </div>
-          ) : (
-            <>
-              {activeTab === "dashboard" && <DashboardTab issues={issues} metrics={metrics} />}
-              {activeTab === "issues" && <ActionCenterTab issues={issues} updateStatus={updateIssueStatus} />}
-              {activeTab === "ingestion" && <DataIngestionTab />}
-              {activeTab === "report" && <MonthlyReportTab issues={issues} metrics={metrics} />}
-            </>
-          )}
+          </div>
+
+          {/* Top KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-rose-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="relative z-10 flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Potential Savings</p>
+                  <h3 className="text-3xl font-black text-rose-600 mt-2 tracking-tight">₹{metrics.totalLeakage.toLocaleString("en-IN")}</h3>
+                  <p className="text-xs text-rose-500 font-medium mt-1">Detected this month</p>
+                </div>
+                <div className="p-3 bg-rose-100 text-rose-600 rounded-xl">
+                  <AlertCircle className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="relative z-10 flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Actual Money Saved</p>
+                  <h3 className="text-3xl font-black text-emerald-600 mt-2 tracking-tight">₹{metrics.actualSavings.toLocaleString("en-IN")}</h3>
+                  <p className="text-xs text-emerald-600 font-medium mt-1">Resolved issues</p>
+                </div>
+                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-amber-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="relative z-10 flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">High Risk Issues</p>
+                  <h3 className="text-3xl font-black text-amber-600 mt-2 tracking-tight">{metrics.highRisk}</h3>
+                  <p className="text-xs text-amber-600 font-medium mt-1">Require immediate attention</p>
+                </div>
+                <div className="p-3 bg-amber-100 text-amber-600 rounded-xl">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-indigo-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="relative z-10 flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Active Leakages</p>
+                  <h3 className="text-3xl font-black text-indigo-600 mt-2 tracking-tight">{metrics.activeIssues}</h3>
+                  <p className="text-xs text-indigo-600 font-medium mt-1">Total pending items</p>
+                </div>
+                <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
+                  <Activity className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Interface Navigation */}
+          <div className="flex space-x-1 bg-slate-100 p-1.5 rounded-2xl w-max overflow-x-auto">
+            {TABS.map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    activeTab === tab.id 
+                      ? "bg-white text-indigo-900 shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 ${activeTab === tab.id ? "text-indigo-600" : ""}`} />
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Tab Contents */}
+          <div className="min-h-[500px]">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+                <p className="font-medium">Loading ledger data...</p>
+              </div>
+            ) : (
+              <>
+                {activeTab === "dashboard" && <DashboardTab issues={issues} metrics={metrics} />}
+                {activeTab === "issues" && <ActionCenterTab issues={issues} updateStatus={updateIssueStatus} />}
+                {activeTab === "ingestion" && <DataIngestionTab />}
+                {activeTab === "report" && <MonthlyReportTab issues={issues} metrics={metrics} />}
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </LockedFeatureGate>
     </SidebarShell>
   );
 }

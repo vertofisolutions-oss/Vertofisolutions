@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SidebarShell } from "../../../components/SidebarShell";
+import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
 import { 
   ShieldCheck, ShieldAlert, AlertTriangle, FileText, CheckCircle, 
   ArrowRight, UploadCloud, Clock, History, FileWarning, 
@@ -360,18 +361,20 @@ export default function WarrantyPlusPage() {
 
   return (
     <SidebarShell>
-      <main className="px-4 py-8">
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-100 p-1 rounded-lg w-fit mx-auto border border-slate-200">
-          <button onClick={() => setView("overview")} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'overview' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>Overview</button>
-          <button onClick={() => { setView("claims"); setActiveClaim(null); }} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'claims' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>Claims Center</button>
-          <button onClick={() => setView("conditions")} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'conditions' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>Conditions & Terms</button>
-        </div>
+      <LockedFeatureGate feature="accounting_warranty">
+        <main className="px-4 py-8">
+          {/* Navigation Tabs */}
+          <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-100 p-1 rounded-lg w-fit mx-auto border border-slate-200">
+            <button onClick={() => setView("overview")} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'overview' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>Overview</button>
+            <button onClick={() => { setView("claims"); setActiveClaim(null); }} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'claims' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>Claims Center</button>
+            <button onClick={() => setView("conditions")} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${view === 'conditions' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>Conditions & Terms</button>
+          </div>
 
-        {view === "overview" && renderOverview()}
-        {view === "claims" && renderClaims()}
-        {view === "conditions" && renderConditions()}
-      </main>
+          {view === "overview" && renderOverview()}
+          {view === "claims" && renderClaims()}
+          {view === "conditions" && renderConditions()}
+        </main>
+      </LockedFeatureGate>
     </SidebarShell>
   );
 }

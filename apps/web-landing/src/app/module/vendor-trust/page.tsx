@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SidebarShell } from "../../../components/SidebarShell";
+import { LockedFeatureGate } from "../../../components/LockedFeatureGate";
 import { 
   ShieldCheck, Search, ShieldAlert, AlertTriangle, AlertOctagon, 
   CheckCircle, ArrowRight, Activity, TrendingUp, TrendingDown,
@@ -305,9 +306,11 @@ export default function VendorTrustPage() {
 
   return (
     <SidebarShell>
-      <main className="px-4 py-8">
-        {!report ? renderDashboard() : renderReport()}
-      </main>
+      <LockedFeatureGate feature="vendor_trust">
+        <main className="px-4 py-8">
+          {!report ? renderDashboard() : renderReport()}
+        </main>
+      </LockedFeatureGate>
     </SidebarShell>
   );
 }
