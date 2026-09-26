@@ -168,6 +168,10 @@ export const serverDb = {
     return deletedCount;
   },
 
+  set(collection: string, orgId: string = "default", data: any[]): void {
+    writeCollection(collection, orgId, Array.isArray(data) ? data : []);
+  },
+
   // Direct Key-Value Storage for Profile & Settings
   getSetting(key: string, defaultVal: any = null): any {
     const settings = readCollection("system_settings", "global");
