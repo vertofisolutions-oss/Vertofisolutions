@@ -470,7 +470,8 @@ export function CreateInvoice({ orgId, onClose, onCreated, inline = false }: { o
     // 5. Save to localStorage (filtering out any previous duplicate)
     try {
       const existingStr = localStorage.getItem("vertofi_local_sales") || "[]";
-      const existing = JSON.parse(existingStr).filter((it: any) =>
+      const parsedExisting = JSON.parse(existingStr);
+      const existing = (Array.isArray(parsedExisting) ? parsedExisting : []).filter((it: any) =>
         String(it.invoice_no ?? it.invoiceNo) !== uniqueInvoiceNo &&
         !(String(it.customer_name ?? it.customerName).toLowerCase().trim() === custName.toLowerCase().trim() && Number(it.total) === grandTotal)
       );

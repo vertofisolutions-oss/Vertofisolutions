@@ -173,7 +173,8 @@ export function PurchasesView({
     try {
       const storedProdsRaw = localStorage.getItem("vertofi_local_products");
       if (storedProdsRaw) {
-        let storedProds: Record<string, unknown>[] = JSON.parse(storedProdsRaw);
+        const parsed = JSON.parse(storedProdsRaw);
+        let storedProds: Record<string, unknown>[] = Array.isArray(parsed) ? parsed : [];
         for (const it of purchaseItems) {
           const itName = String(it.name || "").trim().toLowerCase();
           const itQty = Number(it.qty || 1);
@@ -204,7 +205,8 @@ export function PurchasesView({
     try {
       const storedInvRaw = localStorage.getItem("vertofi_local_inventory");
       if (storedInvRaw) {
-        let storedInv: Record<string, unknown>[] = JSON.parse(storedInvRaw);
+        const parsedInv = JSON.parse(storedInvRaw);
+        let storedInv: Record<string, unknown>[] = Array.isArray(parsedInv) ? parsedInv : [];
         for (const it of purchaseItems) {
           const itName = String(it.name || "").trim().toLowerCase();
           const itQty = Number(it.qty || 1);

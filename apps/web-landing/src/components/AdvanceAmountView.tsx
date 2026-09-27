@@ -32,7 +32,9 @@ export function AdvanceAmountView({
           ? docs.filter((d) => String(d.doc_type || d.type || "").toUpperCase().includes("ADVANCE"))
           : [];
         try {
-          const local = JSON.parse(localStorage.getItem("vertofi_local_advances") || "[]");
+          const localStr = localStorage.getItem("vertofi_local_advances") || "[]";
+          const parsedLocal = JSON.parse(localStr);
+          const local = Array.isArray(parsedLocal) ? parsedLocal : [];
           const localIds = new Set(advList.map((a) => String(a.id || a.reference_id || "")));
           const unmerged = local.filter((l: Record<string, unknown>) => !localIds.has(String(l.id || l.reference_id || "")));
           setRows([...unmerged, ...advList]);

@@ -190,9 +190,10 @@ function WorkspaceInner() {
       try {
         const raw = localStorage.getItem("vertofi_local_sales");
         if (raw) {
-          const parsed: Record<string, unknown>[] = JSON.parse(raw);
-          const cleaned = parsed.filter(
-            (r) => r.id !== "seed-1" && r.id !== "seed-2"
+          const parsed = JSON.parse(raw);
+          const parsedArr = Array.isArray(parsed) ? parsed : [];
+          const cleaned = parsedArr.filter(
+            (r: any) => r.id !== "seed-1" && r.id !== "seed-2"
           );
           localStorage.setItem("vertofi_local_sales", JSON.stringify(cleaned));
         }
@@ -224,7 +225,8 @@ function WorkspaceInner() {
     try {
       const salesRaw = localStorage.getItem("vertofi_local_sales");
       if (salesRaw) {
-        const sales: Record<string, unknown>[] = JSON.parse(salesRaw);
+        const parsedSales = JSON.parse(salesRaw);
+        const sales: Record<string, unknown>[] = Array.isArray(parsedSales) ? parsedSales : [];
         const purchases = sales.filter((s) => String(s.doc_type || s.docType).toUpperCase() === "PURCHASE_BILL" || String(s.invoice_no || s.invoiceNo || "").startsWith("PUR-"));
         const pureSales = sales.filter((s) => String(s.doc_type || s.docType).toUpperCase() !== "PURCHASE_BILL" && !String(s.invoice_no || s.invoiceNo || "").startsWith("PUR-"));
 
@@ -244,7 +246,8 @@ function WorkspaceInner() {
 
     try {
       // Only load what the user actually created — no fallback seed rows
-      const salesData: Record<string, unknown>[] = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+      const salesRaw = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+      const salesData: Record<string, unknown>[] = Array.isArray(salesRaw) ? salesRaw : [];
       setRowsCache({
         sales: dedupeWorkspaceRows(salesData),
         purchases: JSON.parse(localStorage.getItem("vertofi_local_purchases") || "[]"),
@@ -312,7 +315,8 @@ function WorkspaceInner() {
     };
     const handleStorageChange = () => {
       try {
-        const salesData: Record<string, unknown>[] = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+        const salesRaw = JSON.parse(localStorage.getItem("vertofi_local_sales") || "[]");
+        const salesData: Record<string, unknown>[] = Array.isArray(salesRaw) ? salesRaw : [];
         setRowsCache((prev) => ({
           ...prev,
           sales: dedupeWorkspaceRows(salesData),
