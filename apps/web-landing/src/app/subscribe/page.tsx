@@ -3,6 +3,7 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { SidebarShell } from "../../components/SidebarShell";
 import {
   Sparkles,
   Zap,
@@ -410,8 +411,10 @@ function BillingContent() {
 
 export default function SubscribePage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm font-semibold text-slate-500">Loading subscription details...</div>}>
-      <BillingContent />
-    </Suspense>
+    <SidebarShell>
+      <Suspense fallback={<div className="p-8 text-center text-sm font-semibold text-slate-500">Loading subscription details...</div>}>
+        <BillingContent />
+      </Suspense>
+    </SidebarShell>
   );
 }

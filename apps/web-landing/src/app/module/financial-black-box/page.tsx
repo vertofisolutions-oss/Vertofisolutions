@@ -240,7 +240,7 @@ export default function BlackBoxPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {inc.reconstructionTimeline.map((rt:any, i:number) => (
+                {(inc.reconstructionTimeline || []).map((rt:any, i:number) => (
                   <tr key={i} className="hover:bg-slate-50">
                     <td className="p-4 font-mono text-xs text-slate-500">{rt.time}</td>
                     <td className="p-4 font-bold text-slate-800">{rt.event}</td>
@@ -258,20 +258,20 @@ export default function BlackBoxPage() {
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
               <h4 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 pb-2 border-b border-slate-100">Before Incident</h4>
               <div className="space-y-3 font-mono text-sm">
-                <div className="flex justify-between"><span>Bank Balance</span><span className="font-bold">{inc.snapshots.before.bank}</span></div>
-                <div className="flex justify-between"><span>Vendor Outstanding</span><span className="font-bold">{inc.snapshots.before.vendor}</span></div>
-                <div className="flex justify-between"><span>GST Position</span><span className="font-bold">{inc.snapshots.before.gst}</span></div>
-                <div className="flex justify-between"><span>Profit Estimate</span><span className="font-bold">{inc.snapshots.before.profit}</span></div>
+                <div className="flex justify-between"><span>Bank Balance</span><span className="font-bold">{inc.snapshots?.before?.bank || '-'}</span></div>
+                <div className="flex justify-between"><span>Vendor Outstanding</span><span className="font-bold">{inc.snapshots?.before?.vendor || '-'}</span></div>
+                <div className="flex justify-between"><span>GST Position</span><span className="font-bold">{inc.snapshots?.before?.gst || '-'}</span></div>
+                <div className="flex justify-between"><span>Profit Estimate</span><span className="font-bold">{inc.snapshots?.before?.profit || '-'}</span></div>
               </div>
             </div>
             <div className="bg-white border border-rose-200 rounded-xl p-5 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 left-0 bottom-0 w-1 bg-rose-500"></div>
               <h4 className="text-sm font-bold uppercase tracking-wider text-rose-400 mb-4 pb-2 border-b border-rose-50">After Incident</h4>
               <div className="space-y-3 font-mono text-sm">
-                <div className="flex justify-between"><span>Bank Balance</span><span className="font-bold text-rose-600">{inc.snapshots.after.bank}</span></div>
-                <div className="flex justify-between"><span>Vendor Outstanding</span><span className="font-bold text-rose-600">{inc.snapshots.after.vendor}</span></div>
-                <div className="flex justify-between"><span>GST Position</span><span className="font-bold text-rose-600">{inc.snapshots.after.gst}</span></div>
-                <div className="flex justify-between"><span>Profit Estimate</span><span className="font-bold text-rose-600">{inc.snapshots.after.profit}</span></div>
+                <div className="flex justify-between"><span>Bank Balance</span><span className="font-bold text-rose-600">{inc.snapshots?.after?.bank || '-'}</span></div>
+                <div className="flex justify-between"><span>Vendor Outstanding</span><span className="font-bold text-rose-600">{inc.snapshots?.after?.vendor || '-'}</span></div>
+                <div className="flex justify-between"><span>GST Position</span><span className="font-bold text-rose-600">{inc.snapshots?.after?.gst || '-'}</span></div>
+                <div className="flex justify-between"><span>Profit Estimate</span><span className="font-bold text-rose-600">{inc.snapshots?.after?.profit || '-'}</span></div>
               </div>
             </div>
           </div>

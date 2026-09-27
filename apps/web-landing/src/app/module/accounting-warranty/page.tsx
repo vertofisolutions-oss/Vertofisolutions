@@ -1543,10 +1543,11 @@ export default function AccountingWarrantyPage() {
 
   return (
     <SidebarShell>
-      <main className="px-4 py-8 bg-slate-50 min-h-screen">
+      <main className="px-4 py-8 bg-slate-50 min-h-screen print:p-0 print:bg-white">
         <LockedFeatureGate feature="accounting_warranty">
           
           {/* Navigation Tabs */}
+        <div className="print:hidden">
           <div className="flex flex-wrap items-center gap-2 mb-8 w-fit mx-auto bg-white p-1.5 rounded-2xl border border-slate-200 shadow-xs">
             <button
               type="button"
@@ -1590,11 +1591,12 @@ export default function AccountingWarrantyPage() {
           {view === "overview" && renderOverview()}
           {view === "claims" && renderClaims()}
           {view === "conditions" && renderConditions()}
+        </div>
 
           {/* Monthly Penalty-Proof Transparency Report Modal */}
           {showReportModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-              <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in print:static print:bg-transparent print:block print:p-0 print:m-0">
+              <div id="vertofi-printable-report" className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl p-6 space-y-6 max-h-[90vh] overflow-y-auto print:max-h-none print:overflow-visible print:shadow-none print:border-none print:w-full print:p-0 print:m-0">
                 <div className="flex justify-between items-start pb-4 border-b border-slate-100">
                   <div>
                     <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded">
@@ -1610,7 +1612,7 @@ export default function AccountingWarrantyPage() {
                   <button
                     type="button"
                     onClick={() => setShowReportModal(false)}
-                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="text-slate-400 hover:text-slate-600 cursor-pointer print:hidden"
                   >
                     <XCircle className="h-6 w-6" />
                   </button>
@@ -1645,7 +1647,7 @@ export default function AccountingWarrantyPage() {
                           <p className="font-bold text-slate-800">{f.name}</p>
                           <p className="text-[10px] text-slate-400">Due: {f.dueDate} • Filed: {f.filedDate}</p>
                         </div>
-                        <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">
+                        <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px] print:border print:border-emerald-200">
                           {f.status}
                         </span>
                       </div>
@@ -1660,7 +1662,7 @@ export default function AccountingWarrantyPage() {
                   </span>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-2">
+                <div className="flex justify-end gap-3 pt-2 print:hidden">
                   <button
                     type="button"
                     onClick={() => window.print()}

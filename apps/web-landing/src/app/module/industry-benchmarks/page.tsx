@@ -527,9 +527,10 @@ export default function IndustryBenchmarksPage() {
                   Drill down into individual expense lines (Rent, Payroll, Marketing) to view distributions and identify specific outliers.
                 </p>
               </div>
-              <button className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-lg font-bold transition-colors">
+              <label className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-lg font-bold transition-colors cursor-pointer inline-block text-center">
+                <input type="file" className="hidden" multiple />
                 Open Explorer
-              </button>
+              </label>
             </div>
           </div>
         </div>

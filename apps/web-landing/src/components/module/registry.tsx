@@ -942,9 +942,44 @@ function HealthScore() {
   );
 }
 
+const mockMoneyMapData = {
+  currentBalance: 8540000,
+  netCashFlow: 1250000,
+  runwayDays: 240,
+  outflows: { COGS: 3200000, OpEx: 1800000 },
+  inflows: { Revenue: 6250000, Financing: 0 },
+  cashFlowTrend: [
+    { month: "May", balance: 6500000, inflow: 5200000, outflow: 4800000 },
+    { month: "Jun", balance: 7100000, inflow: 5800000, outflow: 5200000 },
+    { month: "Jul", balance: 7600000, inflow: 5400000, outflow: 4900000 },
+    { month: "Aug", balance: 8200000, inflow: 6100000, outflow: 5500000 },
+    { month: "Sep", balance: 8540000, inflow: 6250000, outflow: 5000000 }
+  ],
+  receivables: [
+    { customer: "TechCorp Inc.", amount: 850000, dueDate: "2026-10-05", status: "Due Soon" },
+    { customer: "Global Solutions", amount: 420000, dueDate: "2026-09-30", status: "Overdue" },
+    { customer: "Innovate LLC", amount: 1200000, dueDate: "2026-10-15", status: "Pending" }
+  ],
+  payables: [
+    { vendor: "Cloud Services AWS", amount: 350000, dueDate: "2026-10-01", status: "Due Soon" },
+    { vendor: "Office Lease", amount: 250000, dueDate: "2026-10-05", status: "Pending" },
+    { vendor: "Consulting Partners", amount: 180000, dueDate: "2026-09-28", status: "Overdue" }
+  ],
+  profitZones: [
+    { name: "Enterprise SaaS Tier", margin: 82, velocity: "High", contribution: 2100000 },
+    { name: "Annual API Subscriptions", margin: 76, velocity: "Med", contribution: 1450000 },
+    { name: "Professional Services", margin: 45, velocity: "Low", contribution: 850000 }
+  ],
+  topDrains: [
+    { name: "AWS East-1 Hosting", category: "Infrastructure", amount: 820000 },
+    { name: "Meta Performance Ads", category: "Marketing", amount: 640000 },
+    { name: "WeWork Global", category: "Facilities", amount: 450000 }
+  ]
+};
+
 function MoneyMap() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(mockMoneyMapData);
+  const [loading, setLoading] = useState(false);
   const orgId = typeof window !== "undefined" ? (getOrgId() || "demo-business-org") : "demo-business-org";
 
   const [scenarioOpen, setScenarioOpen] = useState(false);
@@ -956,8 +991,7 @@ function MoneyMap() {
     fetch(`/api/v1/money-map/data?orgId=${orgId}`)
       .then(res => res.json())
       .then(json => setData(json.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .catch(console.error);
   }, [orgId]);
 
   const runScenario = () => {
@@ -1743,11 +1777,57 @@ function Insights() {
   const w = ((tax.data as Record<string, unknown>)?.warnings as unknown[]) ?? [];
   const l = ((leaks.data as Record<string, unknown>)?.leaks as unknown[]) ?? [];
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="grid grid-cols-2 gap-4">
         <Stat label="Tax warnings" value={String(w.length)} tone={w.length ? "danger" : "ok"} />
         <Stat label="Profit leaks" value={String(l.length)} tone={l.length ? "danger" : "ok"} />
       </div>
+
+      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 to-blue-50/50 p-6 shadow-sm">
+        <div className="flex items-center gap-2.5 mb-5">
+          <Sparkles className="h-5 w-5 text-indigo-600" />
+          <h2 className="text-lg font-bold text-slate-800 tracking-tight">AI Financial Insights</h2>
+        </div>
+        
+        <div className="space-y-3">
+          <div className="flex gap-4 p-4 bg-white rounded-xl shadow-xs border border-indigo-50 transition-all hover:shadow-md hover:border-indigo-100">
+            <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-emerald-100 text-emerald-600">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-[13px] font-bold text-slate-900">Cashflow Optimization</h4>
+              <p className="text-[12px] text-slate-600 mt-1 leading-relaxed">
+                By renegotiating software subscriptions based on your usage, you could save approximately <strong>₹12,500 monthly</strong>. Vendor contracts for "TechServices Inc" are up for renewal next week.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4 p-4 bg-white rounded-xl shadow-xs border border-indigo-50 transition-all hover:shadow-md hover:border-indigo-100">
+            <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-amber-100 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-[13px] font-bold text-slate-900">Unclaimed ITC Risk</h4>
+              <p className="text-[12px] text-slate-600 mt-1 leading-relaxed">
+                We detected 3 invoices from missing vendors in your GSTR-2B. Reconcile immediately before the 15th to claim <strong>₹42,000</strong> in Input Tax Credit.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4 p-4 bg-white rounded-xl shadow-xs border border-indigo-50 transition-all hover:shadow-md hover:border-indigo-100">
+            <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 text-blue-600">
+              <Activity className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-[13px] font-bold text-slate-900">Working Capital Pattern</h4>
+              <p className="text-[12px] text-slate-600 mt-1 leading-relaxed">
+                Your average collection period has increased from 28 days to 34 days over the last quarter. Consider offering a 1% early-payment discount to top 5 customers to restore liquidity.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <Hint text="Drill into Tax Warnings and ProfitLeak Finder for full detail. The Virtual Business Director can simulate fixes." />
     </div>
   );

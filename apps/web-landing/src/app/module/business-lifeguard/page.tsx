@@ -295,11 +295,12 @@ export default function BusinessLifeguardPage() {
                   <h2 className="text-2xl font-bold text-slate-800 mb-2">Secure Document Vault Upload</h2>
                   <p className="text-sm text-slate-500 mb-6">Upload any relevant notices, invoices, or evidence. Our AI will extract key data.</p>
                   
-                  <div className="border-2 border-dashed border-slate-300 rounded-xl p-12 text-center hover:bg-slate-50 transition-colors cursor-pointer">
+                  <label className="block border-2 border-dashed border-slate-300 rounded-xl p-12 text-center hover:bg-slate-50 transition-colors cursor-pointer">
+                    <input type="file" className="hidden" multiple accept=".pdf,.jpg,.jpeg,.png" />
                     <UploadCloud className="mx-auto h-12 w-12 text-slate-400 mb-4" />
                     <p className="font-semibold text-slate-700">Click to upload or drag and drop</p>
                     <p className="text-xs text-slate-500 mt-1">PDF, JPG, PNG (Max 10MB)</p>
-                  </div>
+                  </label>
 
                   <div className="mt-8 flex justify-end gap-3">
                     <button onClick={() => setWizardStep(2)} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Back</button>

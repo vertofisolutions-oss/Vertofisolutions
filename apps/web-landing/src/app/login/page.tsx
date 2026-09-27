@@ -123,7 +123,7 @@ function LoginInner() {
                 if (error) setError(null);
               }}
               placeholder="you@company.com or 9876543210"
-              autoComplete="username"
+              autoComplete="off"
               disabled={busy}
             />
           </Field>
@@ -135,7 +135,7 @@ function LoginInner() {
               if (error) setError(null);
             }}
             placeholder="••••••••"
-            autoComplete="current-password"
+            autoComplete="new-password"
             disabled={busy}
           />
         </div>

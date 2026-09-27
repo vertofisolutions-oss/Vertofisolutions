@@ -15,7 +15,7 @@ export const BUSINESS_URL = cleanUrl(process.env.NEXT_PUBLIC_BUSINESS_URL, "");
 
 export const links = {
   getStarted: "/register",
-  login: "/login",
+  login: "/login?logout=1",
   checkBhs: "/bhs",
   bookDemo: "/contact",
 };

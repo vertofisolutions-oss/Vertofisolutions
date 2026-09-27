@@ -8,9 +8,44 @@ import {
   Settings, Clock, PieChart, Info, Download, Maximize2, X
 } from "lucide-react";
 
+const mockMoneyMapData = {
+  currentBalance: 8540000,
+  netCashFlow: 1250000,
+  runwayDays: 240,
+  outflows: { COGS: 3200000, OpEx: 1800000 },
+  inflows: { Revenue: 6250000, Financing: 0 },
+  cashFlowTrend: [
+    { month: "May", balance: 6500000, inflow: 5200000, outflow: 4800000 },
+    { month: "Jun", balance: 7100000, inflow: 5800000, outflow: 5200000 },
+    { month: "Jul", balance: 7600000, inflow: 5400000, outflow: 4900000 },
+    { month: "Aug", balance: 8200000, inflow: 6100000, outflow: 5500000 },
+    { month: "Sep", balance: 8540000, inflow: 6250000, outflow: 5000000 }
+  ],
+  receivables: [
+    { customer: "TechCorp Inc.", amount: 850000, dueDate: "2026-10-05", status: "Due Soon" },
+    { customer: "Global Solutions", amount: 420000, dueDate: "2026-09-30", status: "Overdue" },
+    { customer: "Innovate LLC", amount: 1200000, dueDate: "2026-10-15", status: "Pending" }
+  ],
+  payables: [
+    { vendor: "Cloud Services AWS", amount: 350000, dueDate: "2026-10-01", status: "Due Soon" },
+    { vendor: "Office Lease", amount: 250000, dueDate: "2026-10-05", status: "Pending" },
+    { vendor: "Consulting Partners", amount: 180000, dueDate: "2026-09-28", status: "Overdue" }
+  ],
+  profitZones: [
+    { name: "Enterprise SaaS Tier", margin: 82, velocity: "High", contribution: 2100000 },
+    { name: "Annual API Subscriptions", margin: 76, velocity: "Med", contribution: 1450000 },
+    { name: "Professional Services", margin: 45, velocity: "Low", contribution: 850000 }
+  ],
+  topDrains: [
+    { name: "AWS East-1 Hosting", category: "Infrastructure", amount: 820000 },
+    { name: "Meta Performance Ads", category: "Marketing", amount: 640000 },
+    { name: "WeWork Global", category: "Facilities", amount: 450000 }
+  ]
+};
+
 export default function MoneyMapPage() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(mockMoneyMapData);
+  const [loading, setLoading] = useState(false);
   const [orgId, setOrgId] = useState("demo-business-org");
 
   // Scenario Builder State
@@ -25,7 +60,6 @@ export default function MoneyMapPage() {
 
   const fetchMoneyMapData = async () => {
     try {
-      setLoading(true);
       const res = await fetch(`/api/v1/money-map/data?orgId=${orgId}`);
       if (res.ok) {
         const json = await res.json();
@@ -33,8 +67,6 @@ export default function MoneyMapPage() {
       }
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 

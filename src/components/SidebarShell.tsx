@@ -631,7 +631,7 @@ function SidebarShellContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-bg2">
       {/* ── Mobile top bar ── */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-white/90 px-4 py-3 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-white/90 px-4 py-3 backdrop-blur lg:hidden print:hidden">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Image src="/logo.jpg" alt="Vertofi" width={26} height={26} className="rounded-lg object-contain" />
           <span className="text-[15px] font-bold tracking-tight text-ink">Vertofi</span>
@@ -647,7 +647,7 @@ function SidebarShellContent({ children }: { children: React.ReactNode }) {
 
       {/* ── Desktop sidebar ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-border bg-white lg:flex ${collapsed ? "w-[68px]" : "w-60"} transition-[width] duration-200`}
+        className={`fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-border bg-white lg:flex ${collapsed ? "w-[68px]" : "w-60"} transition-[width] duration-200 print:hidden`}
       >
         <div className={`flex items-center gap-2 border-b border-border px-4 py-4 ${collapsed ? "justify-center px-2" : ""}`}>
           <Image src="/logo.jpg" alt="Vertofi" width={28} height={28} className="rounded-lg object-contain" />
@@ -721,7 +721,7 @@ function SidebarShellContent({ children }: { children: React.ReactNode }) {
       )}
 
       {/* ── Content ── */}
-      <div className={`${collapsed ? "lg:pl-[68px]" : "lg:pl-60"} transition-[padding] duration-200`}>
+      <div className={`${collapsed ? "lg:pl-[68px]" : "lg:pl-60"} transition-[padding] duration-200 print:pl-0 print:m-0 print:p-0`}>
         {children}
       </div>
 

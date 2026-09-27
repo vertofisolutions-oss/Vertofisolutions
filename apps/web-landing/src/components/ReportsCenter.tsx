@@ -2152,10 +2152,6 @@ export function ReportViewerModal({ orgId, reportId, onClose }: { orgId: string;
 }
 
 const REPORT_DOCUMENTS_LIST = [
-  { title: "Profit & Loss", mapTo: "p-and-l", icon: TrendingUp },
-  { title: "Balance Sheet", mapTo: "balance-sheet", icon: Landmark },
-  { title: "Cash Flow", mapTo: "cashflow", icon: Activity },
-  { title: "GST Summary", mapTo: "gst-dashboard", icon: ShieldCheck },
   { title: "Trial Balance", mapTo: "trial-balance", icon: FileSpreadsheet },
   { title: "General Ledger", mapTo: "general-ledger", icon: FileText },
   { title: "Account Statement", mapTo: "account-statement", icon: Receipt },

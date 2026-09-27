@@ -2182,6 +2182,97 @@ async function handleRequest(req: NextRequest, context: { params: Promise<{ path
     }
   }
 
+  // ── WhatsApp Accounting API ──
+  if (targetPath === "whatsapp-accounting/inbox") {
+    return NextResponse.json({
+      success: true,
+      messages: [
+        {
+          id: "wa-1",
+          timestamp: "Today, 10:42 AM",
+          status: "Processed",
+          type: "Text Message",
+          client: "+91 98765 43210 (Ramesh Traders)",
+          rawInput: "Create invoice for Ramesh Traders – ₹25,000 + GST – LED bulbs",
+          transcription: null,
+          aiExtraction: {
+            vendorName: "Ramesh Traders",
+            amount: "₹25,000",
+            category: "Sales",
+            gstBreakdown: "18% applied",
+            paymentMode: "Pending"
+          },
+          ledgerUpdates: ["Sales Ledger", "GST Output"],
+          alerts: []
+        },
+        {
+          id: "wa-2",
+          timestamp: "Yesterday, 4:15 PM",
+          status: "Processed",
+          type: "Voice Note",
+          client: "+91 91234 56789 (Acme Corp)",
+          rawInput: "Audio Message (0:12)",
+          transcription: "Paid ₹4,000 for diesel today.",
+          aiExtraction: {
+            vendorName: "Unknown Petrol Pump",
+            amount: "₹4,000",
+            category: "Fuel",
+            gstBreakdown: "N/A",
+            paymentMode: "Cash"
+          },
+          ledgerUpdates: ["Expense Ledger", "Cash Book"],
+          alerts: []
+        },
+        {
+          id: "wa-3",
+          timestamp: "Yesterday, 2:30 PM",
+          status: "Pending Approval",
+          type: "Photo",
+          client: "+91 99887 76655 (Sharma Logistics)",
+          rawInput: "Image (invoice_03.jpg)",
+          transcription: null,
+          aiExtraction: {
+            vendorName: "Sharma Logistics",
+            amount: "₹3,000",
+            category: "Transport",
+            gstBreakdown: "Mismatch",
+            paymentMode: "Pending"
+          },
+          ledgerUpdates: [],
+          alerts: [{ message: "Price mismatch detected. Debit note suggested." }]
+        }
+      ]
+    }, { status: 200 });
+  }
+
+  if (targetPath === "whatsapp-accounting/documents") {
+    return NextResponse.json({
+      success: true,
+      documents: [
+        {
+          id: "VTF-089",
+          type: "Sales Invoice",
+          client: "Ramesh Traders",
+          amount: "₹29,500.00",
+          date: new Date().toLocaleDateString("en-IN"),
+          status: "Approved",
+          trigger: "Create invoice for Ramesh Traders – ₹25,000 + GST – LED bulbs",
+          documentPreview: "GST Invoice (PDF)"
+        },
+        {
+          id: "CN-021",
+          type: "Credit Note",
+          client: "Acme Corp",
+          amount: "₹3,000.00",
+          date: new Date(Date.now() - 86400000).toLocaleDateString("en-IN"),
+          status: "Pending Approval",
+          trigger: "Return invoice #VTF-021 – ₹3,000 damaged goods",
+          documentPreview: "Credit Note (PDF)"
+        }
+      ]
+    }, { status: 200 });
+  }
+
   // ── 12. Fallback Response (Clean & fast 200) ──
   return NextResponse.json(
     { success: true, path: targetPath, timestamp: new Date().toISOString() },
