@@ -9,8 +9,8 @@ const repoRoot = path.resolve(__dirname, "..");
 const webLandingNext = path.join(repoRoot, "apps", "web-landing", ".next");
 const rootNext = path.join(repoRoot, ".next");
 const nestedWebLandingNext = path.join(repoRoot, "apps", "web-landing", "apps", "web-landing", ".next");
-const apiWebLandingNext = path.join(repoRoot, "api", "apps", "web-landing", ".next");
-const apiNext = path.join(repoRoot, "api", ".next");
+const apiWebLandingNext = path.join(repoRoot, "backend", "apps", "web-landing", ".next");
+const apiNext = path.join(repoRoot, "backend", ".next");
 
 console.log("[post-build] Syncing Next.js build artifacts across all target paths...");
 console.log("[post-build] repoRoot:", repoRoot);
@@ -76,7 +76,7 @@ try {
   const swcSrc = path.join(rootNodeModules, "@swc");
   if (fs.existsSync(swcSrc)) {
     const targetDirs = [
-      path.join(repoRoot, "api", "node_modules", "@swc"),
+      path.join(repoRoot, "backend", "node_modules", "@swc"),
       path.join(repoRoot, "apps", "web-landing", "node_modules", "@swc")
     ];
     for (const target of targetDirs) {
