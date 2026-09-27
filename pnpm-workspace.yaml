@@ -3,7 +3,7 @@ packages:
   - "packages/*"
   - "services/*"
   - "standalone-panels/*"
-  - "api"
+  - "backend"
   - "."
 
 allowBuilds:

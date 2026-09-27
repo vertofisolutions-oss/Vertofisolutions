@@ -9,14 +9,14 @@ const repoRoot = path.resolve(__dirname, "..");
 console.log("[build-from-api] Starting unified build from:", repoRoot);
 
 const rootNodeModules = path.join(repoRoot, "node_modules");
-const apiNodeModules = path.join(repoRoot, "api", "node_modules");
+const apiNodeModules = path.join(repoRoot, "backend", "node_modules");
 
-// 1. Link or ensure node_modules inside api/
+// 1. Link or ensure node_modules inside backend/
 try {
   if (!fs.existsSync(apiNodeModules)) {
     try {
       fs.symlinkSync(rootNodeModules, apiNodeModules, "junction");
-      console.log("[build-from-api] Linked node_modules -> api/node_modules");
+      console.log("[build-from-api] Linked node_modules -> backend/node_modules");
     } catch (symErr) {
       console.warn("[build-from-api] Symlink failed, will copy @swc:", symErr.message);
     }
@@ -53,7 +53,7 @@ try {
   console.error("[build-from-api] Error in post-build sync:", e.message);
 }
 
-// 4. Ensure real physical dereferenced @swc exists in api/node_modules
+// 4. Ensure real physical dereferenced @swc exists in backend/node_modules
 try {
   const swcSrc = path.join(rootNodeModules, "@swc");
   const swcDest = path.join(apiNodeModules, "@swc");
@@ -61,7 +61,7 @@ try {
   if (fs.existsSync(swcSrc) && !fs.existsSync(checkFile)) {
     fs.mkdirSync(swcDest, { recursive: true });
     fs.cpSync(swcSrc, swcDest, { recursive: true, dereference: true, force: true });
-    console.log("[build-from-api] Copied dereferenced @swc into api/node_modules/@swc");
+    console.log("[build-from-api] Copied dereferenced @swc into backend/node_modules/@swc");
   }
 } catch (err) {
   console.warn("[build-from-api] Warning copying @swc:", err.message);
