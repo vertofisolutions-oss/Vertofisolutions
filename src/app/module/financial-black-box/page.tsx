@@ -101,7 +101,7 @@ export default function BlackBoxPage() {
             <button onClick={() => setView("timeline")} className="text-xs text-indigo-600 font-bold hover:underline">View All</button>
           </div>
           <div className="p-4 flex-1 space-y-4">
-            {events.filter(e => e.severity === 'Critical' || e.severity === 'High').map((e, i) => (
+            {(Array.isArray(events) ? events : []).filter(e => e.severity === 'Critical' || e.severity === 'High').map((e, i) => (
               <div key={i} className="flex gap-3 items-start">
                 <div className="mt-1 h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></div>
                 <div>
@@ -150,7 +150,7 @@ export default function BlackBoxPage() {
       </div>
 
       <div className="relative pl-6 border-l-2 border-slate-200 space-y-6">
-        {loading ? <p className="text-slate-500 p-4">Loading audit trail...</p> : events.map((ev, i) => (
+        {loading ? <p className="text-slate-500 p-4">Loading audit trail...</p> : (Array.isArray(events) ? events : []).map((ev, i) => (
           <div key={i} className="relative bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
             {/* Timeline dot */}
             <div className={`absolute -left-[31px] top-5 h-4 w-4 rounded-full border-4 border-white ${ev.severity === 'Critical' ? 'bg-rose-500' : ev.severity === 'High' ? 'bg-amber-500' : 'bg-indigo-500'}`}></div>
@@ -287,7 +287,7 @@ export default function BlackBoxPage() {
         </div>
         
         <div className="grid grid-cols-1 gap-4">
-          {incidents.length === 0 ? <p className="text-slate-500">No active incidents.</p> : incidents.map((inc, i) => (
+          {(incidents?.length || 0) === 0 ? <p className="text-slate-500">No active incidents.</p> : (Array.isArray(incidents) ? incidents : []).map((inc, i) => (
             <div key={i} onClick={() => setActiveIncident(inc)} className="bg-white border border-rose-200 hover:border-rose-400 rounded-xl p-5 shadow-sm cursor-pointer transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-2">
