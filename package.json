@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.5.2",
   "scripts": {
     "dev": "pnpm --filter @vertofi/web-landing dev",
-    "build": "next build && node scripts/post-build.mjs",
+    "build": "pnpm --filter @vertofi/web-landing build",
     "start": "pnpm --filter @vertofi/web-landing start",
     "postinstall": "prisma generate",
     "typecheck": "pnpm --filter @vertofi/web-landing typecheck",
