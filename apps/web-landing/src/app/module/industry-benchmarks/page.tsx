@@ -117,7 +117,7 @@ export default function IndustryBenchmarksPage() {
         let nearbyLabel = "Nearby Location";
         try {
           const geoRes = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=en`,
             { headers: { "User-Agent": "Vertofi-Platform/1.0" } }
           );
           if (geoRes.ok) {
