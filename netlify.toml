@@ -1,6 +1,8 @@
 [build]
+  base = "apps/web-landing"
   command = "pnpm run build"
-  publish = "apps/web-landing/.next"
+  publish = ".next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
