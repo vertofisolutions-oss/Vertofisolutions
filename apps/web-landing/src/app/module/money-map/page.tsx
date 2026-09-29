@@ -96,6 +96,26 @@ export default function MoneyMapPage() {
     });
   };
 
+  const exportToPDF = async () => {
+    const element = document.getElementById("money-map-export-area");
+    if (!element) return;
+    
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      const opt = {
+        margin: 10,
+        filename: 'MoneyMap_Report.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      };
+      
+      html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error("Failed to export PDF", err);
+    }
+  };
+
   if (loading || !data) {
     return (
       <SidebarShell>
@@ -115,7 +135,7 @@ export default function MoneyMapPage() {
   return (
     <SidebarShell>
       <LockedFeatureGate feature="moneymap_live">
-        <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+        <main id="money-map-export-area" className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
         
         {/* TOP BAR */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-slate-900 p-6 shadow-lg text-white">
@@ -132,14 +152,17 @@ export default function MoneyMapPage() {
             </div>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex gap-3" data-html2canvas-ignore="true">
             <button 
               onClick={() => { setScenarioOpen(true); setScenarioResult(null); }}
               className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-700 transition-colors"
             >
               Run Scenario
             </button>
-            <button className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500 transition-colors">
+            <button 
+              onClick={exportToPDF}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500 transition-colors"
+            >
               Export PDF
             </button>
           </div>
